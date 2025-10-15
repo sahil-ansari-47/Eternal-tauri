@@ -1,0 +1,30 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-minimize",
+    "core:window:allow-maximize",
+    "core:window:allow-unmaximize",
+    "core:window:allow-close",
+    "core:window:allow-is-maximized",
+    "core:window:allow-start-dragging",
+    "core:window:allow-start-resize-dragging",
+    "opener:default",
+    "fs:allow-desktop-read-recursive",
+    "fs:allow-desktop-write-recursive",
+    "fs:allow-watch",
+    "fs:allow-unwatch",
+    "dialog:allow-open",
+    "pty:allow-exitstatus",
+    "pty:allow-kill",
+    "pty:allow-read",
+    "pty:allow-resize",
+    "pty:allow-spawn",
+    "pty:allow-write"
+  ]
+}
