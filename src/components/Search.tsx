@@ -12,8 +12,8 @@ import {
   ReplaceAll,
   ScanSearch,
 } from "lucide-react";
-import { readFile } from "@tauri-apps/plugin-fs";
-
+import { readTextFile } from "@tauri-apps/plugin-fs";
+import { invoke } from "@tauri-apps/api/core";
 export default function SearchPanel() {
   const { workspace, openFiles, setOpenFiles, setActivePath, query, setQuery } =
     useEditor();
@@ -23,30 +23,38 @@ export default function SearchPanel() {
     {}
   );
 
-  // search options
   const [matchCase, setMatchCase] = useState(false);
   const [matchWhole, setMatchWhole] = useState(false);
   const [useRegex, setUseRegex] = useState(false);
 
-  // search automatically on query change
   useEffect(() => {
     if (!query || !workspace) {
       setResults([]);
       return;
     }
-    window.electronAPI
-      .searchInWorkspace(workspace, query, {
-        matchCase,
-        wholeWord: matchWhole,
-        regex: useRegex,
+
+    const handler = setTimeout(() => {
+      console.log("Searching for:", query);
+
+      invoke<SearchResult[]>("search_in_workspace", {
+        workspace,
+        query,
+        options: {
+          match_case: matchCase,
+          whole_word: matchWhole,
+          regex: useRegex,
+        },
       })
-      .then((res: SearchResult[]) => {
-        setResults(res);
-        console.log(res);
-        setExpandedFiles(
-          Object.fromEntries(res.map((r: any) => [r.filePath, true]))
-        );
-      });
+        .then((res) => {
+          setResults(res);
+          setExpandedFiles(
+            Object.fromEntries(res.map((r) => [r.filePath, true]))
+          );
+        })
+        .catch((err) => console.error("Search failed:", err));
+    }, 400);
+
+    return () => clearTimeout(handler);
   }, [query, matchCase, matchWhole, useRegex, workspace]);
 
   const toggleFile = (filePath: string) => {
@@ -58,15 +66,17 @@ export default function SearchPanel() {
 
   const openMatch = (filePath: string, line: number) => {
     if (!openFiles.find((f) => f.path === filePath)) {
-      readFile(filePath).then((content: Uint8Array<ArrayBuffer>) => {
+      readTextFile(filePath).then((content: string) => {
         setOpenFiles((prev) => [...prev, { path: filePath, content } as File]);
         setActivePath(filePath);
         if (line !== undefined) {
           setTimeout(() => {
             window.dispatchEvent(
-              new CustomEvent("scroll-to-line", { detail: { filePath, line, query } })
+              new CustomEvent("scroll-to-line", {
+                detail: { filePath, line, query },
+              })
             );
-          }, 100); // wait for render
+          }, 100);
         }
       });
     } else {
@@ -90,34 +100,49 @@ export default function SearchPanel() {
     setResults([]);
   };
 
-  const replaceNext = () => {
+  const replaceNext = async () => {
     if (!query || !workspace) return;
-    window.electronAPI
-      .replaceInWorkspace(query, results, replaceText, {
-        replaceNext: true,
-        replaceAll: false,
-      })
-      .then(() => {
-        setResults(results.slice(1));
+
+    try {
+      await invoke("replace_in_workspace", {
+        query,
+        results,
+        replaceText,
+        options: {
+          replace_next: true,
+          replace_all: false,
+        },
       });
+
+      setResults(results.slice(1));
+    } catch (err) {
+      console.error("Replace next failed:", err);
+    }
   };
 
-  const replaceAll = () => {
+  const replaceAll = async () => {
     if (!query || !workspace) return;
-    window.electronAPI
-      .replaceInWorkspace(query, results, replaceText, {
-        replaceNext: false,
-        replaceAll: true,
-      })
-      .then((res) => {
-        console.log("replaced", res);
-        setResults([]);
+    try {
+      const res = await invoke<{ replaced: number }>("replace_in_workspace", {
+        query,
+        results,
+        replaceText,
+        options: {
+          replace_next: false,
+          replace_all: true,
+        },
       });
+
+      console.log("Replaced count:", res.replaced);
+      setResults([]);
+      setQuery("");
+    } catch (err) {
+      console.error("Replace all failed:", err);
+    }
   };
 
   return (
     <div className="flex flex-col w-full h-full bg-primary-sidebar text-neutral-300">
-      {/* Top Toolbar */}
       <div className="flex items-center justify-between p-2 border-b border-neutral-300 text-neutral-400">
         <div className="ml-4">Search</div>
         <div className="flex gap-2">

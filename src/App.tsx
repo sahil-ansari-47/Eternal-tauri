@@ -55,7 +55,7 @@ const App = () => {
   } = useMessage();
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
-  const [downOpen, setDownOpen] = useState(true);
+  const [downOpen, setDownOpen] = useState(false);
   const [leftContent, setLeftContent] = useState<
     "files" | "search" | "git" | "db" | "music" | null
   >(null);
@@ -65,17 +65,12 @@ const App = () => {
   const bufferedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   useEffect(() => {
     if (!isSignedIn || !userData?.username) {
-      // If user signed out, disconnect socket cleanly
       if (socket.connected) socket.disconnect();
       return;
     }
-
-    // Connect only after userData is ready
     if (!socket.connected) {
       socket.connect();
     }
-
-    // Once connected, register the user
     socket.once("connect", () => {
       console.log("✅ Socket connected:", socket.id);
       socket.emit("register", userData.username);
@@ -160,7 +155,7 @@ const App = () => {
       setInCall(false);
       if (pcRef.current) {
         pcRef.current.close();
-        // pcRef.current = null;
+        pcRef.current = null;
       }
       if (lsRef.current) {
         for (const track of lsRef.current.getTracks()) track.stop();
@@ -173,7 +168,7 @@ const App = () => {
       setInCall(false);
       if (pcRef.current) {
         pcRef.current.close();
-        // pcRef.current = null;
+        pcRef.current = null;
       }
       if (lsRef.current) {
         for (const track of lsRef.current.getTracks()) track.stop();
@@ -193,7 +188,7 @@ const App = () => {
       socket.off("ice-candidate");
       if (pcRef.current) {
         pcRef.current.close();
-        // pcRef.current = null;
+        pcRef.current = null;
       }
     };
   }, [isSignedIn, userData?.username, targetUser, room]);
@@ -202,8 +197,6 @@ const App = () => {
   }, [isSignedIn]);
   const handleAccept = async () => {
     if (!incomingFrom || !pendingOffer) return;
-
-    // It's good to have a single pc instance for the whole process
     const pc = createPeerConnection(incomingFrom);
     pcRef.current = pc;
 

@@ -908,6 +908,7 @@ dependencies = [
 name = "eternal-tauri"
 version = "0.1.0"
 dependencies = [
+ "regex",
  "serde",
  "serde_json",
  "tauri",
@@ -916,6 +917,8 @@ dependencies = [
  "tauri-plugin-fs",
  "tauri-plugin-opener",
  "tauri-plugin-pty",
+ "tokio",
+ "walkdir",
 ]
 
 [[package]]
