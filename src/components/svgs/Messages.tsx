@@ -1,4 +1,4 @@
-const Messages = ({solid=true}: {solid: boolean}) => {
+const Messages = ({ solid = true }: { solid: boolean }) => {
   return (
     <svg
       className="size-8"
@@ -24,8 +24,8 @@ const Messages = ({solid=true}: {solid: boolean}) => {
             id="Path_14"
             data-name="Path 14"
             d="M371.9,473.2H293.8a13.187,13.187,0,0,0-13.2,13.2v47.3a13.187,13.187,0,0,0,13.2,13.2h78.1a13.187,13.187,0,0,0,13.2-13.2V486.4A13.317,13.317,0,0,0,371.9,473.2Z"
-            fill={solid ? "#2b4ea2" : "none"}
-            stroke="#2b4ea2"
+            fill={solid ? "#FFFFFF" : "none"}
+            stroke="#FFFFFF"
             strokeLinecap="round"
             strokeMiterlimit="10"
             strokeWidth="4"
@@ -35,7 +35,7 @@ const Messages = ({solid=true}: {solid: boolean}) => {
             data-name="Path 15"
             d="M282.1,488.2l51.1,21.9,25.2-10.8"
             fill="none"
-            stroke={solid ? "#fff" : "#2b4ea2"}
+            stroke={solid ? "#000000" : "#FFFFFF"}
             strokeLinecap="round"
             strokeMiterlimit="10"
             strokeWidth="4"
@@ -44,8 +44,8 @@ const Messages = ({solid=true}: {solid: boolean}) => {
             id="Path_16"
             data-name="Path 16"
             d="M374,490.7a4.331,4.331,0,0,1-5,5,4.241,4.241,0,0,1-3.6-3.6,4.331,4.331,0,0,1,5-5A4.241,4.241,0,0,1,374,490.7Z"
-            fill={solid ? "#fff" : "#2b4ea2"}
-            stroke={solid ? "#fff" : "#2b4ea2"}
+            fill={solid ? "#000000" : "#FFFFFF"}
+            stroke={solid ? "#000000" : "#FFFFFF"}
             strokeMiterlimit="10"
             strokeWidth="1"
           ></path>{" "}
@@ -56,7 +56,7 @@ const Messages = ({solid=true}: {solid: boolean}) => {
             y2="19.8"
             transform="translate(287.4 524)"
             fill="none"
-            stroke={solid ? "#fff" : "#2b4ea2"}
+            stroke={solid ? "#000000" : "#FFFFFF"}
             strokeLinecap="round"
             strokeMiterlimit="10"
             strokeWidth="4"
@@ -68,7 +68,7 @@ const Messages = ({solid=true}: {solid: boolean}) => {
             y2="19.8"
             transform="translate(358.7 524)"
             fill="none"
-            stroke={solid ? "#fff" : "#2b4ea2"}
+            stroke={solid ? "#000000" : "#FFFFFF"}
             strokeLinecap="round"
             strokeMiterlimit="10"
             strokeWidth="4"

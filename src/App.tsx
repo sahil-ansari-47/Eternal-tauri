@@ -264,89 +264,90 @@ const App = () => {
   }, [togglePanel]);
   return (
     <EditorProvider>
-      <MenuBar />
-      <div className="w-screen overflow-hidden h-[calc(100vh-52px)]">
-        <PanelGroup
-          direction="horizontal"
-          className="flex divide-x divide-neutral-300"
-        >
-          <Sidebar
-            current={leftContent}
-            onSelect={(content) => {
-              if (content === leftContent) {
-                setLeftOpen((prev) => !prev);
-                setLeftContent(null);
-              } else {
-                setLeftContent(content);
-                setLeftOpen(true);
-              }
-            }}
-            currentRight={rightContent}
-            onSelectRight={(content) => {
-              if (content === rightContent) {
-                setRightOpen((prev) => !prev);
-                setRightContent(null);
-              } else {
-                setRightContent(content);
-                setRightOpen(true);
-              }
-            }}
-          />
-          {leftOpen && (
-            <>
-              <Panel
-                defaultSize={20}
-                minSize={15}
-                order={1}
-                className="h-[calc(100vh-52px)]"
-              >
-                <LeftPanel content={leftContent} />
-              </Panel>
-              <PanelResizeHandle />{" "}
-            </>
-          )}
-
-          <Panel
-            defaultSize={55}
-            minSize={30}
-            order={2}
-            className="h-[calc(100vh-52px)]"
+      <div className="divide-y divide-neutral-700">
+        <MenuBar />
+        <div className="w-screen overflow-hidden h-[calc(100vh-52px)]">
+          <PanelGroup
+            direction="horizontal"
+            className="flex divide-x-[1px] divide-neutral-700"
           >
-            <PanelGroup
-              direction="vertical"
-              className="flex flex-col divide-y divide-neutral-300"
+            <Sidebar
+              current={leftContent}
+              onSelect={(content) => {
+                if (content === leftContent) {
+                  setLeftOpen((prev) => !prev);
+                  setLeftContent(null);
+                } else {
+                  setLeftContent(content);
+                  setLeftOpen(true);
+                }
+              }}
+              currentRight={rightContent}
+              onSelectRight={(content) => {
+                if (content === rightContent) {
+                  setRightOpen((prev) => !prev);
+                  setRightContent(null);
+                } else {
+                  setRightContent(content);
+                  setRightOpen(true);
+                }
+              }}
+            />
+            {leftOpen && (
+              <>
+                <Panel
+                  defaultSize={20}
+                  minSize={15}
+                  order={1}
+                  className="h-[calc(100vh-52px)]"
+                >
+                  <LeftPanel content={leftContent} />
+                </Panel>
+                <PanelResizeHandle />{" "}
+              </>
+            )}
+            <Panel
+              defaultSize={55}
+              minSize={30}
+              order={2}
+              className="h-[calc(100vh-52px)]"
             >
-              <Panel defaultSize={65} order={1}>
-                <Main />
-              </Panel>
-              {downOpen && (
-                <>
-                  <PanelResizeHandle />
-                  <Panel defaultSize={35} order={2}>
-                    <BottomPanel
-                    // onClose={()=>setDownOpen(false)}
-                    />
-                  </Panel>
-                </>
-              )}
-            </PanelGroup>
-          </Panel>
-          {rightOpen && (
-            <>
-              <PanelResizeHandle />
-              <Panel
-                defaultSize={25}
-                minSize={15}
-                order={3}
-                className="h-[calc(100vh-52px)]"
+              <PanelGroup
+                direction="vertical"
+                className="flex flex-col divide-y divide-neutral-700"
               >
-                <RightPanel content={rightContent} />
-              </Panel>
-            </>
-          )}
-        </PanelGroup>
+                <Panel defaultSize={65} order={1}>
+                  <Main />
+                </Panel>
+                {downOpen && (
+                  <>
+                    <PanelResizeHandle />
+                    <Panel defaultSize={35} order={2}>
+                      <BottomPanel
+                      // onClose={()=>setDownOpen(false)}
+                      />
+                    </Panel>
+                  </>
+                )}
+              </PanelGroup>
+            </Panel>
+            {rightOpen && (
+              <>
+                <PanelResizeHandle />
+                <Panel
+                  defaultSize={25}
+                  minSize={15}
+                  order={3}
+                  className="h-[calc(100vh-52px)]"
+                >
+                  <RightPanel content={rightContent} />
+                </Panel>
+              </>
+            )}
+          </PanelGroup>
+        </div>
+        <StatusBar />
       </div>
-      <StatusBar />
       <Dialog open={acceptDialog} onOpenChange={setAcceptDialog}>
         <DialogContent>
           <DialogHeader>
