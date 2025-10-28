@@ -416,21 +416,21 @@ const FileSystem = () => {
 
   if (!workspace) {
     return (
-      <>
-        <div className="h-full flex flex-col items-center justify-center gap-4 bg-primary-sidebar text-neutral-300 p-4">
+      <div className="h-full bg-primary-sidebar text-neutral-300 p-2">
+        <div className="h-full w-full flex flex-col items-center justify-center border border-neutral-600 rounded-xl p-4">
           <h3 className="text-lg font-semibold text-p6">No folder opened</h3>
           <p className="text-sm text-neutral-400 text-center">
             Open a folder to browse files or clone a repository.
           </p>
           <button
-            className="px-4 py-2 bg-p1 rounded text-white flex items-center cursor-pointer"
+            className="mt-4 px-4 py-2 bg-p1 rounded text-white flex items-center cursor-pointer"
             onClick={handleOpenFolder}
           >
             <FolderOpen className="w-4 h-4 mr-2" />
             Open Folder
           </button>
           <button
-            className="px-4 py-2 bg-green-600 rounded text-white flex items-center cursor-pointer"
+            className="mt-4 px-4 py-2 bg-green-600 rounded text-white flex items-center cursor-pointer"
             onClick={() => {
               setAction("clone");
               getUserRepos();
@@ -523,7 +523,7 @@ const FileSystem = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </>
+      </div>
     );
   }
 
@@ -531,59 +531,61 @@ const FileSystem = () => {
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div className="h-full overflow-auto bg-primary-sidebar text-neutral-300 text-sm p-2">
-          <div className="flex items-center justify-between mb-2 px-2">
-            <div className="text-p6 font-semibold">
-              {workspace.split(/[\\/]/).pop()}
-            </div>
-            <div className="flex gap-2">
-              <button
-                className="cursor-pointer"
-                onClick={() => {
-                  setAction("newFile");
-                  setDialogOpen(true);
-                }}
-              >
-                <FilePlus2 className="size-3.5" />
-              </button>
-              <button
-                className="cursor-pointer"
-                onClick={() => {
-                  setAction("newFolder");
-                  setDialogOpen(true);
-                }}
-              >
-                <FolderPlus className="size-4" />
-              </button>
-              <button
-                className="text-xs text-neutral-300 hover:underline cursor-pointer"
-                onClick={() => {
-                  localStorage.removeItem("workspacePath");
-                  setWorkspace(null);
-                  setRoots(null);
-                }}
-              >
-                <FolderMinus className="size-4" />
-              </button>
-              <button className="cursor-pointer" onClick={reloadWorkspace}>
-                <FolderSync className="size-4" />
-              </button>
-            </div>
-          </div>
-
-          <div className="px-2">
-            {roots === null ? (
-              <div className="text-sm text-gray-500">Loading…</div>
-            ) : roots.length === 0 ? (
-              <div className="text-sm text-gray-500">
-                The folder you have selected is currently empty.
+          <div className="min-h-full w-full border border-neutral-600 rounded-xl px-2 py-4 scrollbar">
+            <div className="flex items-center justify-between mb-2 px-2">
+              <div className="text-p6 font-semibold">
+                {workspace.split(/[\\/]/).pop()}
               </div>
-            ) : (
-              roots
-                // .filter((r) => !r.name.startsWith("."))
-                .map((r) => <TreeItem key={r.path} node={r} />)
-            )}
+              <div className="flex gap-2">
+                <button
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setAction("newFile");
+                    setDialogOpen(true);
+                  }}
+                >
+                  <FilePlus2 className="size-3.5" />
+                </button>
+                <button
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setAction("newFolder");
+                    setDialogOpen(true);
+                  }}
+                >
+                  <FolderPlus className="size-4" />
+                </button>
+                <button
+                  className="text-xs text-neutral-300 hover:underline cursor-pointer"
+                  onClick={() => {
+                    localStorage.removeItem("workspacePath");
+                    setWorkspace(null);
+                    setRoots(null);
+                  }}
+                >
+                  <FolderMinus className="size-4" />
+                </button>
+                <button className="cursor-pointer" onClick={reloadWorkspace}>
+                  <FolderSync className="size-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="px-2">
+              {roots === null ? (
+                <div className="text-sm text-gray-500">Loading…</div>
+              ) : roots.length === 0 ? (
+                <div className="text-sm text-gray-500">
+                  The folder you have selected is currently empty.
+                </div>
+              ) : (
+                roots
+                  // .filter((r) => !r.name.startsWith("."))
+                  .map((r) => <TreeItem key={r.path} node={r} />)
+              )}
+            </div>
+            {error && <div className="text-sm text-red-500 mt-2">{error}</div>}
           </div>
-          {error && <div className="text-sm text-red-500 mt-2">{error}</div>}
         </div>
       </ContextMenuTrigger>
 

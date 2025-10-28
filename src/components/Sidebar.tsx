@@ -23,39 +23,39 @@ const Sidebar = ({
 }) => {
   const { setActiveTab } = useEditor();
   return (
-    <ul className="flex flex-col items-center justify-start w-12 h-[calc(100vh-52px)] bg-primary/30">
+    <ul className="flex flex-col items-center justify-start w-12 h-[calc(100vh-52px)] bg-p5">
       <li
-        className="hover:bg-gray-200 px-2 py-4"
+        className="hover:bg-gray-200 px-2 py-4 cursor-pointer"
         onClick={() => onSelect("files")}
       >
         <Files solid={current === "files"} />
       </li>
       <li
-        className="hover:bg-gray-200 px-2 py-4"
+        className="hover:bg-gray-200 px-2 py-4 cursor-pointer"
         onClick={() => onSelect("search")}
       >
         <Search solid={current === "search"} />
       </li>
       <li
-        className="hover:bg-gray-200 px-2 py-4"
+        className="hover:bg-gray-200 px-2 py-4 cursor-pointer"
         onClick={() => onSelect("git")}
       >
         <SourceControl solid={current === "git"} />
       </li>
       <li
-        className="hover:bg-gray-200 px-2 py-4"
+        className="hover:bg-gray-200 px-2 py-4 cursor-pointer"
         onClick={() => onSelect("db")}
       >
         <Database solid={current === "db"} />
       </li>
       <li
-        className="hover:bg-gray-200 px-2 py-4"
+        className="hover:bg-gray-200 px-2 py-4 cursor-pointer"
         onClick={() => onSelectRight("chat")}
       >
         <Messages solid={currentRight === "chat"} />
       </li>
       <li
-        className="hover:bg-gray-200 px-2 py-4"
+        className="hover:bg-gray-200 px-2 py-4 cursor-pointer"
         onClick={() => setActiveTab("Trello")}
       >
         <Trello />

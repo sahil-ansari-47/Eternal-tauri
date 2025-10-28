@@ -24,8 +24,8 @@ const Search = ({ solid }: { solid: boolean }) => {
             id="Path_21"
             data-name="Path 21"
             d="M882.7,473.2a33.339,33.339,0,1,1-44,0A33.367,33.367,0,0,1,882.7,473.2Z"
-            fill={solid ? "#2b4ea2" : "none"}
-            stroke="#2b4ea2"
+            fill={solid ? "#FFFFFF" : "none"}
+            stroke="#FFFFFF"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeMiterlimit="10"
@@ -36,7 +36,7 @@ const Search = ({ solid }: { solid: boolean }) => {
             data-name="Path 22"
             d="M850.8,510.5a14.885,14.885,0,0,1,5.8-28.6"
             fill="none"
-            stroke={solid ? "#fff" : "#2b4ea2"}
+            stroke={solid ? "#fff" : "#FFFFFF"}
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeMiterlimit="10"
@@ -47,7 +47,7 @@ const Search = ({ solid }: { solid: boolean }) => {
             data-name="Path 23"
             d="M894.5,526.1l-5.3,5.3a5.191,5.191,0,0,1-7.3,0h0a5.191,5.191,0,0,1,0-7.3l5.3-5.3a5.191,5.191,0,0,1,7.3,0h0A5.191,5.191,0,0,1,894.5,526.1Z"
             fill={solid ? "#fff" : "none"}
-            stroke="#2b4ea2"
+            stroke="#FFFFFF"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeMiterlimit="10"
@@ -57,8 +57,8 @@ const Search = ({ solid }: { solid: boolean }) => {
             id="Path_24"
             data-name="Path 24"
             d="M917,553.8h0a5.07,5.07,0,0,1-7.2,0l-17.3-17.3a5.07,5.07,0,0,1,0-7.2h0a5.07,5.07,0,0,1,7.2,0L917,546.6A5.07,5.07,0,0,1,917,553.8Z"
-            fill={solid ? "#2b4ea2" : "none"}
-            stroke="#2b4ea2"
+            fill={solid ? "#FFFFFF" : "none"}
+            stroke="#FFFFFF"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeMiterlimit="10"

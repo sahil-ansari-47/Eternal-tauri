@@ -100,14 +100,22 @@ const ChatWindow: React.FC<ChatProps> = ({
                 <div
                   className={`px-3 py-2 rounded-2xl max-w-[70%] whitespace-pre-wrap break-words ${
                     msg.from === userData?.username
-                      ? "bg-blue-600 text-p6 rounded-br-none"
+                      ? "bg-neutral-700 text-p6 rounded-br-none"
                       : msg.from === "system"
                       ? "bg-primary text-neutral-300 rounded text-center"
-                      : "bg-gray-700 text-gray-100 rounded-bl-none"
+                      : "bg-p6 text-p5 rounded-bl-none"
                   }`}
                 >
                   {msg.text}
-                  <span className="block text-xs text-gray-400 text-right">
+                  <span
+                    className={`block text-xs ${
+                      msg.from === "system"
+                        ? "hidden"
+                        : msg.from === userData?.username
+                        ? "text-gray-300 text-right"
+                        : "text-gray-600 text-right"
+                    }`}
+                  >
                     {formatToIST(msg.timestamp)}
                   </span>
                 </div>
