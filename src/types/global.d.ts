@@ -144,68 +144,11 @@ declare global {
     clone_url: string;
   }
   interface Window {
-    electronAPI: {
-      minimize: () => void;
-      maximize: () => void;
-      unmaximize: () => void;
-      close: () => void;
-      isMaximized: () => Promise<boolean>;
-      onMaximize: (callback: () => void) => () => void;
-      onUnmaximize: (callback: () => void) => () => void;
-      searchInWorkspace: (
-        query: string,
-        workspace: string,
-        options?: { matchCase: boolean; wholeWord: boolean; regex: boolean }
-      ) => Promise<SearchResult[]>;
-      replaceInWorkspace: (
-        query: string,
-        results: SearchResult[],
-        replaceText: string,
-        options?: { replaceNext: boolean; replaceAll: boolean }
-      ) => Promise<{ replaced: number }>;
-      newWindow: () => void;
-
-      openFolder: () => Promise<string | null>;
-      readDir: (
-        dirPath: string
-      ) => Promise<{ name: string; path: string; isDirectory: boolean }[]>;
-      readFile: (filePath: string) => Promise<string>;
-      writeFile: (filePath: string, content: string) => Promise<void>;
-      delete: (filePath: string) => Promise<void>;
-      newFile: (filePath: string) => Promise<void>;
-      newFolder: (dirPath: string) => Promise<void>;
-
-      rename: (oldPath: string, newPath: string) => Promise<void>;
-      openFile: (filePath: string) => Promise<void>;
-
-      watch: (dirPath: string) => void;
-      unwatch: (dirPath: string) => void;
-      onFsChanged: (
-        callback: (data: {
-          event: string;
-          filename: string;
-          dirPath: string;
-        }) => void
-      ) => void;
-      offFsChanged?: (
-        callback: (data: {
-          event: string;
-          filename: string;
-          dirPath: string;
-        }) => void
-      ) => void;
-
-      gitClone: (repoUrl: string, targetDir: string) => Promise<void>;
-    };
+    electronAPI: {};
     chatAPI: {
       logMessage: (message: Message) => void;
       messageNotification: (message: Message) => void;
       callNotification: (target: string, video: boolean) => boolean;
-    };
-    terminalAPI: {
-      onData: (cb: (data: string) => void) => void;
-      write: (data: string) => void;
-      resize: (cols: number, rows: number) => void;
     };
   }
 }

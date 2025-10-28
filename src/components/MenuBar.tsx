@@ -1,14 +1,13 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Minus, Square, Copy, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const appWindow = getCurrentWindow();
-// A reusable style for menu items
 const menuItemStyle =
   "hover:bg-gray-700 px-2 py-1 rounded-lg cursor-default text-sm select-none";
 
-// A reusable Dropdown component using Radix UI
 const Dropdown = ({
   label,
   items,
@@ -60,23 +59,21 @@ export default function MenuBar() {
     };
   }, []);
 
-  // Handler to create a new window
-  // const handleNewWindow = () => {
-  //   const webview = new WebviewWindow(`win-${Math.random().toString(36).substring(7)}`, {
-  //     url: '/',
-  //     title: 'New Window',
-  //     width: 800,
-  //     height: 600,
-  //   });
+  const handleNewWindow = () => {
+    const webview = new WebviewWindow(`win-${Math.random().toString(36).substring(7)}`, {
+      title: 'Eternal',
+      decorations: false,
+      url: "http://localhost:1420",
+    });
 
-  //   webview.once('tauri://created', () => {
-  //     console.log('New window created successfully');
-  //   });
+    webview.once("tauri://created", () => {
+      console.log("New window created successfully");
+    });
 
-  //   webview.once('tauri://error', (e: any) => {
-  //     console.error('Failed to create new window:', e);
-  //   });
-  // };
+    webview.once("tauri://error", (e: any) => {
+      console.error("Failed to create new window:", e);
+    });
+  };
 
   return (
     <div
@@ -92,7 +89,7 @@ export default function MenuBar() {
             { label: "New Folder", onClick: () => console.log("New clicked") },
             {
               label: "New Window",
-              // onClick: handleNewWindow,
+              onClick: handleNewWindow,
             },
             {
               label: "Open Folder",
@@ -125,6 +122,21 @@ export default function MenuBar() {
           ]}
         />
         <Dropdown
+          label="Git"
+          items={[
+            { label: "Initialize...", onClick: () => console.log("Git clicked") },
+            { label: "Clone...", onClick: () => console.log("Git clicked") },
+            { label: "Pull...", onClick: () => console.log("Git clicked") },
+            { label: "Push...", onClick: () => console.log("Git clicked") },
+            { label: "Stage...", onClick: () => console.log("Git clicked") },
+            { label: "Commit...", onClick: () => console.log("Git clicked") },
+            { label: "Status...", onClick: () => console.log("Git clicked") },
+            { label: "Branch...", onClick: () => console.log("Git clicked") },
+            { label: "Remote...", onClick: () => console.log("Git clicked") },
+            { label: "Stash...", onClick: () => console.log("Git clicked") },
+          ]}
+        />
+        <Dropdown
           label="Help"
           items={[
             { label: "Documentation", disabled: true },
@@ -134,13 +146,13 @@ export default function MenuBar() {
       </div>
 
       {/* Center: App Name */}
-      <div className="text-xs">My Tauri App</div>
+      <div className="text-xs">Eternal - IDE</div>
 
       {/* Right: Window Controls */}
       <div className="flex">
         <button
           className="w-10 h-8 flex items-center justify-center hover:bg-gray-700"
-          onClick={async() => await appWindow.minimize()}
+          onClick={async () => await appWindow.minimize()}
           aria-label="Minimize window"
         >
           <Minus size={14} />
@@ -148,7 +160,7 @@ export default function MenuBar() {
         {isMaximized ? (
           <button
             className="w-10 h-8 flex items-center justify-center hover:bg-gray-700"
-            onClick={async() => await appWindow.unmaximize()}
+            onClick={async () => await appWindow.unmaximize()}
             aria-label="Restore window"
           >
             <Copy size={14} />
@@ -156,7 +168,7 @@ export default function MenuBar() {
         ) : (
           <button
             className="w-10 h-8 flex items-center justify-center hover:bg-gray-700"
-            onClick={async() => await appWindow.maximize()}
+            onClick={async () => await appWindow.maximize()}
             aria-label="Maximize window"
           >
             <Square size={14} />
@@ -164,7 +176,7 @@ export default function MenuBar() {
         )}
         <button
           className="w-10 h-8 flex items-center justify-center hover:bg-red-600"
-          onClick={async() => await appWindow.close()}
+          onClick={async () => await appWindow.close()}
           aria-label="Close window"
         >
           <X size={14} />

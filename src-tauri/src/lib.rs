@@ -1,6 +1,30 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
+
+#[tauri::command]
+async fn git_clone(repo_url: String, target_dir: String) -> Result<bool, String> {
+    if repo_url.is_empty() || target_dir.is_empty() {
+        return Err("Repository URL and target directory are required".into());
+    }
+
+    let output = Command::new("git")
+        .args(["clone", &repo_url, &target_dir])
+        .output()
+        .map_err(|e| format!("Failed to start git process: {}", e))?;
+
+    if output.status.success() {
+        Ok(true)
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        Err(format!(
+            "Git clone failed with code {}: {}",
+            output.status.code().unwrap_or(-1),
+            stderr
+        ))
+    }
+}
 
 #[derive(Deserialize)]
 pub struct SearchOptions {
@@ -189,7 +213,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![search_in_workspace, replace_in_workspace])
+        .invoke_handler(tauri::generate_handler![search_in_workspace, replace_in_workspace, git_clone])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

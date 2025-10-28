@@ -3,6 +3,7 @@ import * as React from "react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { invoke } from "@tauri-apps/api/core";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import {
   readDir,
@@ -78,27 +79,24 @@ const FileSystem = () => {
 
     const setupWatcher = async () => {
       unlisten = await watchImmediate(
-      workspace,
-      async (event) => {
-        console.log('FS change event:', event);
+        workspace,
+        async (event) => {
+          console.log("FS change event:", event);
+          // Find the parent directory of the changed path to refresh it.
+          const dirToRefresh = await dirname(event.paths[0]);
 
-        // Find the parent directory of the changed path to refresh it.
-        const dirToRefresh = await dirname(event.paths[0]);
-        
-        // Only refresh the subtree that changed, not the whole workspace.
-        setRoots((currentRoots) => {
-        if (!currentRoots) return null;
-        refreshSubtree(currentRoots, dirToRefresh).then(setRoots);
-        return currentRoots;
-        });
-      },
-      { recursive: true }
+          // Only refresh the subtree that changed, not the whole workspace.
+          setRoots((currentRoots) => {
+            if (!currentRoots) return null;
+            refreshSubtree(currentRoots, dirToRefresh).then(setRoots);
+            return currentRoots;
+          });
+        },
+        { recursive: true }
       );
     };
-
     reloadWorkspace();
     setupWatcher();
-
     return () => {
       if (unlisten) {
         unlisten();
@@ -138,15 +136,10 @@ const FileSystem = () => {
     );
   };
 
-  // helpers inside FileSystem.tsx (or move to fsfunc.ts)
-
-  // replace your reloadWorkspace with this
   const reloadWorkspace = async () => {
     if (!workspace) return;
     try {
-      // keep track of which folders are open
       const expandedMap = roots ? preserveExpanded(roots) : {};
-
       const entries = await readDir(workspace);
       const nodes: FsNode[] = await Promise.all(
         entries.map(async (e) => ({
@@ -155,10 +148,7 @@ const FileSystem = () => {
           isDirectory: e.isDirectory,
         }))
       );
-
       const sorted = sortNodes(nodes);
-
-      // restore expanded state
       setRoots(applyExpanded(sorted, expandedMap));
       setError(null);
     } catch (e: any) {
@@ -166,27 +156,19 @@ const FileSystem = () => {
       setError(String(e?.message ?? e));
     }
   };
-
   const handleConfirm = async () => {
     if (!workspace) return;
 
-    // only check name if needed
     if (action === "rename" || action === "newFile" || action === "newFolder") {
       const name = value.trim();
-
-      // disallow empty names
       if (!name) {
         setErrorMessage("Name cannot be empty.");
         return;
       }
-
-      // disallow illegal filename characters (Windows reserved chars)
       if (/[<>:"/\\|?*]/.test(name)) {
         setErrorMessage('Name contains invalid characters: <>:"/\\|?*');
         return;
       }
-
-      // disallow reserved Windows names
       const reserved = [
         "CON",
         "PRN",
@@ -202,12 +184,8 @@ const FileSystem = () => {
         return;
       }
     }
-
-    // validation passed → reset error
     setErrorMessage(null);
-
     let dir: string;
-
     if (action === "rename" && targetNode) {
       const parentDir = targetNode.path.substring(
         0,
@@ -221,7 +199,7 @@ const FileSystem = () => {
           ? targetNode.path
           : targetNode.path.substring(0, targetNode.path.lastIndexOf("/"));
       } else {
-        dir = workspace; // files/folders go inside workspace root
+        dir = workspace;
       }
 
       if (action === "newFile") {
@@ -288,19 +266,31 @@ const FileSystem = () => {
   };
 
   const handleClone = async (clone_url: string) => {
-    let repoName = clone_url.split("/").pop();
-    if (repoName?.endsWith(".git")) repoName = repoName.slice(0, -4);
-    let targetDir = await window.electronAPI.openFolder();
-    if (!targetDir) return;
-    if (repoName) {
-      targetDir = await join(targetDir, repoName);
+    if (!clone_url) return;
+
+    try {
+      let repoName = clone_url.split("/").pop();
+      if (repoName?.endsWith(".git")) repoName = repoName.slice(0, -4);
+      console.log(repoUrl, repoName);
+      let targetDir = await open({
+        directory: true,
+        multiple: false,
+        title: "Select target folder",
+      });
+      if (!targetDir) return;
+      if (repoName) {
+        targetDir = await join(targetDir, repoName);
+      }
+      await invoke("git_clone", { repoUrl: clone_url, targetDir });
+
+      setWorkspace(targetDir);
+      localStorage.setItem("workspacePath", targetDir);
+      setDialogOpen(false);
+      setRepoUrl("");
+      setAction(null);
+    } catch (err) {
+      console.error("Clone failed:", err);
     }
-    await window.electronAPI.gitClone(clone_url, targetDir);
-    setWorkspace(targetDir);
-    localStorage.setItem("workspacePath", targetDir);
-    setDialogOpen(false);
-    setRepoUrl("");
-    setAction(null);
   };
 
   const getUserRepos = async () => {
@@ -325,7 +315,6 @@ const FileSystem = () => {
     console.log(r);
     setRepos(r);
   };
-  // renderers
   const TreeItem: React.FC<{ node: FsNode; level?: number }> = ({
     node,
     level = 0,
@@ -367,8 +356,6 @@ const FileSystem = () => {
             <span className="truncate">{node.name}</span>
           </div>
         </ContextMenuTrigger>
-
-        {/* Context menu for this node */}
         <ContextMenuContent className="w-40 text-neutral-300 bg-primary-sidebar">
           {node.isDirectory && (
             <>
@@ -414,12 +401,10 @@ const FileSystem = () => {
             Delete
           </ContextMenuItem>
         </ContextMenuContent>
-
-        {/* Children */}
         {node.isDirectory && node.expanded && node.children && (
           <div>
             {node.children
-              .filter((c) => !c.name.startsWith(".")) // hide hidden entries
+              // .filter((c) => !c.name.startsWith("."))
               .map((c) => (
                 <TreeItem key={c.path} node={c} level={level + 1} />
               ))}
@@ -429,7 +414,6 @@ const FileSystem = () => {
     );
   };
 
-  // UI
   if (!workspace) {
     return (
       <>
@@ -472,7 +456,6 @@ const FileSystem = () => {
                 <TabsTrigger value="link">From URL</TabsTrigger>
               </TabsList>
 
-              {/* GitHub Repo List */}
               <TabsContent
                 value="github"
                 className="flex flex-col justify-between max-h-46 overflow-y-scroll"
@@ -497,7 +480,6 @@ const FileSystem = () => {
                         }`}
                       >
                         <span>{repo.name}</span>
-                        {/* Hidden radio – still accessible */}
                         <RadioGroupItem
                           value={repo.clone_url}
                           id={`repo-${repo.id}`}
@@ -513,7 +495,6 @@ const FileSystem = () => {
                 )}
               </TabsContent>
 
-              {/* Clone via Link */}
               <TabsContent value="link">
                 <Input
                   value={repoUrl}
@@ -598,7 +579,7 @@ const FileSystem = () => {
               </div>
             ) : (
               roots
-                .filter((r) => !r.name.startsWith(".")) // hide hidden entries in root
+                // .filter((r) => !r.name.startsWith("."))
                 .map((r) => <TreeItem key={r.path} node={r} />)
             )}
           </div>
@@ -635,7 +616,6 @@ const FileSystem = () => {
         </ContextMenuItem>
       </ContextMenuContent>
 
-      {/* Dialog for all actions */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="text-neutral-300">
           <DialogHeader>

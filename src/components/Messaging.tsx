@@ -26,6 +26,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import { getRelativeTime } from "../utils/msfunc";
 import { ScrollArea } from "./ui/scroll-area";
 import {
+  useClerk,
   SignedIn,
   SignedOut,
   SignInButton,
@@ -35,8 +36,8 @@ import {
 import { useUser } from "./contexts/UserContext";
 import { useMessage } from "./contexts/MessageContext";
 import ChatWindow from "./ChatWindow";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 type ChatMode = "private" | "group" | "friends";
-
 const Messaging = () => {
   const { userData, fetchUser, socket } = useUser();
   const {
@@ -71,6 +72,13 @@ const Messaging = () => {
   const [CreateGroup, setCreateGroup] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [groupName, setGroupName] = useState("");
+  const webview = getCurrentWebview();
+  const { signOut, openSignIn } = useClerk();
+  const handleSwitch = async () => {
+    await signOut();
+    await webview.clearAllBrowsingData();
+    openSignIn();
+  };//TODO: fix switch
   useEffect(() => {
     fetchUser().catch((err) => console.error("Failed to sync user:", err));
   }, [chatMode]);
@@ -783,6 +791,12 @@ const Messaging = () => {
           <div className="bg-blue-600 p-2 rounded-lg hover:bg-blue-500">
             <SignInButton mode="modal" />
           </div>
+            <button
+            className="bg-p6 text-p5 p-2 rounded-lg hover:bg-gray-200"
+            onClick={handleSwitch}
+          >
+            Switch GitHub Account
+          </button>
           <p className="text-sm text-gray-400">
             Sign in to chat with other users
           </p>
