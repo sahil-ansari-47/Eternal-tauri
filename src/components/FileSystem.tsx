@@ -111,7 +111,6 @@ const FileSystem = () => {
     return Promise.all(
       nodes.map(async (node) => {
         if (node.path === dirPath && node.isDirectory && node.expanded) {
-          // re-read only this folder
           const entries = await readDir(dirPath);
           const children: FsNode[] = [];
           for (const e of entries) {
@@ -531,7 +530,7 @@ const FileSystem = () => {
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div className="h-full overflow-auto bg-primary-sidebar text-neutral-300 text-sm p-2">
-          <div className="min-h-full w-full border border-neutral-600 rounded-xl px-2 py-4 scrollbar">
+          <div className="h-full w-full border border-neutral-600 rounded-xl px-2 py-4 overflow-y-hidden">
             <div className="flex items-center justify-between mb-2 px-2">
               <div className="text-p6 font-semibold">
                 {workspace.split(/[\\/]/).pop()}
@@ -571,7 +570,7 @@ const FileSystem = () => {
               </div>
             </div>
 
-            <div className="px-2">
+            <div className="px-2 overflow-y-scroll max-h-full scrollbar">
               {roots === null ? (
                 <div className="text-sm text-gray-500">Loading…</div>
               ) : roots.length === 0 ? (

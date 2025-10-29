@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
-import { dracula } from "thememirror";
+import { barf } from "thememirror";
 import { basicSetup } from "codemirror";
 import { EditorView } from "@codemirror/view";
 import { useEditor } from "./contexts/EditorContext";
@@ -9,14 +9,14 @@ import getLanguageExtension from ".././utils/edfunc";
 export default function Editor() {
   const { openFiles, setOpenFiles, activePath, setActivePath } = useEditor();
   const viewRefs = useRef<Record<string, EditorView>>({});
-  const customTheme = EditorView.theme({
-    ".cm-content": {
-      height: "100%",
-    },
-    ".cm-gutters": {
-      backgroundColor: "#2d2f3f !important",
-    },
-  });
+  // const customTheme = EditorView.theme({
+  //   ".cm-content": {
+  //     height: "100%",
+  //   },
+  //   ".cm-gutters": {
+  //     backgroundColor: "#2d2f3f !important",
+  //   },
+  // });
   useEffect(() => {
     const handler = (e: Event) => {
       const { filePath, line, query } = (e as CustomEvent).detail;
@@ -55,8 +55,7 @@ export default function Editor() {
       doc: file.content.toString(),
       extensions: [
         basicSetup,
-        dracula,
-        customTheme,
+        barf,
         getLanguageExtension(file.path),
       ],
     });
@@ -102,14 +101,14 @@ export default function Editor() {
   return (
     <div className="w-full h-full flex flex-col">
       {/* Tabs */}
-      <div className="flex border-b-3 border-gray-700 text-neutral-300 text-xs divide-x-3 divide-primary-sidebar">
+      <div className="flex border-b-4 border-neutral-700 text-neutral-300 text-xs divide-x-3 divide-primary-sidebar">
         {openFiles.map((file) => (
           <div
             key={file.path}
-            className={`flex items-center pl-3 bg-md pr-2 py-2 cursor-pointer ${
+            className={`flex items-center pl-3 pr-2 py-2 cursor-pointer ${
               file.path === activePath
-                ? "bg-slate-700 font-semibold"
-                : "hover:bg-gray-700"
+                ? "bg-neutral-700 font-semibold"
+                : "hover:bg-neutral-600"
             }`}
             onClick={() => setActivePath(file.path)}
           >
@@ -117,7 +116,9 @@ export default function Editor() {
               {file.path.split("\\").pop()}
             </span>
             <button
-              className="ml-2 px-1.5 py-1 text-md hover:bg-slate-600 cursor-pointer font-bold"
+              className={`ml-2 px-1.5 py-1 hover:bg-neutral-500 hover:text-neutral-400 rounded-sm cursor-pointer font-bold ${
+                file.path === activePath ? "text-neutral-400" : "text-primary-sidebar"
+              }`}
               onClick={(e) => {
                 e.stopPropagation();
                 handleCloseTab(file.path);
@@ -130,7 +131,7 @@ export default function Editor() {
       </div>
 
       {/* Editors */}
-      <div className="flex-1 relative overflow-y-auto bg-md">
+      <div className="flex-1 relative overflow-y-auto bg-p5 scrollbar">
         {openFiles.map((file) => (
           <div
             key={file.path}

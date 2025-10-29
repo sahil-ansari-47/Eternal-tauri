@@ -4,19 +4,18 @@ const StatusBar = () => {
   const { workspace, setWorkspace } = useEditor();
   if (!workspace) {
     return (
-      <div className="text-xs bg-primary-sidebar text-neutral-300 px-2 py-1">
+      <div className="text-xs bg-p5 text-neutral-300 px-2 py-1">
         No folder open
       </div>
     );
   }
 
-  // Split workspace into parts, normalize separators
   const parts = workspace.split(/[/\\]/); // works for both / and \
 
   return (
     <div className="text-xs bg-p5 text-neutral-300 px-2 py-0.5 flex items-start gap-1">
       {parts.map((part, idx) => {
-        const crumbPath = parts.slice(0, idx + 1).join("\\"); // rebuild path progressively
+        const crumbPath = parts.slice(0, idx + 1).join("\\");
         const isLast = idx === parts.length - 1;
         return (
           <Fragment key={crumbPath}>

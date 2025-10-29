@@ -2,7 +2,7 @@ const Database = ({ solid }: { solid: boolean }) => {
   if (solid === true) {
     return (
       <svg
-        className="size-8"
+        className="size-6"
         viewBox="-10.76 0 103.5 103.5"
         xmlns="http://www.w3.org/2000/svg"
         fill="#FFFFFF"

@@ -242,7 +242,6 @@ const App = () => {
     }
   };
 
-  // ❌ Reject call
   const handleReject = () => {
     setAcceptDialog(false);
     socket.emit("call-rejected", { from: incomingFrom });

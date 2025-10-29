@@ -1,7 +1,7 @@
 const Files = ({ solid }: { solid: boolean }) => {
   return (
     <svg
-      className="size-8"
+      className="size-6"
       viewBox="0 -1.1 91.6 91.6"
       xmlns="http://www.w3.org/2000/svg"
       fill="#000000"

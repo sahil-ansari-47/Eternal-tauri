@@ -5,7 +5,8 @@
 
 @theme {
   --color-p1: #2b4ea2;
-  --color-primary-sidebar: #1a2130;
+  /* --color-primary-sidebar: #1a2130; */
+  --color-primary-sidebar: hsl(220, 5%, 15%);
   --color-p5: hsl(240, 5.9%, 10%);
   --color-p6: hsl(0, 0%, 98%);
   --color-md: #2d2f3f;
@@ -21,7 +22,8 @@
   }
 
   .scrollbar::-webkit-scrollbar-thumb {
-    background-color: var(--color-p6);
+    /* background-color: var(--color-p6); */
+    background-color: dimgray;
     border-radius: 9999px;
     transition: background-color 0.2s ease;
   }

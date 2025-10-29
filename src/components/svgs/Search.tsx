@@ -1,7 +1,7 @@
 const Search = ({ solid }: { solid: boolean }) => {
   return (
     <svg
-      className="size-8"
+      className="size-6"
       viewBox="0 -0.42 95.125 95.125"
       xmlns="http://www.w3.org/2000/svg"
       fill="#000000"

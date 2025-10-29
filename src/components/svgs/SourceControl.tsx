@@ -1,7 +1,7 @@
 const SourceControl = ({ solid }: { solid: boolean }) => {
   return (
     <svg
-      className="size-8"
+      className="size-6"
       viewBox="0 -3.03 93.622 93.622"
       xmlns="http://www.w3.org/2000/svg"
       fill="#000000"

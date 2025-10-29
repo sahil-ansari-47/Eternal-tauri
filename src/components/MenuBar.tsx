@@ -82,7 +82,7 @@ export default function MenuBar() {
     <div
       data-tauri-drag-region
       onClick={() => console.log("Menu bar clicked")}
-      className="flex items-center justify-between bg-p5 text-neutral-300 h-8 px-1 select-none border-b border-gray-700"
+      className="flex items-center justify-between bg-p5 text-neutral-300 h-8 px-1 select-none"
     >
       <div className="flex space-x-1 text-sm">
         <Dropdown
