@@ -10,10 +10,10 @@ const StatusBar = () => {
     );
   }
 
-  const parts = workspace.split(/[/\\]/); // works for both / and \
+  const parts = workspace.split(/[/\\]/);
 
   return (
-    <div className="text-xs bg-p5 text-neutral-300 px-2 py-0.5 flex items-start gap-1">
+    <div className="text-xs bg-p5 text-neutral-300 px-2 py-0.5 flex items-start gap-1 w-full z-10">
       {parts.map((part, idx) => {
         const crumbPath = parts.slice(0, idx + 1).join("\\");
         const isLast = idx === parts.length - 1;

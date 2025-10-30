@@ -23,7 +23,7 @@ const Sidebar = ({
 }) => {
   const { setActiveTab } = useEditor();
   return (
-    <ul className="flex flex-col items-center justify-start w-12 h-[calc(100vh-52px)] bg-p5">
+    <ul className="flex flex-col items-center justify-start w-12 h-[calc(100vh-52px)] bg-p5 z-10">
       <li
         className="hover:bg-gray-200 px-2 py-4 cursor-pointer"
         onClick={() => onSelect("files")}
