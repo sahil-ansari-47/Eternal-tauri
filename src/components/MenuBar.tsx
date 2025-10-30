@@ -152,7 +152,10 @@ export default function MenuBar() {
       </div>
 
       {/* Center: App Name */}
-      <div className="text-xs">Eternal - IDE</div>
+      <div className="flex items-center">
+        <img className="size-6" src="../../src-tauri/icons/logo.png" alt="Logo" />
+        <div className="text-xs">Eternal - IDE</div>
+      </div>
 
       {/* Right: Window Controls */}
       <div className="flex">

@@ -79,7 +79,6 @@ async fn search_in_workspace(
     let regex = Arc::new(regex);
     let results = task::spawn_blocking(move || {
         let mut results = Vec::new();
-        let mut count = 0;
 
         for entry in walkdir::WalkDir::new(&workspace_path)
             .max_depth(3)
@@ -113,13 +112,7 @@ async fn search_in_workspace(
                     });
                 }
             }
-
-            count += 1;
-            if count % 100 == 0 {
-                println!("Searched {count} files so far...");
-            }
         }
-
         println!("Finished search in: {}", workspace_path.display());
         results
     })

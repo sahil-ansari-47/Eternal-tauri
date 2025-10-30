@@ -82,9 +82,13 @@ export default function SearchPanel() {
     } else {
       setActivePath(filePath);
       if (line !== undefined) {
-        window.dispatchEvent(
-          new CustomEvent("scroll-to-line", { detail: { filePath, line } })
-        );
+        setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent("scroll-to-line", {
+              detail: { filePath, line, query },
+            })
+          );
+        }, 100);
       }
     }
   };
