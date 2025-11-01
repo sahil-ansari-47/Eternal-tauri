@@ -274,12 +274,12 @@ const Messaging = () => {
     if (offer) {
       await pcRef.current.setLocalDescription(offer);
     }
-    socket.emit("offer", {
-      to,
-      from: userData.username,
-      offer,
-      callType: video,
-    });
+    // socket.emit("offer", {
+    //   to,
+    //   from: userData.username,
+    //   offer,
+    //   callType: video,
+    // });
   };
   return (
     <div className="h-full w-full p-2 bg-p5">
