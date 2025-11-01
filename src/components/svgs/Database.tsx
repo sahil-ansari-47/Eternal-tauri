@@ -1,159 +1,77 @@
-const Database = ({ solid }: { solid: boolean }) => {
-  if (solid === true) {
-    return (
-      <svg
-        className="size-6"
-        viewBox="-10.76 0 103.5 103.5"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="#FFFFFF"
-      >
-        <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-        <g
-          id="SVGRepo_tracerCarrier"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        ></g>
-        <g id="SVGRepo_iconCarrier">
-          <g
-            id="Group_1"
-            data-name="Group 1"
-            transform="translate(-284.712 -235.2)"
-          >
-            {/* Main solid body */}
-            <ellipse cx="325.8" cy="248.5" rx="37" ry="9.3" fill="#FFFFFF" />
-            <path
-              d="M325.8,239.2c26,0,37,9.3,37,9.3v73.4c0,1.9-11.9,12.7-37,12.7-22.9,0-37-10.3-37-12.7V248.5s6.9-9.3,37-9.3Z"
-              fill="#FFFFFF"
-            />
-            {/* Layer lines */}
-            <ellipse
-              cx="325.8"
-              cy="248.5"
-              rx="37"
-              ry="9.3"
-              fill="none"
-              opacity={0.8}
-              stroke="#fff"
-              strokeWidth="3"
-            />
-            <path
-              d="M363.5,272.3s-13.3,9.7-37.7,9.7c-24.5,0-38-9.7-38-9.7"
-              fill="none"
-              stroke="#fff"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeMiterlimit="10"
-              strokeWidth="3"
-            />
-            <path
-              d="M363.4,295.9s-13.2,9.7-37.7,9.7-38.2-9.7-38.2-9.7"
-              fill="none"
-              stroke="#fff"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeMiterlimit="10"
-              strokeWidth="3"
-            />
-            {/* Solid dots */}
-            <circle cx="306.4" cy="265" r="3.4" fill="#fff" />
-            <circle cx="306.4" cy="291" r="3.4" fill="#fff" />
-            <circle cx="306.4" cy="317.8" r="3.4" fill="#fff" />
-          </g>
-        </g>
-      </svg>
-    );
-  } else {
-    return (
-      <svg
-        className="size-8"
-        viewBox="-10.76 0 103.5 103.5"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="#000000"
-      >
-        <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-        <g
-          id="SVGRepo_tracerCarrier"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        ></g>
-        <g id="SVGRepo_iconCarrier">
+const Database = ({ active }: { active: boolean }) => {
+  return (
+    // <svg
+    //   className="size-7"
+    //   viewBox="0 0 24 24"
+    //   fill="none"
+    //   xmlns="http://www.w3.org/2000/svg"
+    // >
+    //   <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+    //   <g
+    //     id="SVGRepo_tracerCarrier"
+    //     strokeLinecap="round"
+    //     strokeLinejoin="round"
+    //   ></g>
+    //   <g id="SVGRepo_iconCarrier">
+    //     {" "}
+    //     <path
+    //       fillRule="evenodd"
+    //       clipRule="evenodd"
+    //       d="M3.25 6C3.25 4.45831 4.48029 3.26447 6.00774 2.50075C7.58004 1.7146 9.69967 1.25 12 1.25C14.3003 1.25 16.42 1.7146 17.9923 2.50075C19.5197 3.26447 20.75 4.45831 20.75 6V18C20.75 19.5417 19.5197 20.7355 17.9923 21.4992C16.42 22.2854 14.3003 22.75 12 22.75C9.69967 22.75 7.58004 22.2854 6.00774 21.4992C4.48029 20.7355 3.25 19.5417 3.25 18V6ZM4.75 6C4.75 5.33255 5.31057 4.52639 6.67856 3.84239C8.00168 3.18083 9.88205 2.75 12 2.75C14.118 2.75 15.9983 3.18083 17.3214 3.84239C18.6894 4.52639 19.25 5.33255 19.25 6C19.25 6.66745 18.6894 7.47361 17.3214 8.15761C15.9983 8.81917 14.118 9.25 12 9.25C9.88205 9.25 8.00168 8.81917 6.67856 8.15761C5.31057 7.47361 4.75 6.66745 4.75 6ZM4.75 18C4.75 18.6674 5.31057 19.4736 6.67856 20.1576C8.00168 20.8192 9.88205 21.25 12 21.25C14.118 21.25 15.9983 20.8192 17.3214 20.1576C18.6894 19.4736 19.25 18.6674 19.25 18V14.7072C18.8733 15.0077 18.4459 15.2724 17.9923 15.4992C16.42 16.2854 14.3003 16.75 12 16.75C9.69967 16.75 7.58004 16.2854 6.00774 15.4992C5.55414 15.2724 5.12675 15.0077 4.75 14.7072V18ZM19.25 8.70722V12C19.25 12.6674 18.6894 13.4736 17.3214 14.1576C15.9983 14.8192 14.118 15.25 12 15.25C9.88205 15.25 8.00168 14.8192 6.67856 14.1576C5.31057 13.4736 4.75 12.6674 4.75 12V8.70722C5.12675 9.00772 5.55414 9.27245 6.00774 9.49925C7.58004 10.2854 9.69967 10.75 12 10.75C14.3003 10.75 16.42 10.2854 17.9923 9.49925C18.4459 9.27245 18.8733 9.00772 19.25 8.70722Z"
+    //       fill={active ? "#000000" : "#FFFFFF"}
+    //     ></path>{" "}
+    //   </g>
+    // </svg>
+    <svg
+      viewBox="0 0 16 16"
+      version="1.1"
+      xmlns="http://www.w3.org/2000/svg"
+      xmlnsXlink="http://www.w3.org/1999/xlink"
+      className="size-6.5"
+      fill={active ? "#000000" : "#FFFFFF"}
+    >
+      <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+      <g
+        id="SVGRepo_tracerCarrier"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      ></g>
+      <g id="SVGRepo_iconCarrier">
+        {" "}
+        <title>645</title> <defs> </defs>{" "}
+        <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
           {" "}
           <g
-            id="Group_1"
-            data-name="Group 1"
-            transform="translate(-284.712 -235.2)"
+            transform="translate(1.000000, 0.000000)"
+            fill={active ? "#000000" : "#FFFFFF"}
           >
             {" "}
+            <ellipse
+              cx="6.43"
+              cy="2.421"
+              rx="6.43"
+              ry="2.421"
+              className="si-glyph-fill"
+            >
+              {" "}
+            </ellipse>{" "}
             <path
-              id="Path_1"
-              data-name="Path 1"
-              d="M325.8,239.2c26,0,37,9.3,37,9.3v73.4c0,1.9-11.9,12.7-37,12.7-22.9,0-37-10.3-37-12.7V248.5s6.9-9.3,37-9.3m0-4c-31.2,0-39.3,9.9-40.2,11a4.069,4.069,0,0,0-.8,2.4V322c0,4.8,8.6,9.2,12.3,10.9a70.668,70.668,0,0,0,28.7,5.8c14.1,0,23.9-3.3,29.6-6,2.7-1.3,11.3-5.8,11.3-10.6V248.7a3.749,3.749,0,0,0-1.4-3c-.5-.6-12.4-10.5-39.5-10.5Z"
-              fill="#FFFFFF"
-            ></path>{" "}
+              d="M6.463,11.08 C2.947,11.08 0.016,10.1 0.016,9.444 L0.016,12.713 C0.016,13.901 2.903,14.859 6.463,14.859 C10.023,14.859 12.91,13.9 12.91,12.713 L12.91,9.444 C12.91,10.1 9.979,11.08 6.463,11.08 L6.463,11.08 Z"
+              className="si-glyph-fill"
+            >
+              {" "}
+            </path>{" "}
             <path
-              id="Path_2"
-              data-name="Path 2"
-              d="M363.5,272.3s-13.3,9.7-37.7,9.7c-24.5,0-38-9.7-38-9.7"
-              fill="none"
-              stroke="#FFFFFF"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeMiterlimit="10"
-              strokeWidth="4"
-            ></path>{" "}
-            <path
-              id="Path_3"
-              data-name="Path 3"
-              d="M363.4,295.9s-13.2,9.7-37.7,9.7-38.2-9.7-38.2-9.7"
-              fill="none"
-              stroke="#FFFFFF"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeMiterlimit="10"
-              strokeWidth="4"
-            ></path>{" "}
-            <path
-              id="Path_4"
-              data-name="Path 4"
-              d="M302.5,254.2a3.372,3.372,0,0,1,3.9,3.9,3.189,3.189,0,0,1-2.6,2.6,3.372,3.372,0,0,1-3.9-3.9A3.606,3.606,0,0,1,302.5,254.2Z"
-              fill="#FFFFFF"
-              stroke="#FFFFFF"
-              strokeMiterlimit="10"
-              strokeWidth="2"
-            ></path>{" "}
-            <path
-              id="Path_5"
-              data-name="Path 5"
-              d="M302.5,287.1a3.372,3.372,0,0,1,3.9,3.9,3.189,3.189,0,0,1-2.6,2.6,3.372,3.372,0,0,1-3.9-3.9A3.313,3.313,0,0,1,302.5,287.1Z"
-              fill="#FFFFFF"
-              stroke="#FFFFFF"
-              strokeMiterlimit="10"
-              strokeWidth="2"
-            ></path>{" "}
-            <path
-              id="Path_6"
-              data-name="Path 6"
-              d="M302.5,313.9a3.372,3.372,0,0,1,3.9,3.9,3.189,3.189,0,0,1-2.6,2.6,3.372,3.372,0,0,1-3.9-3.9A3.452,3.452,0,0,1,302.5,313.9Z"
-              fill="#FFFFFF"
-              stroke="#FFFFFF"
-              strokeMiterlimit="10"
-              strokeWidth="2"
-            ></path>{" "}
-            <path
-              id="Path_7"
-              data-name="Path 7"
-              d="M315.2,261.3c3.2.3,6.6.4,10.1.4,21,0,38.1-5.3,38.1-11.8s-17.1-11.8-38.1-11.8c-10.1,0-20.5,1.1-27.5,3.1"
-              fill="none"
-              stroke="#FFFFFF"
-              strokeLinecap="round"
-              strokeMiterlimit="10"
-              strokeWidth="4"
-            ></path>{" "}
+              d="M6.494,6.051 C2.978,6.051 0.047,5.049 0.047,4.377 L0.047,7.723 C0.047,8.937 2.934,9.919 6.494,9.919 C10.054,9.919 12.941,8.937 12.941,7.723 L12.941,4.377 C12.941,5.049 10.01,6.051 6.494,6.051 L6.494,6.051 Z"
+              className="si-glyph-fill"
+            >
+              {" "}
+            </path>{" "}
           </g>{" "}
-        </g>
-      </svg>
-    );
-  }
+        </g>{" "}
+      </g>
+    </svg>
+  );
 };
 
 export default Database;

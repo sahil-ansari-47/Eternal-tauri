@@ -152,7 +152,7 @@ export default function MenuBar() {
       </div>
 
       {/* Center: App Name */}
-      <div className="flex items-center">
+      <div className="flex items-center gap-0.5">
         <img
           className="size-6"
           src="../../src-tauri/icons/logo.png"

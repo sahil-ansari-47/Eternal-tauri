@@ -36,9 +36,9 @@ const Main = () => {
       {activeTab === "Home" && (
         <DottedGlowBackground
           className="pointer-events-none mask-radial-to-90% mask-radial-at-center z-0"
-          opacity={1}
+          opacity={0.5}
           gap={10}
-          radius={1.6}
+          radius={4}
           colorLightVar="--color-neutral-500"
           glowColorLightVar="--color-neutral-600"
           colorDarkVar="--color-neutral-500"
@@ -51,7 +51,7 @@ const Main = () => {
       )}
       <Tabs value={activeTab} className="bg-primary-sidebar w-full h-full">
         <div className="flex w-full items-center justify-center">
-          <TabsList className="my-2 bg-transparent z-10">
+          {/* <TabsList className="my-2 bg-transparent z-10">
             {tabList.map((tab) => (
               <TabsTrigger
                 onClick={() => setActiveTab(tab)}
@@ -62,7 +62,7 @@ const Main = () => {
                 {tab}
               </TabsTrigger>
             ))}
-          </TabsList>
+          </TabsList> */}
         </div>
         <TabsContent value="Home">
           <Welcome />

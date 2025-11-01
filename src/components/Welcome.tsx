@@ -1,13 +1,3 @@
-// const Welcome = () => {
-//   return (
-//     <div className="h-full text-neutral-300">
-//       <div>Welcome</div>
-//     </div>
-//   );
-// };
-
-// export default Welcome;
-
 // "use client";
 
 import { useState } from "react";
@@ -61,14 +51,14 @@ export default function Welcome() {
   ];
 
   return (
-    <div className="h-[calc(100vh-104px)] text-p6 flex">
+    <div className="h-full text-p6 flex">
       {/* Sidebar */}
       <aside className="w-64 from-primary-sidebar to-primary-sidebar/40 h-full flex flex-col z-10 bg-radial">
         {/* Logo */}
         <div className="p-6 flex items-center gap-3">
           <div className="w-8 h-8 relative">
             <img
-              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/logo-CuHSzbGLiLhcT81jYHuEcErTHV3t3w.png"
+              src="../../src-tauri/icons/logo.png"
               alt="IDE Logo"
               width={32}
               height={32}
@@ -89,7 +79,7 @@ export default function Welcome() {
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   activeTab === item.id
                     ? "text-p6"
-                    : "text-p6/50 hover:bg-p6/80 hover:text-p5"
+                    : "text-p6/50 hover:bg-p6/80 hover:text-p5 cursor-pointer"
                 }`}
               >
                 <Icon className="w-5 h-5" />
@@ -122,7 +112,7 @@ export default function Welcome() {
                 <div className="flex items-center gap-6">
                   <div className="w-24 h-24 relative flex-shrink-0">
                     <img
-                      src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/logo-CuHSzbGLiLhcT81jYHuEcErTHV3t3w.png"
+                      src="../../src-tauri/icons/logo.png"
                       alt="IDE Logo"
                       width={96}
                       height={96}
@@ -143,6 +133,14 @@ export default function Welcome() {
               <div className="space-y-4 w-full">
                 <h3 className="text-lg font-semibold">Quick Actions</h3>
                 <div className="flex flex-row flex-wrap gap-4 w-full">
+                  <button className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold text-lg">New File</span>
+                    </div>
+                    <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
+                      Create a new file
+                    </p>
+                  </button>
                   <button className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50">
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-semibold text-lg">New Project</span>
