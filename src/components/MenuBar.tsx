@@ -84,7 +84,7 @@ export default function MenuBar() {
       onClick={() => console.log("Menu bar clicked")}
       className="flex items-center justify-between bg-p5 text-neutral-300 h-8 px-1 select-none"
     >
-      <div className="flex space-x-1 text-sm">
+      <div className="flex space-x-1 text-sm z-10">
         <Dropdown
           label="File"
           items={[
@@ -153,12 +153,16 @@ export default function MenuBar() {
 
       {/* Center: App Name */}
       <div className="flex items-center">
-        <img className="size-6" src="../../src-tauri/icons/logo.png" alt="Logo" />
+        <img
+          className="size-6"
+          src="../../src-tauri/icons/logo.png"
+          alt="Logo"
+        />
         <div className="text-xs">Eternal - IDE</div>
       </div>
 
       {/* Right: Window Controls */}
-      <div className="flex">
+      <div className="flex z-10">
         <button
           className="w-10 h-8 flex items-center justify-center hover:bg-gray-700"
           onClick={async () => await appWindow.minimize()}
@@ -176,7 +180,7 @@ export default function MenuBar() {
           </button>
         ) : (
           <button
-            className="w-10 h-8 flex items-center justify-center hover:bg-gray-700"
+            className="w-10 h-8 flex items-center justify-center hover:bg-gray-700  "
             onClick={async () => await appWindow.maximize()}
             aria-label="Maximize window"
           >

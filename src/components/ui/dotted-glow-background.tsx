@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 
 type DottedGlowBackgroundProps = {
@@ -203,9 +201,8 @@ export const DottedGlowBackground = ({
 
     regenDots();
 
-    let last = performance.now();
-
     const draw = (now: number) => {
+      let last = performance.now();
       if (stopped) return;
       //   const dt = (now - last) / 1000; // seconds
       last = now;
@@ -292,7 +289,11 @@ export const DottedGlowBackground = ({
   ]);
 
   return (
-    <div ref={containerRef} className={className} style={{ inset: 0 }}>
+    <div
+      ref={containerRef}
+      className={className}
+      style={{ position: "absolute", inset: 0 }}
+    >
       <canvas
         ref={canvasRef}
         style={{ display: "block", width: "100%", height: "100%" }}

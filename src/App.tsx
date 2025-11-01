@@ -298,7 +298,7 @@ const App = () => {
                   defaultSize={20}
                   minSize={15}
                   order={1}
-                  className="h-[calc(100vh-52px)]"
+                  className="h-[calc(100vh-52px)] z-10"
                 >
                   <LeftPanel content={leftContent} />
                 </Panel>
@@ -321,7 +321,7 @@ const App = () => {
                 {downOpen && (
                   <>
                     <PanelResizeHandle />
-                    <Panel defaultSize={35} order={2}>
+                    <Panel defaultSize={35} order={2} className="z-10">
                       <BottomPanel
                       // onClose={()=>setDownOpen(false)}
                       />
@@ -337,7 +337,7 @@ const App = () => {
                   defaultSize={25}
                   minSize={15}
                   order={3}
-                  className="h-[calc(100vh-52px)]"
+                  className="h-[calc(100vh-52px)] z-10"
                 >
                   <RightPanel content={rightContent} />
                 </Panel>
