@@ -1,4 +1,3 @@
-// src/utils/fsFunctions.ts
 import { readDir } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
 export async function loadChildren(nodePath: string) {

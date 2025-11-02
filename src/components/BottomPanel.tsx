@@ -45,7 +45,7 @@ export default function BottomPanel({togglePanel}:{togglePanel: React.Dispatch<R
           {tabs.map((tab) => (
             <div
               key={tab.id}
-              className={`px-3 py-1 flex items-center cursor-pointer ${
+              className={`px-3 py-2 flex items-center cursor-pointer rounded-b-xl ${
                 tab.id === activeId ? "bg-primary-sidebar" : "bg-transparent"
               }`}
               onClick={() => setActiveId(tab.id)}

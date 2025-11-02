@@ -14,6 +14,11 @@ import {
   ChevronDown,
   ChevronRight,
   GitBranch,
+  Undo,
+  RefreshCcw,
+  ArrowDownToDot,
+  ArrowUpFromDot,
+  FileSymlinkIcon,
   Plus,
   Minus,
 } from "lucide-react";
@@ -27,7 +32,9 @@ import {
 } from "recharts";
 import { useEditor } from "./contexts/EditorContext";
 import { useGit } from "./contexts/GitContext";
-import { stat } from "@tauri-apps/plugin-fs";
+import { open as openLink } from "@tauri-apps/plugin-shell";
+import NoWorkspace from "./NoWorkspace";
+import { readTextFile } from "@tauri-apps/plugin-fs";
 async function runGit<T>(action: string, payload = {}): Promise<T> {
   try {
     console.log("Running git command:", action);
@@ -43,7 +50,7 @@ async function runGit<T>(action: string, payload = {}): Promise<T> {
 }
 
 export default function Git() {
-  const { workspace, setActivePath } = useEditor();
+  const { workspace, setActivePath, setOpenFiles } = useEditor();
   const {
     status,
     setStatus,
@@ -59,6 +66,25 @@ export default function Git() {
   const [error, setError] = useState<GitError | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [url, setUrl] = useState("");
+  const [syncStatus, setSyncStatus] = useState<{
+    ahead: number;
+    behind: number;
+  }>({ ahead: 0, behind: 0 });
+
+  async function fetchSyncStatus() {
+    setLoading(true);
+    try {
+      const result = await runGit<{ ahead: number; behind: number }>(
+        "sync-status",
+        { workspace }
+      );
+      setSyncStatus(result);
+    } catch (err) {
+      console.error("Failed to get sync status", err);
+    } finally {
+      setLoading(false);
+    }
+  }
   async function handleSubmit() {
     if (!url.trim()) {
       setError({ name: "ValidationError", message: "Remote URL required" });
@@ -76,10 +102,10 @@ export default function Git() {
     }
   }
   useEffect(() => {
+    fetchSyncStatus();
     refreshStatus();
     // fetchGraph();
-    console.log(status);
-  }, [workspace]);
+  }, [workspace, status.branch, status.staged.length]);
 
   async function refreshStatus() {
     setLoading(true);
@@ -184,25 +210,6 @@ export default function Git() {
     }
   }
 
-  // async function handleSetRemote() {
-  //   if (!status.origin?.trim()) {
-  //     setError({ name: "ValidationError", message: "Remote URL required" });
-  //     return;
-  //   }
-  //   setLoading(true);
-  //   try {
-  //     const payload = await runGit<GitStatus>("set-remote", {
-  //       workspace,
-  //       url: status.origin,
-  //     });
-  //     await refreshStatus();
-  //     setStatus(payload);
-  //   } catch (e: any) {
-  //     setError(e);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // }
   async function handleSetRemote(url: string) {
     setLoading(true);
     try {
@@ -214,6 +221,55 @@ export default function Git() {
       setLoading(false);
     }
   }
+
+  const handleStageAll = async () => {
+    setLoading(true);
+    try {
+      await runGit("stage-all", { workspace });
+      await refreshStatus();
+    } catch (e: any) {
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUnstageAll = async () => {
+    setLoading(true);
+    try {
+      await runGit("unstage-all", { workspace });
+      await refreshStatus();
+    } catch (e: any) {
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDiscard = async (file: GitFile) => {
+    setLoading(true);
+    try {
+      await runGit("discard", { workspace, file });
+      await refreshStatus();
+    } catch (e: any) {
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleDiscardAll = async () => {
+    setLoading(true);
+    try {
+      await runGit("discard-all", { workspace });
+      await refreshStatus();
+    } catch (e: any) {
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!workspace) return <NoWorkspace />;
   return (
     <div className="p-2 bg-primary-sidebar h-full">
       <div className="h-full w-full text-neutral-300 text-sm flex flex-col border border-neutral-600 rounded-xl">
@@ -233,7 +289,6 @@ export default function Git() {
               </Button>
               <Button
                 onClick={() => {
-                  // Placeholder — you can implement your GitHub flow here
                   console.log("Publish to GitHub clicked");
                 }}
                 disabled={loading}
@@ -247,10 +302,28 @@ export default function Git() {
           <>
             <div className="flex items-center justify-between px-3 py-2 border-b border-white">
               <div className="flex items-center gap-2 overflow-hidden">
-                <span>
-                  {status.origin && <span className="text-xs truncate">{status.origin}/</span>} <br />
-                  {status.branch}
-                </span>
+                <p className="text-xs items-center">
+                  <span className="truncate mr-1">Remote origin:</span>
+                  {status.origin ? (
+                    <span
+                      onClick={async () => {
+                        try {
+                          const url = status.origin!;
+                          console.log("Opening link:", url);
+                          await openLink(url);
+                        } catch (err) {
+                          console.error("Failed to open link:", err);
+                        }
+                      }}
+                      className="bg-p5 px-2 py-0.5 rounded-full hover:underline cursor-pointer truncate"
+                      title={status.origin}
+                    >
+                      {status.origin}
+                    </span>
+                  ) : (
+                    <span className="text-neutral-500 italic">none</span>
+                  )}
+                </p>
               </div>
               <div className="flex gap-2">
                 {!status.origin && (
@@ -274,52 +347,107 @@ export default function Git() {
                 placeholder="Message (Ctrl+Enter to commit on {branch})"
                 className="bg-p5 text-neutral-200 border-none focus:ring-0 text-sm"
               />
-              <div className="mt-2 flex gap-2">
+              <div className="mt-2 flex justify-between">
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleCommit}
+                    disabled={loading || status.staged.length === 0}
+                    className="bg-p6 hover:bg-neutral-400 text-neutral-800 text-xs px-3 py-1 
+                               cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Commit
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setCommitMsg("")}
+                    disabled={loading}
+                    className="bg-neutral-700 hover:bg-neutral-500 text-white text-xs px-3 py-1 cursor-pointer"
+                  >
+                    Clear
+                  </Button>
+                </div>
                 <Button
-                  onClick={handleCommit}
-                  disabled={loading || status.staged.length === 0}
-                  className="bg-p6 hover:bg-neutral-400 text-neutral-800 text-xs px-3 py-1 
-             cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={handlePush}
+                  disabled={
+                    loading ||
+                    (syncStatus.ahead === 0 && syncStatus.behind === 0)
+                  }
+                  className={`bg-p6 hover:bg-neutral-400 text-neutral-800 text-xs px-3 py-1 cursor-pointer 
+    ${syncStatus.ahead === 0 && syncStatus.behind === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
-                  Commit
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  onClick={() => setCommitMsg("")}
-                  disabled={loading}
-                  className="bg-neutral-700 hover:bg-neutral-500 text-white text-xs px-3 py-1 cursor-pointer"
-                >
-                  Clear
+                  <RefreshCcw
+                    className={`w-3 h-3 ${loading ? "animate-spin text-neutral-500" : "text-p5"}`}
+                  />
+                  {syncStatus.ahead === 0 && syncStatus.behind === 0
+                    ? "Synced"
+                    : "Sync"}
+                  {syncStatus.ahead > 0 && (
+                    <span className="text-xs flex">
+                      <ArrowUpFromDot className="w-3 h-3" />
+                      {syncStatus.ahead}
+                    </span>
+                  )}
+                  {syncStatus.behind > 0 && (
+                    <span className="text-xs flex">
+                      <ArrowDownToDot className="w-3 h-3" />
+                      {syncStatus.behind}
+                    </span>
+                  )}
                 </Button>
               </div>
             </div>
 
             <PanelGroup direction="vertical" className="flex-1 overflow-hidden">
               <Panel defaultSize={60} minSize={20}>
-                <div>
-                  <div
-                    className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-neutral-600"
-                    onClick={() =>
-                      setCollapsed((p) => ({ ...p, changes: !p.changes }))
-                    }
-                  >
-                    <div className="flex items-center gap-1 uppercase text-xs text-neutral-400">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-neutral-600 shrink-0">
+                    <div
+                      className="flex flex-1 items-center gap-1 text-xs text-neutral-400 selection:bg-transparent"
+                      onClick={() =>
+                        setCollapsed((p) => ({ ...p, changes: !p.changes }))
+                      }
+                    >
                       {collapsed.changes ? (
                         <ChevronRight className="w-3 h-3" />
                       ) : (
                         <ChevronDown className="w-3 h-3" />
                       )}{" "}
-                      Changes
+                      CHANGES
                     </div>
-                    <span className="text-xs text-neutral-500">
-                      {status.unstaged.length +
-                        status.untracked.length +
-                        status.staged.length}
-                    </span>
+                    <div className="flex">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="w-4 h-4 p-0"
+                        onClick={handleDiscardAll}
+                      >
+                        <Undo className="w-3 h-3 text-p6" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="w-4 h-4 p-0"
+                        onClick={handleUnstageAll}
+                      >
+                        <Minus className="w-3 h-3 text-p6" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="w-4 h-4 p-0"
+                        onClick={handleStageAll}
+                      >
+                        <Plus className="w-3 h-3 text-p6" />
+                      </Button>
+                      <span className="ml-2 text-xs text-neutral-500">
+                        {status.unstaged.length +
+                          status.untracked.length +
+                          status.staged.length}
+                      </span>
+                    </div>
                   </div>
                   {!collapsed.changes && (
-                    <div className="px-3 py-1 overflow-auto max-h-64 scrollbar">
+                    <div className="flex-1 px-3 py-1 scrollbar overflow-y-auto">
                       {[
                         ...status.staged,
                         ...status.unstaged,
@@ -333,17 +461,27 @@ export default function Git() {
                         {status.staged.map((f) => (
                           <li
                             key={f.path}
-                            className="flex justify-between hover:bg-neutral-600 px-1 py-0.5 rounded"
+                            className="flex justify-between items-center hover:bg-neutral-600 px-1 py-0.5 rounded"
                           >
                             <span>{f.path}</span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-4 w-4 p-0"
-                              onClick={() => handleUnstage(f)}
-                            >
-                              <Minus className="w-3 h-3 text-neutral-400" />
-                            </Button>
+                            <div className="flex">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="w-4 h-4 p-0"
+                                // onClick={() => openWorkingTree(f)}
+                              >
+                                <FileSymlinkIcon className="w-3 h-3 text-neutral-400" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-4 w-4 p-0"
+                                onClick={() => handleUnstage(f)}
+                              >
+                                <Minus className="w-3 h-3 text-neutral-400" />
+                              </Button>
+                            </div>
                           </li>
                         ))}
                         {status.unstaged.map((f) => (
@@ -352,30 +490,88 @@ export default function Git() {
                             className="flex justify-between hover:bg-neutral-600 px-1 py-0.5 rounded"
                           >
                             <span>{f.path}</span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-4 w-4 p-0"
-                              onClick={() => handleStage(f)}
-                            >
-                              <Plus className="w-3 h-3 text-neutral-400" />
-                            </Button>
+                            <div className="flex">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="w-4 h-4 p-0"
+                                // onClick={() => openWorkingTree(f)}
+                              >
+                                <FileSymlinkIcon className="w-3 h-3 text-neutral-400" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="w-4 h-4 p-0"
+                                onClick={() => handleDiscard(f)}
+                              >
+                                <Undo className="w-3 h-3 text-neutral-400" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-4 w-4 p-0"
+                                onClick={() => handleStage(f)}
+                              >
+                                <Plus className="w-3 h-3 text-neutral-400" />
+                              </Button>
+                            </div>
                           </li>
                         ))}
                         {status.untracked.map((f) => (
                           <li
                             key={f.path}
                             className="flex justify-between hover:bg-neutral-600 px-1 py-0.5 rounded italic text-neutral-500"
+                            onClick={async () => {
+                              const path = workspace + "/" + f.path;
+                              const content = await readTextFile(f.path);
+                              const file = { path, content } as File;
+                              setActivePath(file.path);
+                              setOpenFiles((prev) =>
+                                prev.find((file) => file.path === path)
+                                  ? prev
+                                  : [...prev, { path, content } as File]
+                              );
+                            }}
                           >
                             <span>{f.path}</span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-4 w-4 p-0"
-                              onClick={() => handleStage(f)}
-                            >
-                              <Plus className="w-3 h-3 text-neutral-400" />
-                            </Button>
+                            <div className="flex">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="w-4 h-4 p-0"
+                                onClick={async () => {
+                                  const path = workspace + "\\" + f.path;
+                                  console.log(path);
+                                  const content = await readTextFile(path);
+                                  const file = { path, content } as File;
+                                  setActivePath(file.path);
+                                  setOpenFiles((prev) =>
+                                    prev.find((file) => file.path === path)
+                                      ? prev
+                                      : [...prev, { path, content } as File]
+                                  );
+                                }}
+                              >
+                                <FileSymlinkIcon className="w-3 h-3 text-neutral-400" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="w-4 h-4 p-0"
+                                onClick={() => handleDiscard(f)}
+                              >
+                                <Undo className="w-3 h-3 text-neutral-400" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-4 w-4 p-0"
+                                onClick={() => handleStage(f)}
+                              >
+                                <Plus className="w-3 h-3 text-neutral-400" />
+                              </Button>
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -392,13 +588,13 @@ export default function Git() {
                       setCollapsed((p) => ({ ...p, graph: !p.graph }))
                     }
                   >
-                    <div className="flex items-center gap-1 uppercase text-xs text-neutral-400">
+                    <div className="flex items-center gap-1 text-xs text-neutral-400">
                       {collapsed.graph ? (
                         <ChevronRight className="w-3 h-3" />
                       ) : (
                         <ChevronDown className="w-3 h-3" />
                       )}{" "}
-                      Graph
+                      GRAPH
                     </div>
                   </div>
                   {!collapsed.graph && (
@@ -454,7 +650,6 @@ export default function Git() {
                     <p className="text-red-500 text-xs">{error.details}</p>
                   )}
                 </div>
-
                 <DialogFooter className="mt-4">
                   <Button
                     variant="outline"

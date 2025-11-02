@@ -2,7 +2,6 @@ import clsx from "clsx";
 import { useEditor } from "./contexts/EditorContext";
 import {
   Files,
-  Database,
   SourceControl,
   Search,
   Messages,
@@ -52,7 +51,7 @@ const Sidebar = ({
       >
         <SourceControl active={current === "git"} />
       </li>
-      <li
+      {/* <li
         className={clsx(
           " px-2 py-2 cursor-pointer",
           current === "db" && "bg-gray-200"
@@ -60,7 +59,7 @@ const Sidebar = ({
         onClick={() => onSelect("db")}
       >
         <Database active={current === "db"} />
-      </li>
+      </li> */}
       <li
         className={clsx(
           " px-2 py-2 cursor-pointer",

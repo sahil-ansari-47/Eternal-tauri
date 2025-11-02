@@ -9,7 +9,13 @@ async fn git_command(
     payload: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
     use std::process::Command;
-    let path = payload["workspace"].as_str().unwrap_or(".");
+    let maybe_path = payload["workspace"].as_str();
+    let path = match maybe_path {
+        Some(p) if !p.trim().is_empty() => p,
+        _ => {
+            return Err("Missing workspace path".into());
+        }
+    };
     println!("Running git command: {} in {}", action, path);
     if action == "init" {
         let out = Command::new("git")
@@ -102,6 +108,42 @@ async fn git_command(
         }));
     }
 
+    if action == "sync-status" {
+        // First fetch to update remote refs
+        let _ = Command::new("git")
+            .args(["fetch"])
+            .current_dir(path)
+            .output();
+
+        // Check commits ahead (to push)
+        let ahead = Command::new("git")
+            .args(["rev-list", "--count", "@{u}..HEAD"])
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        // Check commits behind (to pull)
+        let behind = Command::new("git")
+            .args(["rev-list", "--count", "HEAD..@{u}"])
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        let ahead_count = String::from_utf8_lossy(&ahead.stdout)
+            .trim()
+            .parse::<i32>()
+            .unwrap_or(0);
+        let behind_count = String::from_utf8_lossy(&behind.stdout)
+            .trim()
+            .parse::<i32>()
+            .unwrap_or(0);
+
+        return Ok(serde_json::json!({
+            "ahead": ahead_count,
+            "behind": behind_count
+        }));
+    }
+
     if action == "stage" {
         let out = Command::new("git")
             .arg("add")
@@ -124,6 +166,93 @@ async fn git_command(
         }));
     }
 
+    if action == "stage-all" {
+        let out = Command::new("git")
+            .arg("add")
+            .arg(".")
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+        println!("{}", String::from_utf8_lossy(&out.stdout));
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
+
+    if action == "unstage-all" {
+        let out = Command::new("git")
+            .arg("reset")
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+        println!("{}", String::from_utf8_lossy(&out.stdout));
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
+
+    if action == "discard" {
+        let out = Command::new("git")
+            .arg("reset")
+            .arg("--")
+            .arg(payload["file"]["path"].as_str().unwrap_or(""))
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+        println!("{}", String::from_utf8_lossy(&out.stdout));
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
+
+    if action == "discard-all" {
+        let out = Command::new("git")
+            .arg("reset")
+            .arg("--hard")
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+        println!("{}", String::from_utf8_lossy(&out.stdout));
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
     if action == "unstage" {
         let file_path = payload["file"]["path"].as_str().unwrap_or("");
         println!("Unstaging file: {:?}", file_path);
@@ -492,6 +621,7 @@ async fn replace_in_workspace(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_pty::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
