@@ -1,4 +1,3 @@
-// src/components/FileSystem.tsx
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
@@ -263,14 +262,12 @@ const FileSystem = () => {
     });
     setRoots(updated);
   };
-
   const handleClone = async (clone_url: string) => {
     if (!clone_url) return;
-
     try {
       let repoName = clone_url.split("/").pop();
       if (repoName?.endsWith(".git")) repoName = repoName.slice(0, -4);
-      console.log(repoUrl, repoName);
+      console.log(clone_url, repoName);
       let targetDir = await open({
         directory: true,
         multiple: false,
@@ -291,7 +288,6 @@ const FileSystem = () => {
       console.error("Clone failed:", err);
     }
   };
-
   const getUserRepos = async () => {
     if (!isSignedIn) return;
     const token = await getToken();

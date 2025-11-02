@@ -147,7 +147,7 @@ export default function SearchPanel() {
 
   return (
     <div className="p-2 bg-primary-sidebar h-full">
-      <div className="flex flex-col w-full h-full bg-primary-sidebar text-neutral-300 border border-neutral-600 rounded-xl">
+      <div className="flex flex-col w-full h-full text-neutral-300 border border-neutral-600 rounded-xl">
         <div className="flex items-center justify-between p-2 border-b border-neutral-300 text-neutral-400">
           <div className="ml-4">Search</div>
           <div className="flex gap-2">

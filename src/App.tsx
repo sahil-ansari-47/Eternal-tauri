@@ -323,7 +323,7 @@ const App = () => {
                     <PanelResizeHandle />
                     <Panel defaultSize={35} order={2} className="z-10">
                       <BottomPanel
-                      // onClose={()=>setDownOpen(false)}
+                        togglePanel={setDownOpen}
                       />
                     </Panel>
                   </>

@@ -4,6 +4,295 @@ use std::path::PathBuf;
 use std::process::Command;
 
 #[tauri::command]
+async fn git_command(
+    action: String,
+    payload: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    use std::process::Command;
+    let path = payload["workspace"].as_str().unwrap_or(".");
+    println!("Running git command: {} in {}", action, path);
+    if action == "init" {
+        let out = Command::new("git")
+            .arg("init")
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+        println!("{}", String::from_utf8_lossy(&out.stdout));
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
+    if action == "status" {
+        let out = Command::new("git")
+            .arg("status")
+            .arg("--porcelain")
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+
+        let text = String::from_utf8_lossy(&out.stdout);
+        let mut staged = vec![];
+        let mut unstaged = vec![];
+        let mut untracked = vec![];
+
+        for line in text.lines() {
+            if line.len() < 3 {
+                continue;
+            }
+            let status_code = &line[0..2];
+            let file = line[3..].to_string();
+            match status_code {
+                "M " | "A " | "D " => {
+                    staged.push(serde_json::json!({ "path": file, "status": status_code }))
+                }
+                " M" | " D" => {
+                    unstaged.push(serde_json::json!({ "path": file, "status": status_code }))
+                }
+                "??" => untracked.push(serde_json::json!({ "path": file, "status": status_code })),
+                _ => {}
+            }
+        }
+
+        // branch
+        let branch_out = Command::new("git")
+            .args(["rev-parse", "--abbrev-ref", "HEAD"])
+            .current_dir(path)
+            .output();
+
+        let branch = match branch_out {
+            Ok(b) if b.status.success() => String::from_utf8_lossy(&b.stdout).trim().to_string(),
+            _ => "master".to_string(),
+        };
+
+        // remote origin
+        let origin_out = Command::new("git")
+            .args(["remote", "get-url", "origin"])
+            .current_dir(path)
+            .output()
+            .ok();
+
+        let origin = origin_out
+            .and_then(|o| {
+                if o.status.success() {
+                    Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default();
+        println!("stdout: {:?}", String::from_utf8_lossy(&out.stdout));
+        println!("stderr: {:?}", String::from_utf8_lossy(&out.stderr));
+        println!("exit code: {:?}", out.status.code());
+
+        return Ok(serde_json::json!({
+            "staged": staged,
+            "unstaged": unstaged,
+            "untracked": untracked,
+            "branch": branch,
+            "origin": origin
+        }));
+    }
+
+    if action == "stage" {
+        let out = Command::new("git")
+            .arg("add")
+            .arg(payload["file"]["path"].as_str().unwrap_or(""))
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+        println!("{}", String::from_utf8_lossy(&out.stdout));
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
+
+    if action == "unstage" {
+        let file_path = payload["file"]["path"].as_str().unwrap_or("");
+        println!("Unstaging file: {:?}", file_path);
+
+        // Check if HEAD exists
+        let head_exists = Command::new("git")
+            .args(["rev-parse", "--verify", "HEAD"])
+            .current_dir(path)
+            .output()
+            .map(|out| out.status.success())
+            .unwrap_or(false);
+
+        let out = if head_exists {
+            // Repo has commits → safe to use restore
+            Command::new("git")
+                .args(["restore", "--staged", file_path])
+                .current_dir(path)
+                .output()
+        } else {
+            // Repo has no commits yet → use rm --cached fallback
+            Command::new("git")
+                .args(["rm", "--cached", file_path])
+                .current_dir(path)
+                .output()
+        }
+        .map_err(|e| e.to_string())?;
+
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+
+        println!("Unstaged successfully: {}", file_path);
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
+    if action == "commit" {
+        let out = Command::new("git")
+            .arg("commit")
+            .arg("-m")
+            .arg(payload["message"].as_str().unwrap_or(""))
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+        println!("{}", String::from_utf8_lossy(&out.stdout));
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
+    if action == "push" {
+        let out = Command::new("git")
+            .arg("push")
+            .arg(payload["remote"].as_str().unwrap_or("origin"))
+            .arg(payload["branch"].as_str().unwrap_or("master"))
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+        println!("{}", String::from_utf8_lossy(&out.stdout));
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
+    if action == "branch" {
+        let out = Command::new("git")
+            .arg("branch")
+            .arg(payload["name"].as_str().unwrap_or(""))
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+        println!("{}", String::from_utf8_lossy(&out.stdout));
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
+    if action == "pull" {
+        let out = Command::new("git")
+            .arg("pull")
+            .arg(payload["remote"].as_str().unwrap_or("origin"))
+            .arg(payload["branch"].as_str().unwrap_or("master"))
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+        println!("{}", String::from_utf8_lossy(&out.stdout));
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
+    if action == "set-remote" {
+        let out = Command::new("git")
+            .arg("remote")
+            .arg("add")
+            .arg("origin")
+            .arg(payload["url"].as_str().unwrap_or(""))
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+        println!("{}", String::from_utf8_lossy(&out.stdout));
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
+    if action == "graph" {
+        let out = Command::new("git")
+            .arg("log")
+            .arg("--oneline")
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+        println!("{}", String::from_utf8_lossy(&out.stdout));
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout)
+        }));
+    }
+
+    Err(format!("Unknown git action: {}", action))
+}
+
+#[tauri::command]
 async fn git_clone(repo_url: String, target_dir: String) -> Result<bool, String> {
     if repo_url.is_empty() || target_dir.is_empty() {
         return Err("Repository URL and target directory are required".into());
@@ -165,7 +454,8 @@ async fn replace_in_workspace(
             if let Ok(mut content) = fs::read_to_string(&path) {
                 if options.replace_next {
                     if let Some(index) = content.find(&query_clone) {
-                        content.replace_range(index..index + query_clone.len(), &replace_text_clone);
+                        content
+                            .replace_range(index..index + query_clone.len(), &replace_text_clone);
                         if let Err(err) = fs::write(&path, &content) {
                             eprintln!("Error writing to file {}: {}", path.display(), err);
                             continue;
@@ -206,7 +496,12 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![search_in_workspace, replace_in_workspace, git_clone])
+        .invoke_handler(tauri::generate_handler![
+            search_in_workspace,
+            replace_in_workspace,
+            git_clone,
+            git_command
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

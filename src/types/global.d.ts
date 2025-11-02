@@ -143,8 +143,27 @@ declare global {
     name: string;
     clone_url: string;
   }
+  interface GitFile {
+    path: string;
+    hash?: string;
+    status?: string;
+  }
+  interface GitStatus {
+    staged: GitFile[];
+    unstaged: GitFile[];
+    untracked: GitFile[];
+    branch?: string;
+    origin?: string;
+  }
+  interface GitGraphNode {
+    name: string;
+    commits: number;
+  }
+  interface GitError extends Error {
+    code?: string;
+    details?: string;
+  }
   interface Window {
-    electronAPI: {};
     chatAPI: {
       logMessage: (message: Message) => void;
       messageNotification: (message: Message) => void;

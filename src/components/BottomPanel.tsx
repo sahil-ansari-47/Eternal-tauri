@@ -1,16 +1,20 @@
 // src/components/BottomPanel.tsx
-import { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Terminal from "./Terminal";
-
+import { Plus } from "lucide-react";
 type Tab = {
   id: string;
   title: string;
 };
 
-export default function BottomPanel() {
+export default function BottomPanel({togglePanel}:{togglePanel: React.Dispatch<React.SetStateAction<boolean>>}) {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-
+  useEffect(() => {
+    if (tabs.length === 0) {
+      createTab();
+    }
+  }, []);
   const createTab = () => {
     const id = crypto.randomUUID();
     const title = `Terminal ${tabs.length + 1}`;
@@ -25,6 +29,7 @@ export default function BottomPanel() {
     if (activeId === id) {
       const remaining = tabs.filter((t) => t.id !== id);
       setActiveId(remaining.length ? remaining[0].id : null);
+      if(remaining.length === 0) togglePanel(false);
     }
   };
 
@@ -33,47 +38,48 @@ export default function BottomPanel() {
     : "/bin/bash";
 
   return (
-    <div className="flex flex-col h-full bg-[#1e1e1e] border-t border-neutral-800">
-      {/* Tab bar */}
-      <div className="flex items-center bg-[#252526] text-sm text-white select-none">
-        {tabs.map((tab) => (
-          <div
-            key={tab.id}
-            className={`px-3 py-1 flex items-center cursor-pointer ${
-              tab.id === activeId ? "bg-[#1e1e1e]" : "bg-transparent"
-            }`}
-            onClick={() => setActiveId(tab.id)}
-          >
-            <span>{tab.title}</span>
-            <button
-              className="ml-2 text-neutral-400 hover:text-red-400"
-              onClick={(e) => {
-                e.stopPropagation();
-                closeTab(tab.id);
-              }}
+    <div className="w-full h-full bg-primary-sidebar p-2">
+      <div className="flex flex-col h-full w-full overflow-hidden border border-neutral-600 rounded-xl">
+        {/* Tab bar */}
+        <div className="flex items-center bg-p5 text-sm text-neutral-300 select-none">
+          {tabs.map((tab) => (
+            <div
+              key={tab.id}
+              className={`px-3 py-1 flex items-center cursor-pointer ${
+                tab.id === activeId ? "bg-primary-sidebar" : "bg-transparent"
+              }`}
+              onClick={() => setActiveId(tab.id)}
             >
-              ✕
-            </button>
-          </div>
-        ))}
-        <button
-          className="ml-auto px-3 py-1 hover:bg-[#1e1e1e] text-white"
-          onClick={createTab}
-        >
-          ＋
-        </button>
-      </div>
+              <span>{tab.title}</span>
+              <button
+                className="ml-2 text-neutral-400 hover:text-red-400"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeTab(tab.id);
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          <button
+            className="ml-auto px-3 py-1 hover:bg-[#1e1e1e] text-white"
+            onClick={createTab}
+          >
+            <Plus size={15} />
+          </button>
+        </div>
 
-      {/* Active terminal */}
-      <div className="flex-1 relative overflow-hidden">
-        {tabs.map(
-          (tab) =>
-            tab.id === activeId && (
-              <div key={tab.id} className="absolute inset-0">
-                <Terminal shell={shell} />
-              </div>
-            )
-        )}
+        <div className="flex-1 relative">
+          {tabs.map(
+            (tab) =>
+              tab.id === activeId && (
+                <div key={tab.id} className="absolute inset-0">
+                  <Terminal shell={shell} />
+                </div>
+              )
+          )}
+        </div>
       </div>
     </div>
   );
