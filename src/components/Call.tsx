@@ -1,6 +1,7 @@
-import { Video, VideoOff, MicOff, Mic, PhoneOff } from "lucide-react";
+import { Video, VideoOff, MicOff, Mic, Phone } from "lucide-react";
 import { useMessage } from "./contexts/MessageContext";
 import { useUser } from "./contexts/UserContext";
+import VideoStream from "./ui/video-stream";
 const Call = () => {
   const { socket } = useUser();
   const {
@@ -36,42 +37,39 @@ const Call = () => {
       .forEach((track) => (track.enabled = enabled));
   }
   return (
-    <div className="flex flex-col items-center justify-around h-full">
+    <div className="relative flex flex-col h-full w-full px-30 py-10 gap-4 bg-p5">
       <h1 className="text-xl text-p6 font-semibold">Call with {targetUser}</h1>
-      <div className="flex items-center justify-around w-full">
-          <video
-            autoPlay
-            playsInline
-            ref={remoteVideo}
-            className="max-w-lg max-h-44 border-2 border-neutral-300"
-          />
-          <video
-            autoPlay
-            playsInline
-            muted
-            ref={localVideo}
-            className="max-w-lg max-h-44 border-2 border-neutral-300"
-          />
+      {/* Primary Video Stream */}
+      <VideoStream
+        participantName={targetUser}
+        videoref={remoteVideo as React.RefObject<HTMLVideoElement>}
+      />
+      <div className="absolute right-10 bottom-10 h-50 w-80">
+        <VideoStream
+          participantName={"You"}
+          isMuted={toggleAudio}
+          isVideoOn={toggleVideo}
+          videoref={localVideo as React.RefObject<HTMLVideoElement>}
+        />
       </div>
-      <div className="flex gap-4">
+      <div className="w-full h flex justify-center gap-4">
         <button onClick={() => toggleLocalAudio(!toggleAudio)}>
           {toggleAudio ? (
-            <Mic className="size-10 p-2 rounded-full bg-neutral-300 text-primary-sidebar cursor-pointer" />
+            <Mic className="size-10 p-2 rounded-full bg-neutral-200 hover:bg-neutral-400 text-primary-sidebar cursor-pointer shadow-md" />
           ) : (
-            <MicOff className="size-10 p-2 rounded-full border-1 border-neutral-300 cursor-pointer" />
+            <MicOff className="size-10 p-2 rounded-full border-1 bg-red-500 text-white border-neutral-300 cursor-pointer shadow-md" />
           )}
         </button>
         <button onClick={() => toggleLocalVideo(!toggleVideo)}>
           {toggleVideo ? (
-            <Video className="size-10 p-2 rounded-full bg-neutral-300 text-primary-sidebar cursor-pointer" />
+            <Video className="size-10 p-2 rounded-full bg-neutral-200 hover:bg-neutral-400 text-primary-sidebar cursor-pointer shadow-md" />
           ) : (
-            <VideoOff className="size-10 p-2 rounded-full border-1 border-neutral-300 cursor-pointer" />
+            <VideoOff className="size-10 p-2 rounded-full border-1 bg-red-500 text-white border-neutral-300 cursor-pointer shadow-md" />
           )}
         </button>
-        <PhoneOff
-          className="bg-red-500 size-10 p-2 rounded-full cursor-pointer"
-          onClick={handleHangup}
-        />
+        <button onClick={handleHangup}>
+          <Phone className="bg-red-500 hover:bg-red-900 text-white size-10 p-2 rounded-full cursor-pointer shadow-md rotate-[135deg]" />
+        </button>
       </div>
     </div>
   );

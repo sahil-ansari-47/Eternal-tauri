@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import { useEditor } from "./contexts/EditorContext";
 import {
   Files,
@@ -23,45 +24,63 @@ const Sidebar = ({
 }) => {
   const { setActiveTab } = useEditor();
   return (
-    <ul className="flex flex-col items-center justify-start w-12 h-[calc(100vh-52px)] bg-p5 z-10">
+    <ul className="flex flex-col items-center gap-3.5 justify-start w-12 h-[calc(100vh-52px)] bg-p5 z-10">
       <li
-        className="hover:bg-gray-200 px-2 py-4 cursor-pointer"
+        className={clsx(
+          "px-2 py-2 cursor-pointer",
+          current === "files" && "bg-gray-200"
+        )}
         onClick={() => onSelect("files")}
       >
-        <Files solid={current === "files"} />
+        <Files active={current === "files"} />
       </li>
       <li
-        className="hover:bg-gray-200 px-2 py-4 cursor-pointer"
+        className={clsx(
+          " px-2 py-2 cursor-pointer",
+          current === "search" && "bg-gray-200"
+        )}
         onClick={() => onSelect("search")}
       >
-        <Search solid={current === "search"} />
+        <Search active={current === "search"} />
       </li>
       <li
-        className="hover:bg-gray-200 px-2 py-4 cursor-pointer"
+        className={clsx(
+          " px-2 py-2 cursor-pointer",
+          current === "git" && "bg-gray-200"
+        )}
         onClick={() => onSelect("git")}
       >
-        <SourceControl solid={current === "git"} />
+        <SourceControl active={current === "git"} />
       </li>
       <li
-        className="hover:bg-gray-200 px-2 py-4 cursor-pointer"
+        className={clsx(
+          " px-2 py-2 cursor-pointer",
+          current === "db" && "bg-gray-200"
+        )}
         onClick={() => onSelect("db")}
       >
-        <Database solid={current === "db"} />
+        <Database active={current === "db"} />
       </li>
       <li
-        className="hover:bg-gray-200 px-2 py-4 cursor-pointer"
+        className={clsx(
+          " px-2 py-2 cursor-pointer",
+          currentRight === "chat" && "bg-gray-200"
+        )}
         onClick={() => onSelectRight("chat")}
       >
-        <Messages solid={currentRight === "chat"} />
+        <Messages active={currentRight === "chat"} />
       </li>
       <li
-        className="hover:bg-gray-200 px-2 py-4 cursor-pointer"
+        className={clsx(
+          " px-2 py-2 cursor-pointer"
+          // current === "files" && "bg-gray-200"
+        )}
         onClick={() => setActiveTab("Trello")}
       >
         <Trello />
       </li>
       {/* <li
-        className="hover:bg-gray-200 px-2 py-4"
+        className=" px-2 py-4"
         onClick={() => onSelect("music")}
       > 
         <img
