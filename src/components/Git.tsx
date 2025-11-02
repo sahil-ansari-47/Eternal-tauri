@@ -209,6 +209,21 @@ export default function Git() {
       setLoading(false);
     }
   }
+  async function handlePull() {
+    setLoading(true);
+    try {
+      await runGit("pull", {
+        workspace,
+        remote: status.origin || "origin",
+        branch: status.branch || "master",
+      });
+      await refreshStatus();
+    } catch (e: any) {
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSetRemote(url: string) {
     setLoading(true);
@@ -367,7 +382,10 @@ export default function Git() {
                   </Button>
                 </div>
                 <Button
-                  onClick={handlePush}
+                  onClick={async () => {
+                    await handlePull();
+                    await handlePush();
+                  }}
                   disabled={
                     loading ||
                     (syncStatus.ahead === 0 && syncStatus.behind === 0)
