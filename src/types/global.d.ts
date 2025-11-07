@@ -156,9 +156,13 @@ declare global {
     origin?: string;
   }
   interface GitGraphNode {
-    name: string;
-    commits: number;
+    graph: string;
+    hash: string;
+    isHead: boolean;
+    message: string;
+    remote: boolean;
   }
+
   interface GitError extends Error {
     code?: string;
     details?: string;

@@ -342,10 +342,10 @@ async fn git_command(
     if action == "branch" {
         let out = Command::new("git")
             .arg("branch")
-            .arg(payload["name"].as_str().unwrap_or(""))
             .current_dir(path)
             .output()
             .map_err(|e| e.to_string())?;
+
         if !out.status.success() {
             return Err(format!(
                 "Git command failed (exit {}): {}\n{}",
@@ -354,7 +354,52 @@ async fn git_command(
                 String::from_utf8_lossy(&out.stdout)
             ));
         }
-        println!("{}", String::from_utf8_lossy(&out.stdout));
+
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
+    if action == "create branch" {
+        let out = Command::new("git")
+            .arg("checkout")
+            .arg("-b")
+            .arg(payload["name"].as_str().unwrap_or(""))
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
+    if action == "checkout" {
+        let out = Command::new("git")
+            .arg("checkout")
+            .arg(payload["name"].as_str().unwrap_or(""))
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+
         return Ok(serde_json::json!({
             "stdout": String::from_utf8_lossy(&out.stdout),
             "stderr": String::from_utf8_lossy(&out.stderr)
@@ -406,16 +451,60 @@ async fn git_command(
         }));
     }
     if action == "graph" {
-        let out = Command::new("git")
+        use regex::Regex;
+        let output = Command::new("git")
             .arg("log")
-            .arg("--oneline")
+            .arg("--graph")
+            .arg("--pretty=format:%h|%s|%d")
             .current_dir(path)
             .output()
             .map_err(|e| e.to_string())?;
-        println!("{}", String::from_utf8_lossy(&out.stdout));
-        return Ok(serde_json::json!({
-            "stdout": String::from_utf8_lossy(&out.stdout)
-        }));
+
+        if !output.status.success() {
+            return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let re = Regex::new(r"^([|\\/\* ]*)(.*)$").unwrap();
+
+        let mut commits = Vec::new();
+
+        for line in stdout.lines() {
+            if let Some(caps) = re.captures(line) {
+                let graph_ascii = caps
+                    .get(1)
+                    .map(|m| m.as_str().to_string())
+                    .unwrap_or_default();
+                let rest = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
+
+                let fields: Vec<&str> = rest.splitn(3, '|').collect();
+                let hash = fields.get(0).unwrap_or(&"").trim();
+                let message = fields.get(1).unwrap_or(&"").trim();
+                let refs = fields.get(2).unwrap_or(&"").trim();
+
+                // Skip graph-only continuation lines (like "\" or "|")
+                if hash.is_empty() && message.is_empty() {
+                    commits.push(serde_json::json!({
+                        "graph": graph_ascii,
+                        "hash": "",
+                        "message": "",
+                        "isHead": false,
+                        "remote": false
+                    }));
+                    continue;
+                }
+
+                commits.push(serde_json::json!({
+                    "graph": graph_ascii,
+                    "hash": hash,
+                    "message": message,
+                    "isHead": refs.contains("HEAD"),
+                    "remote": refs.contains("origin"),
+                }));
+            }
+        }
+
+        return Ok(commits.into());
     }
 
     Err(format!("Unknown git action: {}", action))
