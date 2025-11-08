@@ -25,6 +25,7 @@
     "pty:allow-resize",
     "pty:allow-spawn",
     "pty:allow-write",
-    "core:webview:allow-clear-all-browsing-data"
+    "core:webview:allow-clear-all-browsing-data",
+    "shell:allow-open"
   ]
 }

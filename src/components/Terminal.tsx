@@ -28,7 +28,6 @@ export default function Terminal({ shell }: { shell: string }) {
     const fit = new FitAddon();
     const search = new SearchAddon();
 
-    // ✅ WebLinks with Ctrl/Cmd+Click open
     const links = new WebLinksAddon(async (event, uri) => {
       const isMeta = event.metaKey || event.ctrlKey;
       if (isMeta) {

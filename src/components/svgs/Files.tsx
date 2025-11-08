@@ -150,10 +150,10 @@ const Files = ({ active }: { active: boolean }) =>
       .st0 {
         fill: none;
         stroke: #000000;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        stroke-miterlimit: 10;
+        strokeWidth: 2;
+        strokeLinecap: round;
+        strokeLinejoin: round;
+        strokeMiterlimit: 10;
       }
     `}</style>
           <path d="M27,8h-8.9l-2.3-3.5C15.7,4.2,15.3,4,15,4H5C3.3,4,2,5.3,2,7v18c0,1.7,1.3,3,3,3h22c1.7,0,3-1.3,3-3V11C30,9.3,28.7,8,27,8z M28,23.6L19.4,10H27c0.6,0,1,0.4,1,1V23.6z"></path>
