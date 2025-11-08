@@ -362,6 +362,7 @@ const FileSystem = () => {
                     setAction("newFile");
                     setDialogOpen(true);
                   }}
+                  title="New File"
                 >
                   <FilePlus2 className="size-3.5" />
                 </button>
@@ -371,6 +372,7 @@ const FileSystem = () => {
                     setAction("newFolder");
                     setDialogOpen(true);
                   }}
+                  title="New Folder"
                 >
                   <FolderPlus className="size-4" />
                 </button>
@@ -381,10 +383,15 @@ const FileSystem = () => {
                     setWorkspace(null);
                     setRoots(null);
                   }}
+                  title="Close Folder"
                 >
                   <FolderMinus className="size-4" />
                 </button>
-                <button className="cursor-pointer" onClick={reloadWorkspace}>
+                <button
+                  className="cursor-pointer"
+                  onClick={reloadWorkspace}
+                  title="Collapse"
+                >
                   <FolderSync className="size-4" />
                 </button>
               </div>
@@ -470,10 +477,18 @@ const FileSystem = () => {
             </p>
           )}
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setDialogOpen(false)}>
+            <Button
+              variant="secondary"
+              className="cursor-pointer"
+              onClick={() => setDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={handleConfirm}>
+            <Button
+              onClick={handleConfirm}
+              className="border-1 border-neutral-500 cursor-pointer disabled:opacity:50"
+              disabled={value === ""}
+            >
               {action === "delete" ? "Delete" : "OK"}
             </Button>
           </DialogFooter>

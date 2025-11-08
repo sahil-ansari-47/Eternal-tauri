@@ -669,7 +669,7 @@
 //   );
 // }
 
-"use client";
+// "use client";
 
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -736,8 +736,10 @@ export default function GitPanel() {
   const [loading, setLoading] = useState<boolean>(false);
   const [commitMsg, setCommitMsg] = useState<string>("");
   const [error, setError] = useState<GitError | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [remotedialogOpen, setRemoteDialogOpen] = useState(false);
+  const [createbranchdialogOpen, setCreateBranchDialogOpen] = useState(false);
   const [url, setUrl] = useState("");
+  const [newbranch, setNewBranch] = useState("");
   const [branches, setBranches] = useState<string[]>([]);
   const [syncStatus, setSyncStatus] = useState<{
     ahead: number;
@@ -760,9 +762,11 @@ export default function GitPanel() {
     }
   }
   async function handleCreateBranch() {
-    const name = prompt("Enter new branch name:");
+    const name = newbranch.trim();
     if (!name) return;
+    setNewBranch("");
     setLoading(true);
+    setCreateBranchDialogOpen(false);
     try {
       await runGit("create branch", { name, workspace });
       await refreshStatus();
@@ -810,7 +814,7 @@ export default function GitPanel() {
     setLoading(true);
     try {
       await handleSetRemote(url.trim());
-      setDialogOpen(false);
+      setRemoteDialogOpen(false);
     } catch (e: any) {
       setError(e.message || "Failed to set remote");
     } finally {
@@ -1055,7 +1059,7 @@ export default function GitPanel() {
                   <DropdownMenuTrigger asChild>
                     <Button
                       size="sm"
-                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-p6/10 rounded-full border border-p6 text-sm font-semibold"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-p6/10 rounded-full border border-p6 text-sm font-semibold cursor-pointer"
                     >
                       <div className="w-2 h-2 rounded-full bg-white" />
                       {status.branch}
@@ -1075,7 +1079,7 @@ export default function GitPanel() {
                           onClick={() => handleSwitchBranch(branch)}
                           className={
                             branch === status.branch
-                              ? "font-semibold text-p5"
+                              ? "font-semibold text-p6/80"
                               : "pl-4"
                           }
                         >
@@ -1083,7 +1087,9 @@ export default function GitPanel() {
                           {branch}
                         </DropdownMenuItem>
                       ))}
-                    <DropdownMenuItem onClick={handleCreateBranch}>
+                    <DropdownMenuItem
+                      onClick={() => setCreateBranchDialogOpen(true)}
+                    >
                       <Plus className="w-3 h-3 mr-1" />
                       Create new branch
                     </DropdownMenuItem>
@@ -1118,14 +1124,14 @@ export default function GitPanel() {
                   </button>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-sidebar-foreground/40 italic">
+                    <span className="text-xs text-p6/80 italic">
                       Not configured
                     </span>
                     <Button
                       size="sm"
-                      onClick={() => setDialogOpen(true)}
+                      onClick={() => setRemoteDialogOpen(true)}
                       disabled={loading}
-                      className="bg-sidebar-accent/30 hover:bg-sidebar-accent/50 text-sidebar-foreground text-xs px-2.5 py-1 h-auto transition-colors"
+                      className="bg-sidebar-accent hover:bg-sidebar-accent/50 text-sidebar-foreground text-xs px-2.5 py-1 h-auto transition-colors cursor-pointer rounded-xl"
                     >
                       Add Remote
                     </Button>
@@ -1136,8 +1142,8 @@ export default function GitPanel() {
 
             <div className="border-b border-sidebar-border px-4 py-3 space-y-2">
               <div className="flex items-center gap-2 mb-1">
-                <GitCommit className="w-4 h-4 text-sidebar-foreground/60" />
-                <span className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wide">
+                <GitCommit className="w-4 h-4 text-p6/80" />
+                <span className="text-xs font-semibold text-p6/80 uppercase tracking-wide">
                   Commit
                 </span>
               </div>
@@ -1145,14 +1151,16 @@ export default function GitPanel() {
                 value={commitMsg}
                 onChange={(e) => setCommitMsg(e.target.value)}
                 placeholder={`Commit message on ${status.branch || "branch"}`}
-                className="bg-sidebar-accent/50 text-sidebar-foreground border-sidebar-border/50 focus:border-git-branch/50 placeholder:text-sidebar-foreground/40 text-sm rounded-lg"
+                className="bg-neutral-800 border border-neutral-600 rounded text-p6/80 focus:border-git-branch/50 placeholder:p6/80 text-sm"
               />
               <div className="flex justify-between items-center gap-2 pt-1">
                 <div className="flex gap-1">
                   <Button
                     onClick={handleCommit}
-                    disabled={loading || status.staged.length === 0}
-                    className="bg-git-success hover:bg-git-success/90 text-git-success-fg text-xs px-3 py-1.5 h-auto font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={
+                      loading || status.staged.length === 0 || commitMsg === ""
+                    }
+                    className="hover:bg-primary-sidebar text-git-success-fg text-xs px-3 py-1.5 h-auto font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border-1 border-neutral-500 cursor-pointer rounded-xl"
                   >
                     Commit
                   </Button>
@@ -1160,7 +1168,7 @@ export default function GitPanel() {
                     variant="secondary"
                     onClick={() => setCommitMsg("")}
                     disabled={loading}
-                    className="bg-sidebar-accent/30 hover:bg-sidebar-accent/50 text-sidebar-foreground text-xs px-3 py-1.5 h-auto transition-colors"
+                    className="bg-sidebar-accent hover:bg-sidebar-accent/50 text-sidebar-foreground text-xs px-3 py-1.5 h-auto transition-colors rounded-xl cursor-pointer"
                   >
                     Clear
                   </Button>
@@ -1177,7 +1185,7 @@ export default function GitPanel() {
                   className={`bg-git-branch hover:bg-git-branch/90 text-git-branch-fg text-xs px-3 py-1.5 h-auto font-medium transition-colors flex items-center gap-1.5 ${
                     syncStatus.ahead === 0 && syncStatus.behind === 0
                       ? "opacity-50 cursor-not-allowed"
-                      : ""
+                      : "cursor-pointer"
                   }`}
                 >
                   <RefreshCcw
@@ -1211,9 +1219,9 @@ export default function GitPanel() {
             <PanelGroup direction="vertical" className="flex-1 min-h-0">
               <Panel defaultSize={60} minSize={20}>
                 <div className="flex flex-col h-full">
-                  <div className="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-sidebar-accent/30 shrink-0 border-b border-sidebar-border transition-colors">
+                  <div className="flex items-center justify-between px-4 py-2.5 cursor-pointer  shrink-0 border-b border-sidebar-border transition-colors">
                     <div
-                      className="flex flex-1 items-center gap-2 text-xs font-semibold text-sidebar-foreground/70 uppercase tracking-wide selection:bg-transparent"
+                      className="flex flex-1 items-center gap-2 text-xs font-semibold text-p6/80 uppercase tracking-wide selection:bg-transparent"
                       onClick={() =>
                         setCollapsed((p) => ({ ...p, changes: !p.changes }))
                       }
@@ -1234,7 +1242,7 @@ export default function GitPanel() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="w-7 h-7 p-0 hover:bg-sidebar-accent/50 text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
+                        className="w-7 h-7 p-0 hover:bg-sidebar-accent/50 text-p6/80 cursor-pointer hover:text-sidebar-foreground transition-colors"
                         onClick={handleDiscardAll}
                         title="Discard all"
                       >
@@ -1243,7 +1251,7 @@ export default function GitPanel() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="w-7 h-7 p-0 hover:bg-sidebar-accent/50 text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
+                        className="w-7 h-7 p-0 hover:bg-sidebar-accent/50 text-p6/80 cursor-pointer hover:text-sidebar-foreground transition-colors"
                         onClick={handleUnstageAll}
                         title="Unstage all"
                       >
@@ -1252,7 +1260,7 @@ export default function GitPanel() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="w-7 h-7 p-0 hover:bg-sidebar-accent/50 text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
+                        className="w-7 h-7 p-0 hover:bg-sidebar-accent/50 text-p6/80 cursor-pointer hover:text-sidebar-foreground transition-colors"
                         onClick={handleStageAll}
                         title="Stage all"
                       >
@@ -1268,7 +1276,7 @@ export default function GitPanel() {
                         ...status.untracked,
                       ].length === 0 ? (
                         <div className="p-4 text-center">
-                          <p className="text-xs text-sidebar-foreground/50 font-medium">
+                          <p className="text-xs text-p6/80 font-medium">
                             Working tree clean
                           </p>
                         </div>
@@ -1293,10 +1301,11 @@ export default function GitPanel() {
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="w-5 h-5 p-0 hover:bg-sidebar-accent/50"
+                                        className="w-5 h-5 p-0 hover:bg-sidebar-accent/50 text-p6/80 hover:text-primary-sidebar cursor-pointer transition-colors"
                                         onClick={() => handleUnstage(f)}
+                                        title="Unstage"
                                       >
-                                        <Minus className="w-3 h-3 text-sidebar-foreground/60" />
+                                        <Minus className="w-3 h-3" />
                                       </Button>
                                     </div>
                                   </li>
@@ -1324,20 +1333,20 @@ export default function GitPanel() {
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="w-5 h-5 p-0 hover:bg-sidebar-accent/50"
+                                        className="w-5 h-5 p-0 hover:bg-sidebar-accent/50 text-p6/80 hover:text-primary-sidebar cursor-pointer"
                                         onClick={() => handleDiscard(f)}
                                         title="Discard"
                                       >
-                                        <Undo className="w-3 h-3 text-sidebar-foreground/60" />
+                                        <Undo className="w-3 h-3" />
                                       </Button>
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="w-5 h-5 p-0 hover:bg-sidebar-accent/50"
+                                        className="w-5 h-5 p-0 hover:bg-sidebar-accent/50 text-p6/80 hover:text-primary-sidebar cursor-pointer"
                                         onClick={() => handleStage(f)}
                                         title="Stage"
                                       >
-                                        <Plus className="w-3 h-3 text-sidebar-foreground/60" />
+                                        <Plus className="w-3 h-3 " />
                                       </Button>
                                     </div>
                                   </li>
@@ -1371,14 +1380,14 @@ export default function GitPanel() {
                                       );
                                     }}
                                   >
-                                    <span className="text-sidebar-foreground/60 truncate">
+                                    <span className="text-p6/80 truncate">
                                       {f.path}
                                     </span>
                                     <div className="flex gap-1 flex-shrink-0">
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="w-5 h-5 p-0 hover:bg-sidebar-accent/50"
+                                        className="w-5 h-5 p-0 hover:bg-sidebar-accent/50 cursor-pointer"
                                         onClick={async (e) => {
                                           e.stopPropagation();
                                           const path =
@@ -1405,25 +1414,25 @@ export default function GitPanel() {
                                         }}
                                         title="Open file"
                                       >
-                                        <FileSymlinkIcon className="w-3 h-3 text-sidebar-foreground/60" />
+                                        <FileSymlinkIcon className="w-3 h-3 text-p6/80" />
                                       </Button>
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="w-5 h-5 p-0 hover:bg-sidebar-accent/50"
+                                        className="w-5 h-5 p-0 hover:bg-sidebar-accent/50 text-p6/80 hover:text-primary-sidebar cursor-pointer"
                                         onClick={() => handleDiscard(f)}
                                         title="Discard"
                                       >
-                                        <Undo className="w-3 h-3 text-sidebar-foreground/60" />
+                                        <Undo className="w-3 h-3" />
                                       </Button>
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="w-5 h-5 p-0 hover:bg-sidebar-accent/50"
+                                        className="w-5 h-5 p-0 hover:bg-sidebar-accent/50 text-p6/80 hover:text-primary-sidebar cursor-pointer"
                                         onClick={() => handleStage(f)}
                                         title="Stage"
                                       >
-                                        <Plus className="w-3 h-3 text-sidebar-foreground/60" />
+                                        <Plus className="w-3 h-3" />
                                       </Button>
                                     </div>
                                   </li>
@@ -1456,7 +1465,7 @@ export default function GitPanel() {
             )}
 
             {/* Set Remote Dialog */}
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog open={remotedialogOpen} onOpenChange={setRemoteDialogOpen}>
               <DialogContent className="max-w-sm">
                 <DialogHeader>
                   <DialogTitle className="text-lg">
@@ -1469,7 +1478,7 @@ export default function GitPanel() {
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                     disabled={loading}
-                    className="text-sm"
+                    className="text-sm text-p6"
                   />
                   {error && (
                     <p className="text-destructive text-xs font-medium">
@@ -1479,18 +1488,64 @@ export default function GitPanel() {
                 </div>
                 <DialogFooter className="mt-4">
                   <Button
+                    className="cursor-pointer hover:opacity-50"
                     variant="outline"
-                    onClick={() => setDialogOpen(false)}
+                    onClick={() => setRemoteDialogOpen(false)}
                     disabled={loading}
                   >
                     Cancel
                   </Button>
                   <Button
-                    className="bg-git-branch hover:bg-git-branch/90 text-git-branch-fg font-medium"
+                    className="font-medium disabled:opacity-50 text-p6 cursor-pointer border-1 border-neutral-500"
                     onClick={handleSubmit}
-                    disabled={loading}
+                    disabled={loading || !url}
                   >
                     {loading ? "Setting..." : "Set Remote"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Create Branch Dialog */}
+            <Dialog
+              open={createbranchdialogOpen}
+              onOpenChange={setCreateBranchDialogOpen}
+            >
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle className="text-lg">
+                    Create New Branch
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-col gap-3">
+                  <Input
+                    placeholder="New Branch"
+                    value={newbranch}
+                    onChange={(e) => setNewBranch(e.target.value)}
+                    disabled={loading}
+                    className="text-sm text-p6"
+                  />
+                  {error && (
+                    <p className="text-destructive text-xs font-medium">
+                      {error.details}
+                    </p>
+                  )}
+                </div>
+                <DialogFooter className="mt-4">
+                  <Button
+                    className="cursor-pointer hover:opacity-50"
+                    variant="outline"
+                    onClick={() => setCreateBranchDialogOpen(false)}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="font-medium disabled:opacity-50 text-p6 cursor-pointer border-1 border-neutral-500"
+                    onClick={handleCreateBranch}
+                    disabled={loading || !newbranch}
+                  >
+                    {loading ? "Adding..." : "Create Branch"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
