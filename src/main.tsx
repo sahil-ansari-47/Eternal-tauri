@@ -6,6 +6,7 @@ import { ClerkProvider } from "@clerk/clerk-react";
 import { UserProvider } from "./components/contexts/UserContext";
 import { MessageProvider } from "./components/contexts/MessageContext";
 import { GitProvider } from "./components/contexts/GitContext";
+import { EditorProvider } from "./components/contexts/EditorContext";
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 if (!PUBLISHABLE_KEY) {
@@ -17,7 +18,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <UserProvider>
       <MessageProvider>
         <GitProvider>
-          <App />
+          <EditorProvider>
+            <App />
+          </EditorProvider>
         </GitProvider>
       </MessageProvider>
     </UserProvider>

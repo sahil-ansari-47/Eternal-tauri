@@ -8,8 +8,9 @@ import {
   mkdir,
   remove,
 } from "@tauri-apps/plugin-fs";
-import { watchImmediate } from "@tauri-apps/plugin-fs";
-import { join, dirname } from "@tauri-apps/api/path";
+import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
+import { join } from "@tauri-apps/api/path";
 import {
   loadChildren,
   traverseAndUpdate,
@@ -52,8 +53,6 @@ const FileSystem = () => {
     setWorkspace,
     error,
     setError,
-    dialogOpen,
-    setDialogOpen,
     action,
     setAction,
     errorMessage,
@@ -64,39 +63,57 @@ const FileSystem = () => {
   const [roots, setRoots] = useState<FsNode[] | null>(null);
   const [targetNode, setTargetNode] = useState<FsNode | null>(null);
   const [value, setValue] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  // useEffect(() => {
+  //   if (!workspace) {
+  //     setRoots(null);
+  //     return;
+  //   }
+
+  //   let unlisten: () => void;
+
+  //   const setupWatcher = async () => {
+  //     unlisten = await watchImmediate(
+  //       workspace,
+  //       async (event) => {
+  //         console.log("FS change event:", event);
+  //         // Find the parent directory of the changed path to refresh it.
+  //         const dirToRefresh = await dirname(event.paths[0]);
+
+  //         // Only refresh the subtree that changed, not the whole workspace.
+  //         setRoots((currentRoots) => {
+  //           if (!currentRoots) return null;
+  //           refreshSubtree(currentRoots, dirToRefresh).then(setRoots);
+  //           return currentRoots;
+  //         });
+  //       },
+  //       { recursive: true }
+  //     );
+  //   };
+  //   reloadWorkspace();
+  //   setupWatcher();
+  //   return () => {
+  //     if (unlisten) {
+  //       unlisten();
+  //     }
+  //   };
+  // }, [workspace]);
+
   useEffect(() => {
-    if (!workspace) {
-      setRoots(null);
-      return;
-    }
-
-    let unlisten: () => void;
-
-    const setupWatcher = async () => {
-      unlisten = await watchImmediate(
-        workspace,
-        async (event) => {
-          console.log("FS change event:", event);
-          // Find the parent directory of the changed path to refresh it.
-          const dirToRefresh = await dirname(event.paths[0]);
-
-          // Only refresh the subtree that changed, not the whole workspace.
-          setRoots((currentRoots) => {
-            if (!currentRoots) return null;
-            refreshSubtree(currentRoots, dirToRefresh).then(setRoots);
-            return currentRoots;
+    if (workspace) {
+      invoke("watch_workspace", { path: workspace });
+      const unlisten = listen("fs-change", (event) => {
+        console.log("Change:", event.payload);
+        reloadWorkspace();
+      });
+      return () => {
+        unlisten
+          .then((u) => u())
+          .catch((e) => {
+            console.error("Failed to unlisten fs-change:", e);
           });
-        },
-        { recursive: true }
-      );
-    };
-    reloadWorkspace();
-    setupWatcher();
-    return () => {
-      if (unlisten) {
-        unlisten();
-      }
-    };
+      };
+    }
   }, [workspace]);
 
   const refreshSubtree = async (
@@ -129,7 +146,6 @@ const FileSystem = () => {
       })
     );
   };
-
   const reloadWorkspace = async () => {
     if (!workspace) return;
     try {
@@ -210,14 +226,12 @@ const FileSystem = () => {
     setAction(null);
     setTargetNode(null);
   };
-
   const handleFileClick = async (node: FsNode) => {
     if (!node.isDirectory) {
       const content = await readTextFile(node.path);
       handleOpenFile(node.path, content);
     }
   };
-
   const handleOpenFile = (path: string, content: string) => {
     setActivePath(path);
     setOpenFiles((prev) =>

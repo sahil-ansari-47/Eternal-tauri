@@ -46,7 +46,6 @@ export default function Editor() {
     return () => window.removeEventListener("scroll-to-line", handler);
   }, [activePath]);
 
-  // Create editor when container mounts
   const assignRef = (filePath: string) => (el: HTMLDivElement | null) => {
     if (!el || viewRefs.current[filePath]) return;
     const file = openFiles.find((f) => f.path === filePath);
@@ -65,9 +64,7 @@ export default function Editor() {
   const onSave = async(filePath: string, newContent: string) => {
     const file = openFiles.find((f) => f.path === filePath);
     if (!file) return;
-    // save to disk
     await writeTextFile(file.path, newContent as unknown as string);
-    // update state
     setOpenFiles((prev) =>
       prev.map((f) => (f.path === filePath ? { ...f, content: newContent } as File : f))
     );
@@ -88,10 +85,9 @@ export default function Editor() {
 
     const remaining = openFiles.filter((f) => f.path !== filePath);
     if (remaining.length > 0) setActivePath(remaining[0].path);
-    else setActivePath(""); // no tabs left
+    else setActivePath("");
   };
 
-  // Update active tab if the current active file is closed externally
   useEffect(() => {
     if (!openFiles.find((f) => f.path === activePath) && openFiles.length > 0) {
       setActivePath(openFiles[0].path);

@@ -250,7 +250,7 @@ const Messaging = () => {
     setGroupName("");
     fetchUser();
   };
-  const handleVideoCall = async (to: string, video: boolean) => {
+  const handleVideoCall = async (to: string) => {
     if (!userData) {
       console.log("User not found");
       return;
@@ -752,13 +752,13 @@ const Messaging = () => {
                 <div className="flex items-center gap-2">
                   <Phone
                     onClick={async () => {
-                      await handleVideoCall(targetUser, false);
+                      await handleVideoCall(targetUser);
                       toggleLocalVideo(false);
                     }}
                     className="cursor-pointer size-7 p-1 text-p6"
                   />
                   <Video
-                    onClick={() => handleVideoCall(targetUser, true)}
+                    onClick={() => handleVideoCall(targetUser)}
                     className="cursor-pointer size-8 p-1 text-p6"
                   />
                 </div>

@@ -1,8 +1,29 @@
+// use tauri::{AppHandle};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+// use std::time::Duration;
+// use std::sync::mpsc::channel;   
+// use notify::{Watcher, RecursiveMode, watcher};
 
+// #[tauri::command]
+// async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
+//     let (tx, rx) = channel();
+
+//     std::thread::spawn(move || {
+//         let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
+//         watcher.watch(&path, RecursiveMode::Recursive).unwrap();
+
+//         for res in rx {
+//             if let Ok(event) = res {
+//                 app.emit_all("fs-change", event.paths).unwrap();
+//             }
+//         }
+//     });
+
+//     Ok(())
+// }
 #[tauri::command]
 async fn git_command(
     action: String,
@@ -719,7 +740,7 @@ pub fn run() {
             search_in_workspace,
             replace_in_workspace,
             git_clone,
-            git_command
+            git_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

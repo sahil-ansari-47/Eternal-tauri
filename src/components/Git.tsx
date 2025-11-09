@@ -818,6 +818,7 @@ export default function GitPanel() {
     }
   }
   useEffect(() => {
+    if(!workspace) return
     fetchSyncStatus();
     refreshStatus();
     fetchGraph();
@@ -921,6 +922,7 @@ export default function GitPanel() {
         branch: status.branch || "master",
       });
       await refreshStatus();
+      await fetchSyncStatus();
     } catch (e: any) {
       setError(e);
     } finally {

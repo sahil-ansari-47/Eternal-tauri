@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-// import { ToastNotification, TemplateType, ToastButton } from 'electron-windows-notifications';
 import {
   Dialog,
   DialogContent,
@@ -9,12 +8,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "./components/ui/dialog";
+import { Label } from "./components/ui/label";
+import { Input } from "./components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@radix-ui/react-radio-group";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
 import { Button } from "./components/ui/button";
-import { EditorProvider } from "./components/contexts/EditorContext";
+import { useEditor } from "./components/contexts/EditorContext";
 import { useUser } from "./components/contexts/UserContext";
 import { useMessage } from "./components/contexts/MessageContext";
 import { socket } from "./lib/socket";
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth, SignInButton } from "@clerk/clerk-react";
 import {
   LeftPanel,
   Sidebar,
@@ -53,6 +56,18 @@ const App = () => {
     createPeerConnection,
     ensureLocalStream,
   } = useMessage();
+  const {
+    cloneDialogOpen,
+    setCloneDialogOpen,
+    cloneMethod,
+    setCloneMethod,
+    repos,
+    repoUrl,
+    setRepoUrl,
+    errorMessage,
+    setErrorMessage,
+    handleClone,
+  } = useEditor();
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
   const [downOpen, setDownOpen] = useState(false);
@@ -199,44 +214,33 @@ const App = () => {
     if (!incomingFrom || !pendingOffer) return;
     const pc = createPeerConnection(incomingFrom);
     pcRef.current = pc;
-
     try {
       setAcceptDialog(false);
       setInCall(true);
       setTargetUser(incomingFrom);
-
       await pc.setRemoteDescription(pendingOffer);
-
       const stream = await ensureLocalStream();
       if (stream) {
         for (const track of stream.getTracks()) {
           pc.addTrack(track, stream);
         }
       }
-
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-
       socket.emit("answer", { to: incomingFrom, answer });
-
-      // Flush buffered ICE candidates
       for (const candidate of bufferedCandidatesRef.current) {
         await pc.addIceCandidate(candidate);
       }
       bufferedCandidatesRef.current = [];
-
-      // Final state updates on success
       toggleLocalVideo(toggleVideo);
       setIncomingFrom(null);
       setPendingOffer(null);
     } catch (error) {
       console.error("Error during call acceptance:", error);
-      // Clean up on failure
       if (pcRef.current) {
         pcRef.current.close();
         pcRef.current = null;
       }
-      // Reset UI state
       setInCall(false);
       setTargetUser("");
     }
@@ -262,7 +266,7 @@ const App = () => {
     return () => window.removeEventListener("keydown", handler);
   }, [togglePanel]);
   return (
-    <EditorProvider>
+    <>
       <div className="divide-y divide-neutral-700">
         <MenuBar />
         <div className="w-screen overflow-hidden h-[calc(100vh-52px)]">
@@ -322,9 +326,7 @@ const App = () => {
                   <>
                     <PanelResizeHandle />
                     <Panel defaultSize={35} order={2} className="z-10">
-                      <BottomPanel
-                        togglePanel={setDownOpen}
-                      />
+                      <BottomPanel togglePanel={setDownOpen} />
                     </Panel>
                   </>
                 )}
@@ -365,7 +367,109 @@ const App = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </EditorProvider>
+      <Dialog open={cloneDialogOpen} onOpenChange={setCloneDialogOpen}>
+        <DialogContent className="text-neutral-700 flex flex-col justify-between">
+          <DialogHeader>
+            <DialogTitle>Clone Repository</DialogTitle>
+          </DialogHeader>
+
+          <Tabs
+            value={cloneMethod}
+            onValueChange={(val) => setCloneMethod(val as "github" | "link")}
+          >
+            <TabsList className="w-full grid grid-cols-2 mb-4 gap-4">
+              <TabsTrigger
+                value="link"
+                className="data-[state=active]:bg-black rounded-2xl data-[state=active]:text-white transition-colors"
+              >
+                From URL
+              </TabsTrigger>
+              <TabsTrigger
+                value="github"
+                className="data-[state=active]:bg-black rounded-2xl data-[state=active]:text-white transition-colors"
+              >
+                GitHub
+              </TabsTrigger>
+            </TabsList>
+            {/* GITHUB TAB */}
+            <TabsContent
+              value="github"
+              className="flex flex-col justify-between max-h-46 overflow-y-auto scrollbar"
+            >
+              {isSignedIn ? (
+                repos && repos.length > 0 ? (
+                  <RadioGroup
+                    value={repoUrl}
+                    onValueChange={(val) => {
+                      setRepoUrl(val);
+                      setErrorMessage(null);
+                    }}
+                    className="flex flex-col gap-2"
+                  >
+                    {repos.map((repo) => (
+                      <Label
+                        key={repo.id}
+                        htmlFor={`repo-${repo.id}`}
+                        className={`flex items-center justify-between w-full p-3 rounded-md border cursor-pointer transition-colors ${
+                          repoUrl === repo.clone_url
+                            ? "border-blue-500 bg-blue-500/10"
+                            : "border-neutral-700 hover:border-neutral-500"
+                        }`}
+                      >
+                        <span>{repo.name}</span>
+                        <RadioGroupItem
+                          value={repo.clone_url}
+                          id={`repo-${repo.id}`}
+                          className="hidden"
+                        />
+                      </Label>
+                    ))}
+                  </RadioGroup>
+                ) : (
+                  <p className="text-sm text-neutral-400">
+                    No repositories found.
+                  </p>
+                )
+              ) : (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="bg-p5 w-fit text-p6 p-2 rounded-lg hover:bg-neutral-700">
+                    <SignInButton mode="modal" />
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* LINK TAB */}
+            <TabsContent value="link">
+              <Input
+                value={repoUrl}
+                onChange={(e) => {
+                  setRepoUrl(e.target.value);
+                  setErrorMessage(null);
+                }}
+                placeholder="Enter repository URL"
+                autoFocus
+              />
+              {errorMessage && (
+                <div className="text-sm text-red-500 mt-2">{errorMessage}</div>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => setCloneDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={() => handleClone(repoUrl)} disabled={!repoUrl}>
+              Clone
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
