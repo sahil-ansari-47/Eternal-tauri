@@ -1,5 +1,5 @@
 import { readDir } from "@tauri-apps/plugin-fs";
-import { join } from "@tauri-apps/api/path";
+import { join, normalize } from "@tauri-apps/api/path";
 export async function loadChildren(nodePath: string) {
   try {
     const entries = await readDir(nodePath);
@@ -23,7 +23,7 @@ export async function traverseAndUpdate(
 ) {
   const result: FsNode[] = [];
   for (const n of nodes) {
-    if (n.path === targetPath) {
+    if (normalize(n.path) === normalize(targetPath)) {
       const updated = await updater({ ...n });
       result.push(updated);
     } else {
@@ -66,6 +66,7 @@ export const applyExpanded = (
   nodes: FsNode[],
   expandedMap: Record<string, boolean>
 ): FsNode[] => {
+  if (Object.keys(expandedMap).length === 0) return nodes;
   return nodes.map((node) => ({
     ...node,
     expanded: expandedMap[node.path] ?? node.expanded,

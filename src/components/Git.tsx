@@ -822,12 +822,12 @@ export default function GitPanel() {
     }
   }
   useEffect(() => {
-    if(!workspace) return
+    if (!workspace) return;
     fetchSyncStatus();
     refreshStatus();
     fetchGraph();
     loadBranches();
-  }, [workspace, status.branch, status.staged.length]);
+  }, [workspace, status.branch, status.staged.length, status.origin]);
 
   async function refreshStatus() {
     setLoading(true);

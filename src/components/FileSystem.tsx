@@ -64,43 +64,9 @@ const FileSystem = () => {
   const [targetNode, setTargetNode] = useState<FsNode | null>(null);
   const [value, setValue] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  // useEffect(() => {
-  //   if (!workspace) {
-  //     setRoots(null);
-  //     return;
-  //   }
-
-  //   let unlisten: () => void;
-
-  //   const setupWatcher = async () => {
-  //     unlisten = await watchImmediate(
-  //       workspace,
-  //       async (event) => {
-  //         console.log("FS change event:", event);
-  //         // Find the parent directory of the changed path to refresh it.
-  //         const dirToRefresh = await dirname(event.paths[0]);
-
-  //         // Only refresh the subtree that changed, not the whole workspace.
-  //         setRoots((currentRoots) => {
-  //           if (!currentRoots) return null;
-  //           refreshSubtree(currentRoots, dirToRefresh).then(setRoots);
-  //           return currentRoots;
-  //         });
-  //       },
-  //       { recursive: true }
-  //     );
-  //   };
-  //   reloadWorkspace();
-  //   setupWatcher();
-  //   return () => {
-  //     if (unlisten) {
-  //       unlisten();
-  //     }
-  //   };
-  // }, [workspace]);
-
   useEffect(() => {
     if (workspace) {
+      console.log("Watching workspace:", workspace);
       invoke("watch_workspace", { path: workspace });
       const unlisten = listen("fs-change", (event) => {
         console.log("Change:", event.payload);
@@ -108,7 +74,7 @@ const FileSystem = () => {
       });
       return () => {
         unlisten
-          .then((u) => u())
+          .then((u) => console.log("unlisten:", u))
           .catch((e) => {
             console.error("Failed to unlisten fs-change:", e);
           });
@@ -150,7 +116,9 @@ const FileSystem = () => {
     if (!workspace) return;
     try {
       const expandedMap = roots ? preserveExpanded(roots) : {};
+      console.log("Reading workspace...", workspace);
       const entries = await readDir(workspace);
+      console.log("Entries read:", entries);
       const nodes: FsNode[] = await Promise.all(
         entries.map(async (e) => ({
           name: e.name,
@@ -346,7 +314,6 @@ const FileSystem = () => {
         {node.isDirectory && node.expanded && node.children && (
           <div>
             {node.children
-              // .filter((c) => !c.name.startsWith("."))
               .map((c) => (
                 <TreeItem key={c.path} node={c} level={level + 1} />
               ))}

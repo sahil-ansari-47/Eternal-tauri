@@ -1,29 +1,104 @@
-// use tauri::{AppHandle};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-// use std::time::Duration;
-// use std::sync::mpsc::channel;   
-// use notify::{Watcher, RecursiveMode, watcher};
+use tauri::{AppHandle, Emitter};
+use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+use std::{sync::mpsc::channel, time::Duration, path::Path};
 
-// #[tauri::command]
-// async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
-//     let (tx, rx) = channel();
+fn is_onedrive_path(path: &str) -> bool {
+    let lowercase = path.to_lowercase();
+    lowercase.contains("onedrive") || lowercase.contains("sharepoint")
+}
 
-//     std::thread::spawn(move || {
-//         let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
-//         watcher.watch(&path, RecursiveMode::Recursive).unwrap();
+#[tauri::command]
+async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
+    println!("[Tauri] 🔍 Starting watcher setup for: {}", path);
 
-//         for res in rx {
-//             if let Ok(event) = res {
-//                 app.emit_all("fs-change", event.paths).unwrap();
-//             }
-//         }
-//     });
+    let (tx, rx) = channel();
+    let app_handle = app.clone();
 
-//     Ok(())
-// }
+    std::thread::spawn(move || {
+        // 🔎 Detect whether it's a OneDrive path
+        let use_polling = is_onedrive_path(&path);
+        println!(
+            "[Tauri] 🧠 Path detection → {} → using {} mode",
+            path,
+            if use_polling { "polling" } else { "native" }
+        );
+
+        // 🛠️ Build watcher configuration based on mode
+        let config = if use_polling {
+            Config::default()
+                .with_poll_interval(Duration::from_secs(2))
+                .with_compare_contents(true)
+        } else {
+            Config::default()
+        };
+
+        // 🧩 Create watcher
+        let mut watcher = match RecommendedWatcher::new(tx, config) {
+            Ok(w) => {
+                if use_polling {
+                    println!("[Tauri] ✅ Polling watcher started for OneDrive path");
+                } else {
+                    println!("[Tauri] ✅ Native watcher started");
+                }
+                w
+            }
+            Err(e) => {
+                eprintln!("[Tauri] ❌ Watcher creation failed: {}", e);
+                return;
+            }
+        };
+
+        // 🧭 Start watching recursively
+        match watcher.watch(Path::new(&path), RecursiveMode::Recursive) {
+            Ok(_) => println!(
+                "[Tauri] 👀 Now watching path recursively: {}",
+                path
+            ),
+            Err(e) => {
+                eprintln!("[Tauri] ❌ Failed to watch path {}: {}", path, e);
+                return;
+            }
+        }
+
+        for res in rx {
+            match res {
+                Ok(event) => {
+                    println!(
+                        "[Tauri] 📁 Filesystem event detected: {:?}",
+                        event.kind
+                    );
+                    let paths: Vec<String> = event
+                        .paths
+                        .iter()
+                        .filter_map(|p| p.to_str().map(|s| s.to_string()))
+                        .filter(|p| p.starts_with(&path))
+                        .collect();
+
+                    if !paths.is_empty() {
+                        println!("[Tauri] 🔔 Emitting fs-change with paths: {:?}", paths);
+                    }
+
+                    if let Err(e) = app_handle.emit("fs-change", paths) {
+                        eprintln!("[Tauri] ❌ Failed to emit fs-change: {}", e);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("[Tauri] ⚠️ Watcher error: {}", e);
+                }
+            }
+        }
+
+        println!("[Tauri] 🔚 Watcher thread exiting for path: {}", path);
+    });
+
+    Ok(())
+}
+
+
 #[tauri::command]
 async fn git_command(
     action: String,
@@ -128,7 +203,6 @@ async fn git_command(
             "origin": origin
         }));
     }
-
     if action == "sync-status" {
         // First fetch to update remote refs
         let _ = Command::new("git")
@@ -741,6 +815,7 @@ pub fn run() {
             replace_in_workspace,
             git_clone,
             git_command,
+            watch_workspace,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
