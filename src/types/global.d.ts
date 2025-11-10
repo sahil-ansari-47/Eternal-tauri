@@ -4,6 +4,8 @@ declare global {
   interface File {
     path: string;
     content: string;
+    isDirty?: boolean;
+    gitStatus?: string;
   }
   interface SearchResult {
     filePath: string;

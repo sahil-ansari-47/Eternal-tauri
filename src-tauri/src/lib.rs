@@ -1,10 +1,10 @@
+use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::{path::Path, sync::mpsc::channel, time::Duration};
 use tauri::{AppHandle, Emitter};
-use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
-use std::{sync::mpsc::channel, time::Duration, path::Path};
 
 fn is_onedrive_path(path: &str) -> bool {
     let lowercase = path.to_lowercase();
@@ -14,7 +14,6 @@ fn is_onedrive_path(path: &str) -> bool {
 #[tauri::command]
 async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
     println!("[Tauri] 🔍 Starting watcher setup for: {}", path);
-
     let (tx, rx) = channel();
     let app_handle = app.clone();
 
@@ -27,7 +26,6 @@ async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
             if use_polling { "polling" } else { "native" }
         );
 
-        // 🛠️ Build watcher configuration based on mode
         let config = if use_polling {
             Config::default()
                 .with_poll_interval(Duration::from_secs(2))
@@ -52,25 +50,17 @@ async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
             }
         };
 
-        // 🧭 Start watching recursively
         match watcher.watch(Path::new(&path), RecursiveMode::Recursive) {
-            Ok(_) => println!(
-                "[Tauri] 👀 Now watching path recursively: {}",
-                path
-            ),
+            Ok(_) => println!("[Tauri] 👀 Now watching path recursively: {}", path),
             Err(e) => {
                 eprintln!("[Tauri] ❌ Failed to watch path {}: {}", path, e);
                 return;
             }
         }
-
         for res in rx {
             match res {
                 Ok(event) => {
-                    println!(
-                        "[Tauri] 📁 Filesystem event detected: {:?}",
-                        event.kind
-                    );
+                    println!("[Tauri] 📁 Filesystem event detected: {:?}", event.kind);
                     let paths: Vec<String> = event
                         .paths
                         .iter()
@@ -97,7 +87,6 @@ async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
 
     Ok(())
 }
-
 
 #[tauri::command]
 async fn git_command(
@@ -163,8 +152,6 @@ async fn git_command(
                 _ => {}
             }
         }
-
-        // branch
         let branch_out = Command::new("git")
             .args(["rev-parse", "--abbrev-ref", "HEAD"])
             .current_dir(path)
@@ -174,14 +161,11 @@ async fn git_command(
             Ok(b) if b.status.success() => String::from_utf8_lossy(&b.stdout).trim().to_string(),
             _ => "master".to_string(),
         };
-
-        // remote origin
         let origin_out = Command::new("git")
             .args(["remote", "get-url", "origin"])
             .current_dir(path)
             .output()
             .ok();
-
         let origin = origin_out
             .and_then(|o| {
                 if o.status.success() {
@@ -194,7 +178,6 @@ async fn git_command(
         println!("stdout: {:?}", String::from_utf8_lossy(&out.stdout));
         println!("stderr: {:?}", String::from_utf8_lossy(&out.stderr));
         println!("exit code: {:?}", out.status.code());
-
         return Ok(serde_json::json!({
             "staged": staged,
             "unstaged": unstaged,
@@ -202,6 +185,38 @@ async fn git_command(
             "branch": branch,
             "origin": origin
         }));
+    }
+    if action == "file_status" {
+        let file: String = payload
+            .get("file")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing file field")?
+            .to_string();
+        let out = Command::new("git")
+            .args(["status", "--porcelain", &file])
+            .current_dir(path)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(format!(
+                "Git file_status failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+        let text = String::from_utf8_lossy(&out.stdout);
+        let mut git_state = "";
+        for line in text.lines() {
+            if line.starts_with("??") {
+                git_state = "U"; // untracked
+            } else if line.starts_with(" M") {
+                git_state = "M"; // modified
+            } else if line.starts_with("A ") || line.starts_with("M ") {
+                git_state = "A"; // staged
+            }
+        }
+        return Ok(serde_json::json!({ "status": git_state }));
     }
     if action == "sync-status" {
         // First fetch to update remote refs

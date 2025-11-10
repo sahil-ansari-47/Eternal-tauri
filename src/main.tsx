@@ -17,11 +17,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
     <UserProvider>
       <MessageProvider>
-        <GitProvider>
-          <EditorProvider>
+        <EditorProvider>
+          <GitProvider>
             <App />
-          </EditorProvider>
-        </GitProvider>
+          </GitProvider>
+        </EditorProvider>
       </MessageProvider>
     </UserProvider>
   </ClerkProvider>

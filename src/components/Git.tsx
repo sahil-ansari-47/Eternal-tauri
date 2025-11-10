@@ -672,7 +672,6 @@
 // "use client";
 
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import {
   Dialog,
   DialogContent,
@@ -708,34 +707,22 @@ import { useGit } from "./contexts/GitContext";
 import { open as openLink } from "@tauri-apps/plugin-shell";
 import NoWorkspace from "./NoWorkspace";
 import { readTextFile } from "@tauri-apps/plugin-fs";
-
-async function runGit<T>(action: string, payload = {}): Promise<T> {
-  try {
-    console.log("Running git command:", action);
-    const result = await invoke<T>("git_command", { action, payload });
-    console.log(result);
-    return result;
-  } catch (e: any) {
-    const err: GitError = new Error(e.message || String(e));
-    err.code = e.code || "GIT_ACTION_FAILED";
-    err.details = e.stack || undefined;
-    throw err;
-  }
-}
 export default function GitPanel() {
   const { workspace, setActivePath, setOpenFiles } = useEditor();
   const {
     status,
-    setStatus,
+    error,
+    setError,
+    loading,
+    setLoading,
     setGraphData,
     collapsed,
     setCollapsed,
     isInit,
-    setIsInit,
+    refreshStatus,
+    runGit,
   } = useGit();
-  const [loading, setLoading] = useState<boolean>(false);
   const [commitMsg, setCommitMsg] = useState<string>("");
-  const [error, setError] = useState<GitError | null>(null);
   const [remotedialogOpen, setRemoteDialogOpen] = useState(false);
   const [createbranchdialogOpen, setCreateBranchDialogOpen] = useState(false);
   const [url, setUrl] = useState("");
@@ -828,26 +815,6 @@ export default function GitPanel() {
     fetchGraph();
     loadBranches();
   }, [workspace, status.branch, status.staged.length, status.origin]);
-
-  async function refreshStatus() {
-    setLoading(true);
-    try {
-      const payload = await runGit<GitStatus>("status", { workspace });
-      setStatus({
-        staged: payload.staged || [],
-        unstaged: payload.unstaged || [],
-        untracked: payload.untracked || [],
-        branch: payload.branch || "master",
-        origin: payload.origin || "",
-      });
-      setIsInit(true);
-    } catch (e: any) {
-      setIsInit(false);
-      setError(e);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function fetchGraph() {
     try {

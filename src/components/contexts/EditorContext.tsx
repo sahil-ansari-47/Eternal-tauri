@@ -1,9 +1,11 @@
 import { createContext, useContext, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { join } from "@tauri-apps/api/path";
-import { readTextFile } from "@tauri-apps/plugin-fs";
+import { DirEntry, readTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import { useAuth } from "@clerk/clerk-react";
+import { applyExpanded, preserveExpanded, sortNodes } from "../../utils/fsfunc";
+import { readDir } from "@tauri-apps/plugin-fs";
 interface EditorContextType {
   workspace: string | null;
   setWorkspace: React.Dispatch<React.SetStateAction<string | null>>;
@@ -20,6 +22,9 @@ interface EditorContextType {
   tabList: string[];
   setTabList: React.Dispatch<React.SetStateAction<string[]>>;
 
+  reloadWorkspace: () => Promise<void>;
+  roots: FsNode[] | null;
+  setRoots: React.Dispatch<React.SetStateAction<FsNode[] | null>>;
   activeTab: string;
   setActiveTab: React.Dispatch<React.SetStateAction<string>>;
 
@@ -63,6 +68,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const [repoUrl, setRepoUrl] = useState("");
   const [action, setAction] = useState<string | null>(null);
   const [repos, setRepos] = useState<GitRepo[] | null>(null);
+  const [roots, setRoots] = useState<FsNode[] | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const handleOpenFolder = async () => {
     try {
@@ -103,6 +109,27 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       setAction(null);
     } catch (err) {
       console.error("Clone failed:", err);
+    }
+  };
+  const reloadWorkspace = async () => {
+    if (!workspace) return;
+    try {
+      const expandedMap = roots ? preserveExpanded(roots) : {};
+      const entries = await readDir(workspace);
+      const nodes: FsNode[] = await Promise.all(
+        entries.map(async (e: DirEntry) => ({
+          name: e.name,
+          path: await join(workspace, e.name),
+          isDirectory: e.isDirectory,
+        }))
+      );
+      const sorted = sortNodes(nodes);
+      console.log(sorted);
+      setRoots(applyExpanded(sorted, expandedMap));
+      setError(null);
+    } catch (e: any) {
+      console.error(e);
+      setError(String(e?.message ?? e));
     }
   };
   const handleCreateNewFile = async () => {
@@ -187,6 +214,9 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         handleClone,
         errorMessage,
         setErrorMessage,
+        reloadWorkspace,
+        roots,
+        setRoots,
         error,
         setError,
         cloneDialogOpen,

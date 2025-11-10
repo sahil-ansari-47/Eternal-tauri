@@ -1,99 +1,163 @@
 import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
-import { barf } from "thememirror";
 import { basicSetup } from "codemirror";
 import { EditorView } from "@codemirror/view";
+import { barf } from "thememirror";
+import { exists, writeTextFile } from "@tauri-apps/plugin-fs";
+import { message } from "@tauri-apps/plugin-dialog";
+import getLanguageExtension from "../utils/edfunc";
 import { useEditor } from "./contexts/EditorContext";
-import { writeTextFile } from "@tauri-apps/plugin-fs"
-import getLanguageExtension from ".././utils/edfunc";
+import { invoke } from "@tauri-apps/api/core";
 export default function Editor() {
-  const { openFiles, setOpenFiles, activePath, setActivePath } = useEditor();
+  const { openFiles, setOpenFiles, activePath, setActivePath, workspace } = useEditor();
   const viewRefs = useRef<Record<string, EditorView>>({});
-  // const customTheme = EditorView.theme({
-  //   ".cm-content": {
-  //     height: "100%",
-  //   },
-  //   ".cm-gutters": {
-  //     backgroundColor: "#2d2f3f !important",
-  //   },
-  // });
   useEffect(() => {
     const handler = (e: Event) => {
       const { filePath, line, query } = (e as CustomEvent).detail;
-      const view = viewRefs.current[filePath]; // find editor for that file
+      const view = viewRefs.current[filePath];
       if (filePath !== activePath || !view) return;
 
       const docLine = view.state.doc.line(line);
-      const text = docLine.text;
-
-      // Find query in that line (case-insensitive for example)
-      const start = text.toLowerCase().indexOf(query.toLowerCase());
-      if (start === -1) return; // not found
-
+      const start = docLine.text.toLowerCase().indexOf(query.toLowerCase());
+      if (start === -1) return;
       const from = docLine.from + start;
       const to = from + query.length;
 
-      // Scroll, move cursor, and select text
       view.dispatch({
         selection: { anchor: from, head: to },
         effects: EditorView.scrollIntoView(from, { y: "center" }),
       });
-
       view.focus();
     };
 
     window.addEventListener("scroll-to-line", handler);
     return () => window.removeEventListener("scroll-to-line", handler);
   }, [activePath]);
-
   const assignRef = (filePath: string) => (el: HTMLDivElement | null) => {
     if (!el || viewRefs.current[filePath]) return;
     const file = openFiles.find((f) => f.path === filePath);
     if (!file) return;
+    const updateListener = EditorView.updateListener.of((update) => {
+      if (update.docChanged) {
+        const newContent = update.state.doc.toString();
+        setOpenFiles((prev) =>
+          prev.map((f) =>
+            f.path === filePath
+              ? { ...f, content: newContent, isDirty: true }
+              : f
+          )
+        );
+      }
+    });
     const state = EditorState.create({
       doc: file.content.toString(),
       extensions: [
         basicSetup,
         barf,
         getLanguageExtension(file.path),
+        updateListener,
       ],
     });
-
     viewRefs.current[filePath] = new EditorView({ state, parent: el });
   };
-  const onSave = async(filePath: string, newContent: string) => {
+  const getSingleFileGitState = async (
+    filePath: string
+  ): Promise<"U" | "M" | "A" | ""> => {
+    try {
+      const result = await invoke<{ status: string }>("git_command", {
+        action: "file_status",
+        payload: { file: filePath, workspace },
+      });
+      console.log(result);
+      return (result.status as "U" | "M" | "A" | "") ?? "";
+    } catch (e) {
+      console.warn("git file_status failed:", e);
+      return "";
+    }
+  };
+  const onSave = async (filePath: string, newContent: string) => {
     const file = openFiles.find((f) => f.path === filePath);
     if (!file) return;
-    await writeTextFile(file.path, newContent as unknown as string);
-    setOpenFiles((prev) =>
-      prev.map((f) => (f.path === filePath ? { ...f, content: newContent } as File : f))
-    );
-  };
 
+    await writeTextFile(file.path, newContent);
+
+    setOpenFiles((prev) =>
+      prev.map((f) =>
+        f.path === filePath ? { ...f, content: newContent, isDirty: false } : f
+      )
+    );
+    const newGitState = await getSingleFileGitState(filePath);
+    setOpenFiles((prev) =>
+      prev.map((f) =>
+        f.path === filePath ? { ...f, gitStatus: newGitState } : f
+      )
+    );
+    console.log(`💾 Saved and updated git state: ${filePath} (${newGitState})`);
+  };
   const onClose = (filePath: string) => {
     setOpenFiles((prev) => prev.filter((f) => f.path !== filePath));
   };
-
-  const handleCloseTab = (filePath: string) => {
+  const handleCloseTab = async (filePath: string) => {
     const view = viewRefs.current[filePath];
+    const fileExists = await exists(filePath);
     if (view) {
-      onSave(filePath, view.state.doc.toString());
+      const newContent = view.state.doc.toString();
+      if (fileExists) {
+        await onSave(filePath, newContent);
+      } else {
+        await message(`⚠️ File "${filePath}" not found. Skipping save.`, {
+          title: "Save Error",
+        });
+      }
       view.destroy();
       delete viewRefs.current[filePath];
     }
-    onClose(filePath);
 
+    onClose(filePath);
     const remaining = openFiles.filter((f) => f.path !== filePath);
-    if (remaining.length > 0) setActivePath(remaining[0].path);
-    else setActivePath("");
+    setActivePath(remaining.length > 0 ? remaining[0].path : "");
   };
 
+  // --- keyboard shortcuts (Ctrl+S / Ctrl+W) ---
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (!activePath) return;
+        const fileExists = await exists(activePath);
+        const view = viewRefs.current[activePath];
+        if (!view) return;
+
+        const content = view.state.doc.toString();
+        if (fileExists) {
+          await onSave(activePath, content);
+        } else {
+          await message(
+            `⚠️ Cannot save: file "${activePath}" does not exist.`,
+            {
+              title: "Save Error",
+            }
+          );
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "w") {
+        e.preventDefault();
+        if (!activePath) return;
+        handleCloseTab(activePath);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activePath, openFiles]);
+
+  // maintain active tab validity
   useEffect(() => {
     if (!openFiles.find((f) => f.path === activePath) && openFiles.length > 0) {
       setActivePath(openFiles[0].path);
     }
   }, [openFiles, activePath]);
 
+  // --- UI ---
   return (
     <div className="w-full h-full flex flex-col">
       {/* Tabs */}
@@ -108,12 +172,33 @@ export default function Editor() {
             }`}
             onClick={() => setActivePath(file.path)}
           >
-            <span className="truncate max-w-xs">
+            <span className="truncate max-w-xs flex items-center gap-1">
               {file.path.split("\\").pop()}
+
+              {/* Git status */}
+              {file.gitStatus && file.gitStatus !== "" && (
+                <span
+                  className={`ml-2 font-bold ${
+                    file.gitStatus === "U"
+                      ? "text-red-500"
+                      : file.gitStatus === "M"
+                      ? "text-yellow-400"
+                      : "text-green-500"
+                  }`}
+                >
+                  {file.gitStatus}
+                </span>
+              )}
+
+              {/* Unsaved indicator */}
+              {file.isDirty && <span className="text-yellow-500 ml-1">•</span>}
             </span>
+
             <button
               className={`ml-2 px-1.5 py-1 hover:bg-neutral-500 hover:text-neutral-400 rounded-sm cursor-pointer font-bold ${
-                file.path === activePath ? "text-neutral-400" : "text-primary-sidebar"
+                file.path === activePath
+                  ? "text-neutral-400"
+                  : "text-primary-sidebar"
               }`}
               onClick={(e) => {
                 e.stopPropagation();
@@ -125,7 +210,6 @@ export default function Editor() {
           </div>
         ))}
       </div>
-
       {/* Editors */}
       <div className="flex-1 relative overflow-y-auto bg-p5 scrollbar">
         {openFiles.map((file) => (

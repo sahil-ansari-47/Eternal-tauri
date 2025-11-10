@@ -11,13 +11,7 @@ import {
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { join } from "@tauri-apps/api/path";
-import {
-  loadChildren,
-  traverseAndUpdate,
-  sortNodes,
-  applyExpanded,
-  preserveExpanded,
-} from "../utils/fsfunc";
+import { loadChildren, traverseAndUpdate, sortNodes } from "../utils/fsfunc";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -52,21 +46,22 @@ const FileSystem = () => {
     workspace,
     setWorkspace,
     error,
-    setError,
     action,
     setAction,
     errorMessage,
     setErrorMessage,
     setActivePath,
     setOpenFiles,
+    reloadWorkspace,
+    roots,
+    setRoots,
   } = useEditor();
-  const [roots, setRoots] = useState<FsNode[] | null>(null);
   const [targetNode, setTargetNode] = useState<FsNode | null>(null);
   const [value, setValue] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   useEffect(() => {
+    reloadWorkspace();
     if (workspace) {
-      console.log("Watching workspace:", workspace);
       invoke("watch_workspace", { path: workspace });
       const unlisten = listen("fs-change", (event) => {
         console.log("Change:", event.payload);
@@ -112,28 +107,6 @@ const FileSystem = () => {
       })
     );
   };
-  const reloadWorkspace = async () => {
-    if (!workspace) return;
-    try {
-      const expandedMap = roots ? preserveExpanded(roots) : {};
-      console.log("Reading workspace...", workspace);
-      const entries = await readDir(workspace);
-      console.log("Entries read:", entries);
-      const nodes: FsNode[] = await Promise.all(
-        entries.map(async (e) => ({
-          name: e.name,
-          path: await join(workspace, e.name),
-          isDirectory: e.isDirectory,
-        }))
-      );
-      const sorted = sortNodes(nodes);
-      setRoots(applyExpanded(sorted, expandedMap));
-      setError(null);
-    } catch (e: any) {
-      console.error(e);
-      setError(String(e?.message ?? e));
-    }
-  };
   const handleConfirm = async () => {
     if (!workspace) return;
 
@@ -171,6 +144,12 @@ const FileSystem = () => {
       );
       const newPath = await join(parentDir, value.trim());
       await rename(targetNode.path, newPath);
+      if (!roots) return;
+      setOpenFiles((prev) =>
+        prev.map((f) =>
+          f.path === targetNode.path ? { ...f, path: newPath } : f
+        )
+      );
     } else if (action === "newFile" || action === "newFolder") {
       if (targetNode) {
         dir = targetNode.isDirectory
@@ -179,14 +158,16 @@ const FileSystem = () => {
       } else {
         dir = workspace;
       }
-
       if (action === "newFile") {
-        await create(await join(dir, value.trim()));
+        const path = await join(dir, value.trim());
+        await create(path);
+        setOpenFiles((prev) => [...prev, { path, content: "" } as File]);
       } else if (action === "newFolder") {
         await mkdir(await join(dir, value.trim()));
       }
     } else if (action === "delete" && targetNode) {
       await remove(targetNode.path, { recursive: targetNode.isDirectory });
+      setOpenFiles((prev) => prev.filter((f) => f.path !== targetNode.path));
     }
 
     setDialogOpen(false);
@@ -251,7 +232,6 @@ const FileSystem = () => {
               ) : (
                 <ChevronRight className="w-4 h-4" />
               ))}
-
             {node.isDirectory ? (
               node.loading ? (
                 <span className="w-4">⏳</span>
@@ -313,10 +293,9 @@ const FileSystem = () => {
         </ContextMenuContent>
         {node.isDirectory && node.expanded && node.children && (
           <div>
-            {node.children
-              .map((c) => (
-                <TreeItem key={c.path} node={c} level={level + 1} />
-              ))}
+            {node.children.map((c) => (
+              <TreeItem key={c.path} node={c} level={level + 1} />
+            ))}
           </div>
         )}
       </ContextMenu>
@@ -387,7 +366,7 @@ const FileSystem = () => {
                 </div>
               ) : (
                 roots
-                  // .filter((r) => !r.name.startsWith("."))
+                  .filter((r) => r.name !== ".git")
                   .map((r) => <TreeItem key={r.path} node={r} />)
               )}
             </div>

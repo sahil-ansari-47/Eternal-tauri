@@ -15,7 +15,6 @@ export async function loadChildren(nodePath: string) {
     return [];
   }
 }
-
 export async function traverseAndUpdate(
   nodes: FsNode[],
   targetPath: string,
@@ -41,7 +40,6 @@ export async function traverseAndUpdate(
   }
   return result;
 }
-
 export const sortNodes = (nodes: FsNode[]): FsNode[] => {
   return nodes.sort((a, b) => {
     if (a.isDirectory && !b.isDirectory) return -1;
@@ -49,7 +47,6 @@ export const sortNodes = (nodes: FsNode[]): FsNode[] => {
     return a.name.localeCompare(b.name);
   });
 };
-
 export const preserveExpanded = (nodes: FsNode[]): Record<string, boolean> => {
   const map: Record<string, boolean> = {};
   const traverse = (n: FsNode[]) => {
