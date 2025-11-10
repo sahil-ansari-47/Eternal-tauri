@@ -822,12 +822,12 @@ export default function GitPanel() {
     }
   }
   useEffect(() => {
-    if(!workspace) return
+    if (!workspace) return;
     fetchSyncStatus();
     refreshStatus();
     fetchGraph();
     loadBranches();
-  }, [workspace, status.branch, status.staged.length]);
+  }, [workspace, status.branch, status.staged.length, status.origin]);
 
   async function refreshStatus() {
     setLoading(true);
@@ -1492,7 +1492,10 @@ export default function GitPanel() {
                   <Button
                     className="cursor-pointer hover:opacity-50"
                     variant="outline"
-                    onClick={() => setRemoteDialogOpen(false)}
+                    onClick={() => {
+                      setRemoteDialogOpen(false);
+                      setUrl("");
+                    }}
                     disabled={loading}
                   >
                     Cancel
@@ -1537,7 +1540,10 @@ export default function GitPanel() {
                   <Button
                     className="cursor-pointer hover:opacity-50"
                     variant="outline"
-                    onClick={() => setCreateBranchDialogOpen(false)}
+                    onClick={() => {
+                      setCreateBranchDialogOpen(false);
+                      setNewBranch("");
+                    }}
                     disabled={loading}
                   >
                     Cancel

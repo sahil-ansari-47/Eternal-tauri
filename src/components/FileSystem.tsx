@@ -494,14 +494,17 @@ const FileSystem = () => {
             <Button
               variant="secondary"
               className="cursor-pointer"
-              onClick={() => setDialogOpen(false)}
+              onClick={() => {
+                setDialogOpen(false);
+                setValue("");
+              }}
             >
               Cancel
             </Button>
             <Button
               onClick={handleConfirm}
               className="border-1 border-neutral-500 cursor-pointer disabled:opacity:50"
-              disabled={value === ""}
+              disabled={action === "delete" ? false : value === ""}
             >
               {action === "delete" ? "Delete" : "OK"}
             </Button>

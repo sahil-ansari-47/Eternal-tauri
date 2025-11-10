@@ -377,16 +377,16 @@ const App = () => {
             value={cloneMethod}
             onValueChange={(val) => setCloneMethod(val as "github" | "link")}
           >
-            <TabsList className="w-full grid grid-cols-2 mb-4 gap-4">
+            <TabsList className="w-full flex justify-center gap-8 mb-4">
               <TabsTrigger
                 value="link"
-                className="data-[state=active]:bg-black rounded-2xl data-[state=active]:text-white transition-colors"
+                className="w-fit cursor-pointer rounded-2xl data-[state=active]:text-white transition-colors"
               >
                 From URL
               </TabsTrigger>
               <TabsTrigger
                 value="github"
-                className="data-[state=active]:bg-black rounded-2xl data-[state=active]:text-white transition-colors"
+                className="w-fit cursor-pointer rounded-2xl data-[state=active]:text-white transition-colors"
               >
                 GitHub
               </TabsTrigger>
@@ -404,13 +404,13 @@ const App = () => {
                       setRepoUrl(val);
                       setErrorMessage(null);
                     }}
-                    className="flex flex-col gap-2"
+                    className="flex flex-col gap-2 items-center"
                   >
                     {repos.map((repo) => (
                       <Label
                         key={repo.id}
                         htmlFor={`repo-${repo.id}`}
-                        className={`flex items-center justify-between w-full p-3 rounded-md border cursor-pointer transition-colors ${
+                        className={`flex items-center w-[90%] p-3 rounded-md border cursor-pointer transition-colors text-p6/80 ${
                           repoUrl === repo.clone_url
                             ? "border-blue-500 bg-blue-500/10"
                             : "border-neutral-700 hover:border-neutral-500"
@@ -431,8 +431,8 @@ const App = () => {
                   </p>
                 )
               ) : (
-                <div className="flex flex-col items-center gap-2">
-                  <div className="bg-p5 w-fit text-p6 p-2 rounded-lg hover:bg-neutral-700">
+                <div className="flex flex-col items-center gap-2 cursor-pointer">
+                  <div className="bg-p5 border-1 border-neutral-500 w-fit text-p6 p-2 rounded-lg hover:bg-neutral-700">
                     <SignInButton mode="modal" />
                   </div>
                 </div>
@@ -449,6 +449,7 @@ const App = () => {
                 }}
                 placeholder="Enter repository URL"
                 autoFocus
+                className="text-p6"
               />
               {errorMessage && (
                 <div className="text-sm text-red-500 mt-2">{errorMessage}</div>
@@ -458,12 +459,20 @@ const App = () => {
 
           <DialogFooter>
             <Button
+              className="cursor-pointer"
               variant="secondary"
-              onClick={() => setCloneDialogOpen(false)}
+              onClick={() => {
+                setCloneDialogOpen(false);
+                setRepoUrl("");
+              }}
             >
               Cancel
             </Button>
-            <Button onClick={() => handleClone(repoUrl)} disabled={!repoUrl}>
+            <Button
+              className="cursor-pointer border-1 border-neutral-500"
+              onClick={() => handleClone(repoUrl)}
+              disabled={!repoUrl}
+            >
               Clone
             </Button>
           </DialogFooter>
