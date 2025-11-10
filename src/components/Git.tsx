@@ -1492,7 +1492,10 @@ export default function GitPanel() {
                   <Button
                     className="cursor-pointer hover:opacity-50"
                     variant="outline"
-                    onClick={() => setRemoteDialogOpen(false)}
+                    onClick={() => {
+                      setRemoteDialogOpen(false);
+                      setUrl("");
+                    }}
                     disabled={loading}
                   >
                     Cancel
@@ -1537,7 +1540,10 @@ export default function GitPanel() {
                   <Button
                     className="cursor-pointer hover:opacity-50"
                     variant="outline"
-                    onClick={() => setCreateBranchDialogOpen(false)}
+                    onClick={() => {
+                      setCreateBranchDialogOpen(false);
+                      setNewBranch("");
+                    }}
                     disabled={loading}
                   >
                     Cancel

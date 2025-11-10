@@ -130,7 +130,6 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
     const token = await getToken();
     if (!token) return;
     try {
-      console.log(`${backendUrl}/api/users/me`, token);
       const res = await fetch(`${backendUrl}/api/users/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
