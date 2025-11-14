@@ -721,6 +721,11 @@ export default function GitPanel() {
     isInit,
     refreshStatus,
     runGit,
+    getUserAccessToken,
+    handlePublish,
+    syncStatus,
+    handlePush,
+    fetchSyncStatus,
   } = useGit();
   const [commitMsg, setCommitMsg] = useState<string>("");
   const [remotedialogOpen, setRemoteDialogOpen] = useState(false);
@@ -728,10 +733,6 @@ export default function GitPanel() {
   const [url, setUrl] = useState("");
   const [newbranch, setNewBranch] = useState("");
   const [branches, setBranches] = useState<string[]>([]);
-  const [syncStatus, setSyncStatus] = useState<{
-    ahead: number;
-    behind: number;
-  }>({ ahead: 0, behind: 0 });
   async function loadBranches() {
     setLoading(true);
     try {
@@ -777,21 +778,6 @@ export default function GitPanel() {
       setLoading(false);
     }
   }
-  async function fetchSyncStatus() {
-    setLoading(true);
-    try {
-      const result = await runGit<{ ahead: number; behind: number }>(
-        "sync-status",
-        { workspace }
-      );
-      setSyncStatus(result);
-    } catch (err) {
-      console.error("Failed to get sync status", err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handleSubmit() {
     if (!url.trim()) {
       setError({ name: "ValidationError", message: "Remote URL required" });
@@ -810,24 +796,24 @@ export default function GitPanel() {
   }
   useEffect(() => {
     if (!workspace) return;
-    fetchSyncStatus();
     refreshStatus();
-    fetchGraph();
-    loadBranches();
+    // fetchGraph();
+    if (status.origin !== "") {
+      fetchSyncStatus();
+      loadBranches();
+    }
   }, [workspace, status.branch, status.staged.length, status.origin]);
-
   async function fetchGraph() {
     try {
       const payload = await runGit<GitGraphNode[]>("graph", {
         workspace,
       });
-      console.log("graph", payload);
+      // console.log("graph", payload);
       setGraphData(payload || []);
     } catch {
       setGraphData([]);
     }
   }
-
   async function handleInit() {
     setLoading(true);
     try {
@@ -840,23 +826,22 @@ export default function GitPanel() {
       setLoading(false);
     }
   }
-
   async function handleStage(file: GitFile) {
     setLoading(true);
     try {
       await runGit("stage", { workspace, file });
       await refreshStatus();
+      const token = await getUserAccessToken();
+      localStorage.setItem("token", token);
     } catch (e: any) {
       setError(e);
     } finally {
       setLoading(false);
     }
   }
-
   async function handleUnstage(file: GitFile) {
     setLoading(true);
     try {
-      console.log("Unstaging file:", file);
       await runGit("unstage", { workspace, file });
       await refreshStatus();
     } catch (e: any) {
@@ -865,7 +850,6 @@ export default function GitPanel() {
       setLoading(false);
     }
   }
-
   async function handleCommit() {
     if (!commitMsg.trim()) {
       setError({ name: "ValidationError", message: "Commit message required" });
@@ -883,24 +867,6 @@ export default function GitPanel() {
       setLoading(false);
     }
   }
-
-  async function handlePush() {
-    setLoading(true);
-    try {
-      await runGit("push", {
-        workspace,
-        remote: status.origin || "origin",
-        branch: status.branch || "master",
-      });
-      await refreshStatus();
-      await fetchSyncStatus();
-    } catch (e: any) {
-      setError(e);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handlePull() {
     setLoading(true);
     try {
@@ -916,7 +882,6 @@ export default function GitPanel() {
       setLoading(false);
     }
   }
-
   async function handleSetRemote(url: string) {
     setLoading(true);
     try {
@@ -928,7 +893,6 @@ export default function GitPanel() {
       setLoading(false);
     }
   }
-
   const handleStageAll = async () => {
     setLoading(true);
     try {
@@ -940,7 +904,6 @@ export default function GitPanel() {
       setLoading(false);
     }
   };
-
   const handleUnstageAll = async () => {
     setLoading(true);
     try {
@@ -952,7 +915,6 @@ export default function GitPanel() {
       setLoading(false);
     }
   };
-
   const handleDiscard = async (file: GitFile) => {
     setLoading(true);
     try {
@@ -964,7 +926,6 @@ export default function GitPanel() {
       setLoading(false);
     }
   };
-
   const handleDiscardAll = async () => {
     setLoading(true);
     try {
@@ -976,9 +937,7 @@ export default function GitPanel() {
       setLoading(false);
     }
   };
-
   if (!workspace) return <NoWorkspace />;
-
   return (
     <div className="h-full bg-primary-sidebar p-2">
       <div className="h-full w-full text-neutral-300 text-sm flex flex-col overflow-hidden border border-neutral-600 rounded-xl">
@@ -1142,51 +1101,64 @@ export default function GitPanel() {
                     Clear
                   </Button>
                 </div>
-                <Button
-                  onClick={async () => {
-                    await handlePull();
-                    await handlePush();
-                  }}
-                  disabled={
-                    loading ||
-                    (syncStatus.ahead === 0 && syncStatus.behind === 0)
-                  }
-                  className={`bg-git-branch hover:bg-git-branch/90 text-git-branch-fg text-xs px-3 py-1.5 h-auto font-medium transition-colors flex items-center gap-1.5 ${
-                    syncStatus.ahead === 0 && syncStatus.behind === 0
-                      ? "opacity-50 cursor-not-allowed"
-                      : "cursor-pointer"
-                  }`}
-                >
-                  <RefreshCcw
-                    className={`w-3 h-3 ${loading ? "animate-spin" : ""}`}
-                  />
-                  <span>
-                    {syncStatus.ahead === 0 && syncStatus.behind === 0
-                      ? "Synced"
-                      : "Sync"}
-                  </span>
-                  {(syncStatus.ahead > 0 || syncStatus.behind > 0) && (
-                    <span className="flex items-center gap-0.5 text-xs ml-1 bg-sidebar-accent/40 px-1.5 py-0.5 rounded">
-                      {syncStatus.ahead > 0 && (
-                        <span className="flex items-center gap-0.5">
-                          <ArrowUpFromDot className="w-3 h-3" />
-                          {syncStatus.ahead}
-                        </span>
-                      )}
-                      {syncStatus.behind > 0 && (
-                        <span className="flex items-center gap-0.5 ml-1">
-                          <ArrowDownToDot className="w-3 h-3" />
-                          {syncStatus.behind}
-                        </span>
-                      )}
+                {status.origin !== "" ? (
+                  <Button
+                    onClick={async () => {
+                      await handlePull();
+                      await handlePush();
+                    }}
+                    disabled={
+                      loading ||
+                      (syncStatus.ahead === 0 && syncStatus.behind === 0)
+                    }
+                    className={`bg-git-branch hover:bg-git-branch/90 text-git-branch-fg text-xs px-3 py-1.5 h-auto font-medium transition-colors flex items-center gap-1.5 ${
+                      syncStatus.ahead === 0 && syncStatus.behind === 0
+                        ? "opacity-50 cursor-not-allowed"
+                        : "cursor-pointer"
+                    }`}
+                  >
+                    <RefreshCcw
+                      className={`w-3 h-3 ${loading ? "animate-spin" : ""}`}
+                    />
+                    <span>
+                      {syncStatus.ahead === 0 && syncStatus.behind === 0
+                        ? "Synced"
+                        : "Sync"}
                     </span>
-                  )}
-                </Button>
+                    {(syncStatus.ahead > 0 || syncStatus.behind > 0) && (
+                      <span className="flex items-center gap-0.5 text-xs ml-1 bg-sidebar-accent/40 px-1.5 py-0.5 rounded">
+                        {syncStatus.ahead > 0 && (
+                          <span className="flex items-center gap-0.5">
+                            <ArrowUpFromDot className="w-3 h-3" />
+                            {syncStatus.ahead}
+                          </span>
+                        )}
+                        {syncStatus.behind > 0 && (
+                          <span className="flex items-center gap-0.5 ml-1">
+                            <ArrowDownToDot className="w-3 h-3" />
+                            {syncStatus.behind}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => handlePublish(workspace.split("\\").pop()!)}
+                    disabled={loading}
+                    className="bg-sidebar-accent hover:bg-sidebar-accent/50 text-sidebar-foreground text-xs px-3 py-1.5 h-auto transition-colors rounded-xl cursor-pointer"
+                  >
+                    Publish to GitHub
+                  </Button>
+                )}
               </div>
             </div>
 
-            <PanelGroup direction="vertical" className="flex-1 min-h-0">
-              <Panel defaultSize={60} minSize={20}>
+            <PanelGroup
+              direction="vertical"
+              className="flex-1 min-h-0 overflow-hidden"
+            >
+              <Panel defaultSize={100} minSize={20}>
                 <div className="flex flex-col h-full">
                   <div className="flex items-center justify-between px-4 py-2.5 cursor-pointer  shrink-0 border-b border-sidebar-border transition-colors">
                     <div
@@ -1238,7 +1210,7 @@ export default function GitPanel() {
                     </div>
                   </div>
                   {!collapsed.changes && (
-                    <div className="flex-1 overflow-y-auto">
+                    <div className="flex-1 overflow-y-auto scrollbar">
                       {[
                         ...status.staged,
                         ...status.unstaged,

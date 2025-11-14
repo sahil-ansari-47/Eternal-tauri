@@ -1,6 +1,7 @@
 import { createContext, useContext, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useEditor } from "./EditorContext";
+import { useUser } from "@clerk/clerk-react";
 interface GitContextType {
   status: GitStatus;
   setStatus: React.Dispatch<React.SetStateAction<GitStatus>>;
@@ -23,12 +24,26 @@ interface GitContextType {
 
   refreshStatus: () => Promise<void>;
   runGit: <T>(action: string, payload?: any) => Promise<T>;
+
+  getUserAccessToken: () => Promise<string>;
+  handlePublish: (name: string, priv?: boolean) => Promise<void>;
+
+  syncStatus: {
+    ahead: number;
+    behind: number;
+  };
+  setSyncStatus: React.Dispatch<
+    React.SetStateAction<{ ahead: number; behind: number }>
+  >;
+  fetchSyncStatus: () => Promise<void>;
+  handlePush: () => Promise<void>;
 }
 
 const GitContext = createContext<GitContextType | undefined>(undefined);
 
 export const GitProvider = ({ children }: { children: React.ReactNode }) => {
   const { workspace } = useEditor();
+  const { user } = useUser();
   const [status, setStatus] = useState<GitStatus>({
     staged: [],
     unstaged: [],
@@ -41,6 +56,10 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     changes: false,
     graph: false,
   });
+  const [syncStatus, setSyncStatus] = useState<{
+    ahead: number;
+    behind: number;
+  }>({ ahead: 0, behind: 0 });
   const [isInit, setIsInit] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<GitError | null>(null);
@@ -65,9 +84,9 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
   }
   async function runGit<T>(action: string, payload = {}): Promise<T> {
     try {
-      console.log("Running git command:", action);
+      // console.log("Running git command:", action);
       const result = await invoke<T>("git_command", { action, payload });
-      console.log(result);
+      // console.log(result);
       return result;
     } catch (e: any) {
       const err: GitError = new Error(e.message || String(e));
@@ -76,6 +95,71 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
       throw err;
     }
   }
+  const getUserAccessToken = async () => {
+    const sk = import.meta.env.VITE_BACKEND_SECRET_KEY;
+    console.log(user?.id, sk);
+    const token = await invoke<string>("get_user_access_token", {
+      userId: user?.id,
+      sk,
+    });
+    return token;
+  };
+  async function fetchSyncStatus() {
+    setLoading(true);
+    try {
+      const result = await runGit<{ ahead: number; behind: number }>(
+        "sync-status",
+        { workspace }
+      );
+      setSyncStatus(result);
+    } catch (err) {
+      console.error("Failed to get sync status", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+  async function handlePush() {
+    setLoading(true);
+    try {
+      await runGit("push", {
+        workspace,
+        remote: status.origin,
+        branch: status.branch || "master",
+      });
+      await refreshStatus();
+      await fetchSyncStatus();
+    } catch (e: any) {
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+  const handlePublish = async (name: string, priv: boolean = false) => {
+    const token = localStorage.getItem("token");
+    console.log(name, token);
+    setStatus({
+      staged: [],
+      unstaged: [],
+      untracked: [],
+      branch: "master",
+      origin: `https://github.com/${user?.username}/${name}.git`,
+    });
+    const res = await fetch("https://api.github.com/user/repos", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github.v3+json",
+      },
+      body: JSON.stringify({
+        name: name,
+        private: priv,
+      }),
+    });
+    console.log(res);
+    setTimeout(async () => {
+      await handlePush();
+    }, 1000);
+  };
   return (
     <GitContext.Provider
       value={{
@@ -93,6 +177,12 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
         setError,
         refreshStatus,
         runGit,
+        getUserAccessToken,
+        handlePublish,
+        syncStatus,
+        setSyncStatus,
+        fetchSyncStatus,
+        handlePush,
       }}
     >
       {children}

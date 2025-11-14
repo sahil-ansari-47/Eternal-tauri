@@ -6,6 +6,60 @@ use std::process::Command;
 use std::{path::Path, sync::mpsc::channel, time::Duration};
 use tauri::{AppHandle, Emitter};
 
+#[tauri::command]
+async fn get_user_access_token(user_id: String, sk: String) -> Result<String, String> {
+    use serde::Deserialize;
+
+    #[derive(Deserialize, Debug)]
+    struct OAuthTokenResponse {
+        data: Vec<OAuthTokenItem>,
+    }
+
+    #[derive(Deserialize, Debug)]
+    struct OAuthTokenItem {
+        token: String,
+    }
+
+    println!("Getting access token for user {}", user_id);
+
+    let url = format!(
+        "https://api.clerk.com/v1/users/{}/oauth_access_tokens/oauth_github?paginated=true&limit=10&offset=0",
+        user_id
+    );
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", sk))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let status = resp.status();
+    println!("HTTP status: {}", status);
+    let raw = resp.text().await.map_err(|e| e.to_string())?;
+    let parsed: Result<OAuthTokenResponse, _> = serde_json::from_str(&raw);
+
+    let body = match parsed {
+        Ok(body) => {
+            println!("Parsed JSON: {:?}", body);
+            body
+        }
+        Err(e) => {
+            println!("\n❌ JSON PARSE ERROR:\n{}\n", e);
+            return Err(format!("JSON parse error: {}", e));
+        }
+    };
+    let token = body
+        .data
+        .first()
+        .ok_or("No OAuth token returned")?
+        .token
+        .clone();
+    println!("Access token: {}", token);
+    return Ok(token);
+}
+
 fn is_onedrive_path(path: &str) -> bool {
     let lowercase = path.to_lowercase();
     lowercase.contains("onedrive") || lowercase.contains("sharepoint")
@@ -33,8 +87,6 @@ async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
         } else {
             Config::default()
         };
-
-        // 🧩 Create watcher
         let mut watcher = match RecommendedWatcher::new(tx, config) {
             Ok(w) => {
                 if use_polling {
@@ -49,7 +101,6 @@ async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
                 return;
             }
         };
-
         match watcher.watch(Path::new(&path), RecursiveMode::Recursive) {
             Ok(_) => println!("[Tauri] 👀 Now watching path recursively: {}", path),
             Err(e) => {
@@ -101,7 +152,7 @@ async fn git_command(
             return Err("Missing workspace path".into());
         }
     };
-    println!("Running git command: {} in {}", action, path);
+    // println!("Running git command: {} in {}", action, path);
     if action == "init" {
         let out = Command::new("git")
             .arg("init")
@@ -175,9 +226,9 @@ async fn git_command(
                 }
             })
             .unwrap_or_default();
-        println!("stdout: {:?}", String::from_utf8_lossy(&out.stdout));
-        println!("stderr: {:?}", String::from_utf8_lossy(&out.stderr));
-        println!("exit code: {:?}", out.status.code());
+        // println!("stdout: {:?}", String::from_utf8_lossy(&out.stdout));
+        // println!("stderr: {:?}", String::from_utf8_lossy(&out.stderr));
+        // println!("exit code: {:?}", out.status.code());
         return Ok(serde_json::json!({
             "staged": staged,
             "unstaged": unstaged,
@@ -831,6 +882,7 @@ pub fn run() {
             git_clone,
             git_command,
             watch_workspace,
+            get_user_access_token
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
