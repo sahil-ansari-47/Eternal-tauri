@@ -66,40 +66,7 @@ export default function Editor() {
     });
     viewRefs.current[filePath] = new EditorView({ state, parent: el });
   };
-  const getSingleFileGitState = async (
-    filePath: string
-  ): Promise<"U" | "M" | "A" | ""> => {
-    try {
-      const result = await invoke<{ status: string }>("git_command", {
-        action: "file_status",
-        payload: { file: filePath, workspace },
-      });
-      console.log(result);
-      return (result.status as "U" | "M" | "A" | "") ?? "";
-    } catch (e) {
-      console.warn("git file_status failed:", e);
-      return "";
-    }
-  };
-  const onSave = async (filePath: string, newContent: string) => {
-    const file = openFiles.find((f) => f.path === filePath);
-    if (!file) return;
 
-    await writeTextFile(file.path, newContent);
-
-    setOpenFiles((prev) =>
-      prev.map((f) =>
-        f.path === filePath ? { ...f, content: newContent, isDirty: false } : f
-      )
-    );
-    const newGitState = await getSingleFileGitState(filePath);
-    setOpenFiles((prev) =>
-      prev.map((f) =>
-        f.path === filePath ? { ...f, gitStatus: newGitState } : f
-      )
-    );
-    console.log(`💾 Saved and updated git state: ${filePath} (${newGitState})`);
-  };
   const onClose = (filePath: string) => {
     setOpenFiles((prev) => prev.filter((f) => f.path !== filePath));
   };
@@ -175,14 +142,14 @@ export default function Editor() {
             <span className="truncate max-w-xs flex items-center gap-1">
               {file.path.split("\\").pop()}
               {/* Git status */}
-              {file.gitStatus && (
+              {file.status && (
                 <span
                   className={`ml-2 font-medium ${
-                    file.gitStatus === "U"
+                    file.status === "U"
                       ? "text-orange-500"
-                      : file.gitStatus === "M"
+                      : file.status === "M"
                       ? "text-yellow-500"
-                      : file.gitStatus === "A"
+                      : file.status === "A"
                       ? "text-green-500"
                       : "text-red-500" // This now correctly handles the remaining literal "D"
                   }`}

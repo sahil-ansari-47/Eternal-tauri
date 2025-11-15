@@ -209,12 +209,43 @@ async fn git_command(
             let file = line[3..].to_string();
             match status_code {
                 "M " | "A " | "D " => {
-                    staged.push(serde_json::json!({ "path": file, "status": status_code }))
+                    let status = if status_code == "M " {
+                        "M"
+                    } else if status_code == "A " {
+                        "A"
+                    } else {
+                        "D"
+                    };
+
+                    staged.push(serde_json::json!({
+                        "path": file,
+                        "status": status
+                    }));
                 }
-                " M" | " D" => {
-                    unstaged.push(serde_json::json!({ "path": file, "status": status_code }))
+
+                " M" | " D" | "MM" => {
+                    let status = if status_code == " M" {
+                        "M"
+                    } else if status_code == " D" {
+                        "D"
+                    } else {
+                        // "MM"
+                        "M"
+                    };
+
+                    unstaged.push(serde_json::json!({
+                        "path": file,
+                        "status": status
+                    }));
                 }
-                "??" => untracked.push(serde_json::json!({ "path": file, "status": status_code })),
+
+                "??" => {
+                    untracked.push(serde_json::json!({
+                        "path": file,
+                        "status": "U"
+                    }));
+                }
+
                 _ => {}
             }
         }

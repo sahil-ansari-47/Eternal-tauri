@@ -123,21 +123,6 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       console.error("Clone failed:", err);
     }
   };
-  const getSingleFileGitState = async (
-    filePath: string
-  ): Promise<"U" | "M" | "A" | "D" | ""> => {
-    try {
-      const result = await invoke<{ status: string }>("git_command", {
-        action: "file_status",
-        payload: { file: filePath, workspace },
-      });
-      console.log(result);
-      return (result.status as "U" | "M" | "A" | "D") ?? "";
-    } catch (e) {
-      console.warn("git file_status failed:", e);
-      return "";
-    }
-  };
   const reloadWorkspace = async () => {
     if (!workspace) return;
     try {
@@ -246,12 +231,13 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
     newContent: string,
     convert: boolean
   ) => {
-    const file = openFiles.find((f) => f.path === filePath);
-    if (!file) return;
+    // const file = openFiles.find((f) => f.path === filePath);
+    // if (!file) return;
     if (convert) newContent = normalize(newContent);
-    await writeTextFile(file.path, newContent);
-    console.log(JSON.stringify(file.content));
-    console.log(JSON.stringify(newContent));
+    // await writeTextFile(file.content, newContent);
+    // console.log(JSON.stringify(file.content));
+    await writeTextFile(filePath, newContent);
+    // console.log(JSON.stringify(newContent));
     setOpenFiles((prev) =>
       prev.map((f) =>
         f.path === filePath ? { ...f, content: newContent, isDirty: false } : f
