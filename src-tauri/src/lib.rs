@@ -111,7 +111,7 @@ async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
         for res in rx {
             match res {
                 Ok(event) => {
-                    println!("[Tauri] 📁 Filesystem event detected: {:?}", event.kind);
+                    // println!("[Tauri] 📁 Filesystem event detected: {:?}", event.kind);
                     let paths: Vec<String> = event
                         .paths
                         .iter()
@@ -120,7 +120,7 @@ async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
                         .collect();
 
                     if !paths.is_empty() {
-                        println!("[Tauri] 🔔 Emitting fs-change with paths: {:?}", paths);
+                        // println!("[Tauri] 🔔 Emitting fs-change with paths: {:?}", paths);
                     }
 
                     if let Err(e) = app_handle.emit("fs-change", paths) {
@@ -152,7 +152,7 @@ async fn git_command(
             return Err("Missing workspace path".into());
         }
     };
-    // println!("Running git command: {} in {}", action, path);
+    println!("Running git command: {} in {}", action, path);
     if action == "init" {
         let out = Command::new("git")
             .arg("init")
@@ -304,7 +304,6 @@ async fn git_command(
             "behind": behind_count
         }));
     }
-
     if action == "stage" {
         let out = Command::new("git")
             .arg("add")
@@ -369,11 +368,9 @@ async fn git_command(
             "stderr": String::from_utf8_lossy(&out.stderr)
         }));
     }
-
     if action == "discard" {
         let out = Command::new("git")
-            .arg("reset")
-            .arg("--")
+            .arg("restore")
             .arg(payload["file"]["path"].as_str().unwrap_or(""))
             .current_dir(path)
             .output()

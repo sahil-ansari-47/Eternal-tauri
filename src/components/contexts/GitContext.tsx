@@ -1,14 +1,11 @@
 import { createContext, useContext, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useEditor } from "./EditorContext";
 import { useUser } from "@clerk/clerk-react";
 interface GitContextType {
   status: GitStatus;
   setStatus: React.Dispatch<React.SetStateAction<GitStatus>>;
-
   graphData: GitGraphNode[];
   setGraphData: React.Dispatch<React.SetStateAction<GitGraphNode[]>>;
-
   collapsed: { [key: string]: boolean };
   setCollapsed: React.Dispatch<
     React.SetStateAction<{ [key: string]: boolean }>
@@ -35,14 +32,19 @@ interface GitContextType {
   setSyncStatus: React.Dispatch<
     React.SetStateAction<{ ahead: number; behind: number }>
   >;
+  handleSetRemote: (url: string) => Promise<void>;
   fetchSyncStatus: () => Promise<void>;
   handlePush: () => Promise<void>;
+  commitMsg: string;
+  setCommitMsg: React.Dispatch<React.SetStateAction<string>>;
+  handleStageAll: () => Promise<void>;
+  handleCommit: () => Promise<void>;
 }
 
 const GitContext = createContext<GitContextType | undefined>(undefined);
 
 export const GitProvider = ({ children }: { children: React.ReactNode }) => {
-  const { workspace } = useEditor();
+  const workspace = localStorage.getItem("workspacePath"); 
   const { user } = useUser();
   const [status, setStatus] = useState<GitStatus>({
     staged: [],
@@ -60,10 +62,12 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     ahead: number;
     behind: number;
   }>({ ahead: 0, behind: 0 });
+  const [commitMsg, setCommitMsg] = useState<string>("");
   const [isInit, setIsInit] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<GitError | null>(null);
-  async function refreshStatus() {
+  let origin = "";
+    async function refreshStatus() {
     setLoading(true);
     try {
       const payload = await runGit<GitStatus>("status", { workspace });
@@ -72,8 +76,9 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
         unstaged: payload.unstaged || [],
         untracked: payload.untracked || [],
         branch: payload.branch || "master",
-        origin: payload.origin || "",
+        origin: payload.origin,
       });
+      origin = payload.origin || "";
       setIsInit(true);
     } catch (e: any) {
       setIsInit(false);
@@ -123,7 +128,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       await runGit("push", {
         workspace,
-        remote: status.origin,
+        remote: origin,
         branch: status.branch || "master",
       });
       await refreshStatus();
@@ -134,17 +139,48 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     }
   }
+  async function handleSetRemote(url: string) {
+    setLoading(true);
+    try {
+      await runGit("set-remote", { workspace, url });
+      await refreshStatus();
+    } catch (e: any) {
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+  const handleStageAll = async () => {
+    setLoading(true);
+    try {
+      await runGit("stage-all", { workspace });
+      await refreshStatus();
+    } catch (e: any) {
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+  async function handleCommit() {
+    setLoading(true);
+    try {
+      await runGit("commit", {
+        workspace,
+        message: commitMsg.trim() === "" ? "initial commit" : commitMsg,
+      });
+      setCommitMsg("");
+      await refreshStatus();
+      // fetchGraph();
+    } catch (e: any) {
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  }
   const handlePublish = async (name: string, priv: boolean = false) => {
     const token = localStorage.getItem("token");
     console.log(name, token);
-    setStatus({
-      staged: [],
-      unstaged: [],
-      untracked: [],
-      branch: "master",
-      origin: `https://github.com/${user?.username}/${name}.git`,
-    });
-    const res = await fetch("https://api.github.com/user/repos", {
+    await fetch("https://api.github.com/user/repos", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -155,10 +191,9 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
         private: priv,
       }),
     });
-    console.log(res);
-    setTimeout(async () => {
-      await handlePush();
-    }, 1000);
+    const remoteUrl = `https://github.com/${user?.username}/${name}.git`;
+    await handleSetRemote(remoteUrl);
+    await handlePush();
   };
   return (
     <GitContext.Provider
@@ -183,6 +218,11 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
         setSyncStatus,
         fetchSyncStatus,
         handlePush,
+        commitMsg,
+        setCommitMsg,
+        handleStageAll,
+        handleCommit,
+        handleSetRemote,
       }}
     >
       {children}

@@ -1,16 +1,22 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { EditorState } from "@codemirror/state";
 import { basicSetup } from "codemirror";
 import { EditorView } from "@codemirror/view";
 import { barf } from "thememirror";
-import { exists, writeTextFile } from "@tauri-apps/plugin-fs";
+import { exists } from "@tauri-apps/plugin-fs";
 import { message } from "@tauri-apps/plugin-dialog";
 import getLanguageExtension from "../utils/edfunc";
 import { useEditor } from "./contexts/EditorContext";
-import { invoke } from "@tauri-apps/api/core";
 export default function Editor() {
-  const { openFiles, setOpenFiles, activePath, setActivePath, workspace } = useEditor();
-  const viewRefs = useRef<Record<string, EditorView>>({});
+  const {
+    openFiles,
+    setOpenFiles,
+    activePath,
+    setActivePath,
+    viewRefs,
+    onSave,
+    normalize,
+  } = useEditor();
   useEffect(() => {
     const handler = (e: Event) => {
       const { filePath, line, query } = (e as CustomEvent).detail;
@@ -39,8 +45,8 @@ export default function Editor() {
     if (!file) return;
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.docChanged) {
-        const newContent = update.state.doc.toString();
-        setOpenFiles((prev) =>
+        const newContent = normalize(update.state.doc.toString());
+        setOpenFiles((prev) =>  
           prev.map((f) =>
             f.path === filePath
               ? { ...f, content: newContent, isDirty: true }
@@ -60,40 +66,6 @@ export default function Editor() {
     });
     viewRefs.current[filePath] = new EditorView({ state, parent: el });
   };
-  const getSingleFileGitState = async (
-    filePath: string
-  ): Promise<"U" | "M" | "A" | ""> => {
-    try {
-      const result = await invoke<{ status: string }>("git_command", {
-        action: "file_status",
-        payload: { file: filePath, workspace },
-      });
-      console.log(result);
-      return (result.status as "U" | "M" | "A" | "") ?? "";
-    } catch (e) {
-      console.warn("git file_status failed:", e);
-      return "";
-    }
-  };
-  const onSave = async (filePath: string, newContent: string) => {
-    const file = openFiles.find((f) => f.path === filePath);
-    if (!file) return;
-
-    await writeTextFile(file.path, newContent);
-
-    setOpenFiles((prev) =>
-      prev.map((f) =>
-        f.path === filePath ? { ...f, content: newContent, isDirty: false } : f
-      )
-    );
-    const newGitState = await getSingleFileGitState(filePath);
-    setOpenFiles((prev) =>
-      prev.map((f) =>
-        f.path === filePath ? { ...f, gitStatus: newGitState } : f
-      )
-    );
-    console.log(`💾 Saved and updated git state: ${filePath} (${newGitState})`);
-  };
   const onClose = (filePath: string) => {
     setOpenFiles((prev) => prev.filter((f) => f.path !== filePath));
   };
@@ -103,7 +75,7 @@ export default function Editor() {
     if (view) {
       const newContent = view.state.doc.toString();
       if (fileExists) {
-        await onSave(filePath, newContent);
+        await onSave(filePath, newContent, true);
       } else {
         await message(`⚠️ File "${filePath}" not found. Skipping save.`, {
           title: "Save Error",
@@ -117,8 +89,6 @@ export default function Editor() {
     const remaining = openFiles.filter((f) => f.path !== filePath);
     setActivePath(remaining.length > 0 ? remaining[0].path : "");
   };
-
-  // --- keyboard shortcuts (Ctrl+S / Ctrl+W) ---
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
@@ -130,7 +100,7 @@ export default function Editor() {
 
         const content = view.state.doc.toString();
         if (fileExists) {
-          await onSave(activePath, content);
+          await onSave(activePath, content, true);
         } else {
           await message(
             `⚠️ Cannot save: file "${activePath}" does not exist.`,
@@ -145,12 +115,9 @@ export default function Editor() {
         handleCloseTab(activePath);
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activePath, openFiles]);
-
-  // maintain active tab validity
   useEffect(() => {
     if (!openFiles.find((f) => f.path === activePath) && openFiles.length > 0) {
       setActivePath(openFiles[0].path);
@@ -176,20 +143,19 @@ export default function Editor() {
               {file.path.split("\\").pop()}
 
               {/* Git status */}
-              {file.gitStatus && file.gitStatus !== "" && (
+              {file.status && file.status !== "" && (
                 <span
                   className={`ml-2 font-bold ${
-                    file.gitStatus === "U"
+                    file.status === "U"
                       ? "text-red-500"
-                      : file.gitStatus === "M"
+                      : file.status === "M"
                       ? "text-yellow-400"
                       : "text-green-500"
                   }`}
                 >
-                  {file.gitStatus}
+                  {file.status}
                 </span>
               )}
-
               {/* Unsaved indicator */}
               {file.isDirty && <span className="text-yellow-500 ml-1">•</span>}
             </span>

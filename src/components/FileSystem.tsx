@@ -55,6 +55,7 @@ const FileSystem = () => {
     reloadWorkspace,
     roots,
     setRoots,
+    viewRefs,
   } = useEditor();
   const [targetNode, setTargetNode] = useState<FsNode | null>(null);
   const [value, setValue] = useState("");
@@ -63,8 +64,8 @@ const FileSystem = () => {
     reloadWorkspace();
     if (workspace) {
       invoke("watch_workspace", { path: workspace });
-      const unlisten = listen("fs-change", (event) => {
-        console.log("Change:", event.payload);
+      const unlisten = listen("fs-change", () => {
+        // console.log("Change:", event.payload);
         reloadWorkspace();
       });
       return () => {
@@ -162,11 +163,17 @@ const FileSystem = () => {
         const path = await join(dir, value.trim());
         await create(path);
         setOpenFiles((prev) => [...prev, { path, content: "" } as File]);
+        setActivePath(path);
       } else if (action === "newFolder") {
         await mkdir(await join(dir, value.trim()));
       }
     } else if (action === "delete" && targetNode) {
       await remove(targetNode.path, { recursive: targetNode.isDirectory });
+      const view = viewRefs.current[targetNode.path];
+      if(view){
+        view.destroy();
+        delete viewRefs.current[targetNode.path];
+      }
       setOpenFiles((prev) => prev.filter((f) => f.path !== targetNode.path));
     }
 
