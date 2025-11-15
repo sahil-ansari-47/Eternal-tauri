@@ -5,7 +5,8 @@ declare global {
     path: string;
     content: string;
     isDirty?: boolean;
-    gitStatus?: "A" | "M" | "U" | "D" | "";
+    status?: string;
+    hash?: string;
   }
   interface SearchResult {
     filePath: string;
@@ -146,15 +147,10 @@ declare global {
     name: string;
     clone_url: string;
   }
-  interface GitFile {
-    path: string;
-    hash?: string;
-    status?: string;
-  }
   interface GitStatus {
-    staged: GitFile[];
-    unstaged: GitFile[];
-    untracked: GitFile[];
+    staged: File[];
+    unstaged: File[];
+    untracked: File[];
     branch?: string;
     origin?: string;
   }
@@ -165,7 +161,6 @@ declare global {
     message: string;
     remote: boolean;
   }
-
   interface GitError extends Error {
     code?: string;
     details?: string;

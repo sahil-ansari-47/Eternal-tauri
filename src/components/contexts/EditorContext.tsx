@@ -1,11 +1,13 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useRef } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { join } from "@tauri-apps/api/path";
-import { DirEntry, readTextFile } from "@tauri-apps/plugin-fs";
+import { DirEntry, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
+import { EditorView } from "codemirror";
 import { useAuth } from "@clerk/clerk-react";
 import { applyExpanded, preserveExpanded, sortNodes } from "../../utils/fsfunc";
 import { readDir } from "@tauri-apps/plugin-fs";
+import { useGit } from "./GitContext";
 interface EditorContextType {
   workspace: string | null;
   setWorkspace: React.Dispatch<React.SetStateAction<string | null>>;
@@ -47,9 +49,15 @@ interface EditorContextType {
   cloneMethod: "github" | "link";
   setCloneMethod: React.Dispatch<React.SetStateAction<"github" | "link">>;
   getUserRepos: () => Promise<void>;
-  getSingleFileGitState: (
-    filePath: string
-  ) => Promise<"U" | "M" | "A" | "D" | "">;
+  reloadFileContent: (filePath: string) => Promise<void>;
+  viewRefs: React.MutableRefObject<Record<string, EditorView>>;
+  getSingleFileGitState: (filePath: string) => Promise<"U" | "M" | "A" | "">;
+  onSave: (
+    filePath: string,
+    newContent: string,
+    convert: boolean
+  ) => Promise<void>;
+  normalize: (s: string) => string;
 }
 
 const EditorContext = createContext<EditorContextType | undefined>(undefined);
@@ -60,6 +68,8 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const [workspace, setWorkspace] = useState<string | null>(
     localStorage.getItem("workspacePath")
   );
+  const { refreshStatus } = useGit();
+  const viewRefs = useRef<Record<string, EditorView>>({});
   const [cloneMethod, setCloneMethod] = useState<"github" | "link">("link");
   const [openFiles, setOpenFiles] = useState<File[]>([]);
   const [activePath, setActivePath] = useState<string | null>(null);
@@ -141,11 +151,26 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         }))
       );
       const sorted = sortNodes(nodes);
+      // console.log(sorted);
       setRoots(applyExpanded(sorted, expandedMap));
       setError(null);
     } catch (e: any) {
       console.error(e);
       setError(String(e?.message ?? e));
+    }
+  };
+  const getSingleFileGitState = async (
+    filePath: string
+  ): Promise<"U" | "M" | "A" | ""> => {
+    try {
+      const result = await invoke<{ status: string }>("git_command", {
+        action: "file_status",
+        payload: { file: filePath, workspace },
+      });
+      return (result.status as "U" | "M" | "A" | "") ?? "";
+    } catch (e) {
+      console.warn("git file_status failed:", e);
+      return "";
     }
   };
   const handleCreateNewFile = async () => {
@@ -183,7 +208,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error(`API error: ${res.status} - ${text}`);
       }
       const data = await res.json();
-      console.log(data);
+      // console.log(data);
       const res2 = await fetch(
         `https://api.github.com/users/${data.user.username}/repos`
       );
@@ -193,6 +218,50 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (err) {
       console.log(err);
     }
+  };
+  const reloadFileContent = async (filePath: string) => {
+    if (!workspace) return;
+    const absPath = await join(workspace, filePath);
+    const content = await readTextFile(absPath);
+    setOpenFiles((prev) =>
+      prev.map((f) =>
+        f.path === absPath ? { ...f, content, isDirty: false } : f
+      )
+    );
+    const view = viewRefs.current[absPath];
+    if (view) {
+      view.dispatch({
+        changes: {
+          from: 0,
+          to: view.state.doc.length,
+          insert: content,
+        },
+      });
+    }
+    onSave(absPath, content, false);
+  };
+  const normalize = (s: string) => s.replace(/\n/g, "\r\n");
+  const onSave = async (
+    filePath: string,
+    newContent: string,
+    convert: boolean
+  ) => {
+    const file = openFiles.find((f) => f.path === filePath);
+    if (!file) return;
+    if (convert) newContent = normalize(newContent);
+    await writeTextFile(file.path, newContent);
+    console.log(JSON.stringify(file.content));
+    console.log(JSON.stringify(newContent));
+    setOpenFiles((prev) =>
+      prev.map((f) =>
+        f.path === filePath ? { ...f, content: newContent, isDirty: false } : f
+      )
+    );
+    const newGitState = await getSingleFileGitState(filePath);
+    setOpenFiles((prev) =>
+      prev.map((f) => (f.path === filePath ? { ...f, status: newGitState } : f))
+    );
+    refreshStatus();
   };
   const handleOpenFile = async () => {
     const path = await open({
@@ -215,6 +284,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         workspace,
         setWorkspace,
         openFiles,
+        normalize,
         setOpenFiles,
         activePath,
         setActivePath,
@@ -246,7 +316,10 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         cloneMethod,
         setCloneMethod,
         getUserRepos,
+        reloadFileContent,
+        viewRefs,
         getSingleFileGitState,
+        onSave,
       }}
     >
       {children}
