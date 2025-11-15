@@ -37,12 +37,9 @@ interface GitContextType {
   handlePush: () => Promise<void>;
   commitMsg: string;
   setCommitMsg: React.Dispatch<React.SetStateAction<string>>;
-  handleStageAll: () => Promise<void>;
   handleCommit: () => Promise<void>;
 }
-
 const GitContext = createContext<GitContextType | undefined>(undefined);
-
 export const GitProvider = ({ children }: { children: React.ReactNode }) => {
   const workspace = localStorage.getItem("workspacePath"); 
   const { user } = useUser();
@@ -150,17 +147,6 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     }
   }
-  const handleStageAll = async () => {
-    setLoading(true);
-    try {
-      await runGit("stage-all", { workspace });
-      await refreshStatus();
-    } catch (e: any) {
-      setError(e);
-    } finally {
-      setLoading(false);
-    }
-  };
   async function handleCommit() {
     setLoading(true);
     try {
@@ -220,7 +206,6 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
         handlePush,
         commitMsg,
         setCommitMsg,
-        handleStageAll,
         handleCommit,
         handleSetRemote,
       }}

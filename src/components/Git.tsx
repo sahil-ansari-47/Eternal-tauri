@@ -43,6 +43,7 @@ export default function GitPanel() {
     setOpenFiles,
     reloadFileContent,
     viewRefs,
+    onSave,
   } = useEditor();
   const {
     status,
@@ -64,7 +65,6 @@ export default function GitPanel() {
     fetchSyncStatus,
     handleSetRemote,
     handleCommit,
-    handleStageAll,
     commitMsg,
     setCommitMsg,
   } = useGit();
@@ -168,7 +168,11 @@ export default function GitPanel() {
   }
   async function handleStage(file: File) {
     setLoading(true);
+    if (!workspace) return;
     try {
+      const filePath = await join(workspace, file.path);
+      const content = viewRefs.current[filePath].state.doc.toString();
+      await onSave(filePath, content, true);
       await runGit("stage", { workspace, file });
       await refreshStatus();
       const token = await getUserAccessToken();
@@ -179,6 +183,28 @@ export default function GitPanel() {
       setLoading(false);
     }
   }
+  const handleStageAll = async () => {
+    setLoading(true);
+    if (!workspace) return;
+    try {
+      for (const file of status.unstaged) {
+        const filePath = await join(workspace, file.path);
+        const content = viewRefs.current[filePath].state.doc.toString();
+        await onSave(filePath, content, true);
+      }
+      for (const file of status.untracked) {
+        const filePath = await join(workspace, file.path);
+        const content = viewRefs.current[filePath].state.doc.toString();
+        await onSave(filePath, content, true);
+      }
+      await runGit("stage-all", { workspace });
+      await refreshStatus();
+    } catch (e: any) {
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  };
   async function handleUnstage(file: File) {
     setLoading(true);
     try {
@@ -698,7 +724,7 @@ export default function GitPanel() {
                                           await remove(absPath);
                                           const view =
                                             viewRefs.current[absPath];
-                                          if(view){
+                                          if (view) {
                                             view.destroy();
                                             delete viewRefs.current[absPath];
                                           }

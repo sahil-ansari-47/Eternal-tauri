@@ -176,7 +176,6 @@ const FileSystem = () => {
       }
       setOpenFiles((prev) => prev.filter((f) => f.path !== targetNode.path));
     }
-
     setDialogOpen(false);
     setValue("");
     setAction(null);

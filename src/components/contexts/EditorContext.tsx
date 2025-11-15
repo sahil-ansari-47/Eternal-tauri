@@ -52,7 +52,11 @@ interface EditorContextType {
   reloadFileContent: (filePath: string) => Promise<void>;
   viewRefs: React.MutableRefObject<Record<string, EditorView>>;
   getSingleFileGitState: (filePath: string) => Promise<"U" | "M" | "A" | "">;
-  onSave: (filePath: string, newContent: string, convert: boolean) => Promise<void>;
+  onSave: (
+    filePath: string,
+    newContent: string,
+    convert: boolean
+  ) => Promise<void>;
   normalize: (s: string) => string;
 }
 
@@ -223,13 +227,15 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
     onSave(absPath, content, false);
   };
   const normalize = (s: string) => s.replace(/\n/g, "\r\n");
-  const onSave = async (filePath: string, newContent: string, convert: boolean) => {
+  const onSave = async (
+    filePath: string,
+    newContent: string,
+    convert: boolean
+  ) => { 
     const file = openFiles.find((f) => f.path === filePath);
     if (!file) return;
-    if(convert) newContent = normalize(newContent);
+    if (convert) newContent = normalize(newContent);
     await writeTextFile(file.path, newContent);
-    console.log(JSON.stringify(file.content));
-    console.log(JSON.stringify(newContent));
     setOpenFiles((prev) =>
       prev.map((f) =>
         f.path === filePath ? { ...f, content: newContent, isDirty: false } : f
