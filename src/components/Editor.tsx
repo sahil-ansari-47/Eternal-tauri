@@ -7,9 +7,14 @@ import { exists, writeTextFile } from "@tauri-apps/plugin-fs";
 import { message } from "@tauri-apps/plugin-dialog";
 import getLanguageExtension from "../utils/edfunc";
 import { useEditor } from "./contexts/EditorContext";
-import { invoke } from "@tauri-apps/api/core";
 export default function Editor() {
-  const { openFiles, setOpenFiles, activePath, setActivePath, workspace } = useEditor();
+  const {
+    openFiles,
+    setOpenFiles,
+    activePath,
+    setActivePath,
+    getSingleFileGitState,
+  } = useEditor();
   const viewRefs = useRef<Record<string, EditorView>>({});
   useEffect(() => {
     const handler = (e: Event) => {
@@ -59,21 +64,6 @@ export default function Editor() {
       ],
     });
     viewRefs.current[filePath] = new EditorView({ state, parent: el });
-  };
-  const getSingleFileGitState = async (
-    filePath: string
-  ): Promise<"U" | "M" | "A" | ""> => {
-    try {
-      const result = await invoke<{ status: string }>("git_command", {
-        action: "file_status",
-        payload: { file: filePath, workspace },
-      });
-      console.log(result);
-      return (result.status as "U" | "M" | "A" | "") ?? "";
-    } catch (e) {
-      console.warn("git file_status failed:", e);
-      return "";
-    }
   };
   const onSave = async (filePath: string, newContent: string) => {
     const file = openFiles.find((f) => f.path === filePath);
@@ -149,14 +139,12 @@ export default function Editor() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activePath, openFiles]);
-
   // maintain active tab validity
   useEffect(() => {
     if (!openFiles.find((f) => f.path === activePath) && openFiles.length > 0) {
       setActivePath(openFiles[0].path);
     }
   }, [openFiles, activePath]);
-
   // --- UI ---
   return (
     <div className="w-full h-full flex flex-col">
@@ -174,24 +162,26 @@ export default function Editor() {
           >
             <span className="truncate max-w-xs flex items-center gap-1">
               {file.path.split("\\").pop()}
-
               {/* Git status */}
-              {file.gitStatus && file.gitStatus !== "" && (
+              {file.gitStatus && (
                 <span
-                  className={`ml-2 font-bold ${
+                  className={`ml-2 font-medium ${
                     file.gitStatus === "U"
-                      ? "text-red-500"
+                      ? "text-orange-500"
                       : file.gitStatus === "M"
-                      ? "text-yellow-400"
-                      : "text-green-500"
+                      ? "text-yellow-500"
+                      : file.gitStatus === "A"
+                      ? "text-green-500"
+                      : "text-red-500" // This now correctly handles the remaining literal "D"
                   }`}
                 >
                   {file.gitStatus}
                 </span>
               )}
-
               {/* Unsaved indicator */}
-              {file.isDirty && <span className="text-yellow-500 ml-1">•</span>}
+              {file.isDirty && (
+                <span className="text-white text-3xl ml-1">•</span>
+              )}
             </span>
 
             <button

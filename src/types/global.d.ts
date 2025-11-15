@@ -5,7 +5,7 @@ declare global {
     path: string;
     content: string;
     isDirty?: boolean;
-    gitStatus?: string;
+    gitStatus?: "A" | "M" | "U" | "D" | "";
   }
   interface SearchResult {
     filePath: string;
@@ -18,6 +18,7 @@ declare global {
     children?: FsNode[];
     expanded?: boolean;
     loading?: boolean;
+    gitStatus?: "A" | "M" | "U" | "D" | "";
   };
   type Friend = {
     username: string;

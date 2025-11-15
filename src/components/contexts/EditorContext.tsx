@@ -47,6 +47,9 @@ interface EditorContextType {
   cloneMethod: "github" | "link";
   setCloneMethod: React.Dispatch<React.SetStateAction<"github" | "link">>;
   getUserRepos: () => Promise<void>;
+  getSingleFileGitState: (
+    filePath: string
+  ) => Promise<"U" | "M" | "A" | "D" | "">;
 }
 
 const EditorContext = createContext<EditorContextType | undefined>(undefined);
@@ -101,7 +104,6 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         targetDir = await join(targetDir, repoName);
       }
       await invoke("git_clone", { repoUrl: clone_url, targetDir });
-
       setWorkspace(targetDir);
       localStorage.setItem("workspacePath", targetDir);
       setCloneDialogOpen(false);
@@ -109,6 +111,21 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       setAction(null);
     } catch (err) {
       console.error("Clone failed:", err);
+    }
+  };
+  const getSingleFileGitState = async (
+    filePath: string
+  ): Promise<"U" | "M" | "A" | "D" | ""> => {
+    try {
+      const result = await invoke<{ status: string }>("git_command", {
+        action: "file_status",
+        payload: { file: filePath, workspace },
+      });
+      console.log(result);
+      return (result.status as "U" | "M" | "A" | "D") ?? "";
+    } catch (e) {
+      console.warn("git file_status failed:", e);
+      return "";
     }
   };
   const reloadWorkspace = async () => {
@@ -124,7 +141,6 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         }))
       );
       const sorted = sortNodes(nodes);
-      console.log(sorted);
       setRoots(applyExpanded(sorted, expandedMap));
       setError(null);
     } catch (e: any) {
@@ -230,6 +246,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         cloneMethod,
         setCloneMethod,
         getUserRepos,
+        getSingleFileGitState,
       }}
     >
       {children}
