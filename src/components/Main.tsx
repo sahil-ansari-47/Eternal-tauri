@@ -4,7 +4,6 @@ import Welcome from "./Welcome";
 import Call from "./Call";
 import AddTask from "./AddTask";
 import { DottedGlowBackground } from "./ui/dotted-glow-background";
-// import Spotify from "./Spotify"
 import { useEditor } from "./contexts/EditorContext";
 import { useMessage } from "./contexts/MessageContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";

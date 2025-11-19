@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useEditor } from "./contexts/EditorContext";
 import { motion, AnimatePresence } from "framer-motion";
+import ProjectTemplates from "./ProjectTemplates";
 
 export default function Welcome() {
   const [activeTab, setActiveTab] = useState("welcome");
@@ -294,50 +295,7 @@ export default function Welcome() {
                     className="flex flex-col gap-6 items-start"
                   >
                     <h3 className="text-lg font-semibold">Project Templates</h3>
-
-                    {/* 🧩 Auto-fit grid with map */}
-                    <div
-                      className="
-                                grid 
-                                gap-4 
-                                w-full
-                                xl:w-7/10
-                                justify-start
-                                grid-cols-[repeat(auto-fit,160px)]
-                              "
-                    >
-                      {[
-                        { name: "React", image: "/frameworks/react.png" },
-                        { name: "Vite", image: "/frameworks/vite.svg" },
-                        { name: "Vue", image: "/frameworks/vue.svg" },
-                        { name: "Svelte", image: "/frameworks/svelte.svg" },
-                        { name: "Next.js", image: "/frameworks/next.svg" },
-                        { name: "Angular", image: "/frameworks/angular.svg" },
-                        { name: "Django", image: "/frameworks/django.svg" },
-                        { name: "Expo", image: "/frameworks/expo.svg" },
-                      ].map((framework) => (
-                        <button
-                          key={framework.name}
-                          className="
-                                    group p-6 rounded-lg aspect-square 
-                                    flex flex-col items-center justify-center 
-                                    hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer 
-                                    z-10 bg-primary-sidebar/70 border border-p6/50
-                                    shadow-sm hover:shadow-lg
-                                  "
-                        >
-                          <img
-                            src={framework.image}
-                            alt={framework.name}
-                            className="w-12 h-12 mb-3 object-contain"
-                          />
-                          <span className="font-semibold text-lg">
-                            {framework.name}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-
+                    <ProjectTemplates />
                     <div
                       onClick={() => setShowProjectOptions(false)}
                       className="flex gap-1 underline cursor-pointer mt-2"

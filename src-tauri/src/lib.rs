@@ -7,6 +7,43 @@ use std::{path::Path, sync::mpsc::channel, time::Duration};
 use tauri::{AppHandle, Emitter};
 
 #[tauri::command]
+fn generate_project(final_command: String, workspace: String) -> Result<String, String> {
+    if final_command.trim().is_empty() {
+        return Err("No command provided".into());
+    }
+
+    if workspace.trim().is_empty() {
+        return Err("No workspace path provided".into());
+    }
+
+    // Build the shell execution depending on OS
+    let output = if cfg!(target_os = "windows") {
+        Command::new("cmd")
+            .current_dir(&workspace) // run inside workspace
+            .arg("/C")
+            .arg(&final_command)
+            .output()
+    } else {
+        Command::new("sh")
+            .current_dir(&workspace) // run inside workspace
+            .arg("-c")
+            .arg(&final_command)
+            .output()
+    };
+
+    let output = output.map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(format!(
+            "Project created successfully in {} using command: {}",
+            workspace, final_command
+        ))
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+#[tauri::command]
 async fn get_user_access_token(user_id: String, sk: String) -> Result<String, String> {
     use serde::Deserialize;
 
@@ -972,7 +1009,8 @@ pub fn run() {
             git_clone,
             git_command,
             watch_workspace,
-            get_user_access_token
+            get_user_access_token,
+            generate_project
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
