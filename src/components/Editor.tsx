@@ -46,7 +46,7 @@ export default function Editor() {
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.docChanged) {
         const newContent = normalize(update.state.doc.toString());
-        setOpenFiles((prev) =>  
+        setOpenFiles((prev) =>
           prev.map((f) =>
             f.path === filePath
               ? { ...f, content: newContent, isDirty: true }
@@ -66,6 +66,7 @@ export default function Editor() {
     });
     viewRefs.current[filePath] = new EditorView({ state, parent: el });
   };
+
   const onClose = (filePath: string) => {
     setOpenFiles((prev) => prev.filter((f) => f.path !== filePath));
   };
@@ -123,7 +124,6 @@ export default function Editor() {
       setActivePath(openFiles[0].path);
     }
   }, [openFiles, activePath]);
-
   // --- UI ---
   return (
     <div className="w-full h-full flex flex-col">
@@ -141,23 +141,26 @@ export default function Editor() {
           >
             <span className="truncate max-w-xs flex items-center gap-1">
               {file.path.split("\\").pop()}
-
               {/* Git status */}
-              {file.status && file.status !== "" && (
+              {file.status && (
                 <span
-                  className={`ml-2 font-bold ${
+                  className={`ml-2 font-medium ${
                     file.status === "U"
-                      ? "text-red-500"
+                      ? "text-orange-500"
                       : file.status === "M"
-                      ? "text-yellow-400"
-                      : "text-green-500"
+                      ? "text-yellow-500"
+                      : file.status === "A"
+                      ? "text-green-500"
+                      : "text-red-500" // This now correctly handles the remaining literal "D"
                   }`}
                 >
                   {file.status}
                 </span>
               )}
               {/* Unsaved indicator */}
-              {file.isDirty && <span className="text-yellow-500 ml-1">•</span>}
+              {file.isDirty && (
+                <span className="text-white text-3xl ml-1">•</span>
+              )}
             </span>
 
             <button

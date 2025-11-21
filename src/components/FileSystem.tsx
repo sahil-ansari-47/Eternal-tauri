@@ -41,6 +41,7 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useEditor } from "./contexts/EditorContext";
 import NoWorkspace from "./NoWorkspace";
+import { useGit } from "./contexts/GitContext";
 const FileSystem = () => {
   const {
     workspace,
@@ -57,6 +58,7 @@ const FileSystem = () => {
     setRoots,
     viewRefs,
   } = useEditor();
+  const { refreshStatus, status } = useGit();
   const [targetNode, setTargetNode] = useState<FsNode | null>(null);
   const [value, setValue] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -77,6 +79,33 @@ const FileSystem = () => {
       };
     }
   }, [workspace]);
+  useEffect(() => {
+    if (!roots || !status) return;
+    const updated = applyGitStatusToNodes(roots, status);
+
+    setRoots(updated);
+  }, [status]);
+
+  const applyGitStatusToNodes = (nodes: FsNode[], status: GitStatus) => {
+    const map = buildGitStatusMap(status);
+    return nodes.map((node) => ({
+      ...node,
+      gitStatus: (node.isDirectory ? "" : map.get(node.path) ?? "") as
+        | ""
+        | "A"
+        | "M"
+        | "D"
+        | "U"
+        | undefined,
+    }));
+  };
+  const buildGitStatusMap = (status: GitStatus) => {
+    const map = new Map<string, "A" | "M" | "D" | "U">();
+    for (const f of status.staged) map.set(f.path, "A");
+    for (const f of status.unstaged) map.set(f.path, "M");
+    for (const f of status.untracked) map.set(f.path, "U");
+    return map;
+  };
 
   const refreshSubtree = async (
     nodes: FsNode[],
@@ -170,7 +199,7 @@ const FileSystem = () => {
     } else if (action === "delete" && targetNode) {
       await remove(targetNode.path, { recursive: targetNode.isDirectory });
       const view = viewRefs.current[targetNode.path];
-      if(view){
+      if (view) {
         view.destroy();
         delete viewRefs.current[targetNode.path];
       }
@@ -249,7 +278,24 @@ const FileSystem = () => {
             ) : (
               <File className="w-4 h-4" />
             )}
-            <span className="truncate">{node.name}</span>
+            <div className="flex justify-between">
+              <span
+                className={`truncate ${
+                  node.gitStatus === "M"
+                    ? "text-yellow-500"
+                    : node.gitStatus === "A"
+                    ? "text-green-500"
+                    : node.gitStatus === "D"
+                    ? "text-red-500"
+                    : node.gitStatus === "U"
+                    ? "text-purple-500"
+                    : ""
+                }`}
+              >
+                {node.name}
+              </span>
+              <span className="truncate">{}</span>
+            </div>
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-40 text-neutral-300 bg-primary-sidebar">

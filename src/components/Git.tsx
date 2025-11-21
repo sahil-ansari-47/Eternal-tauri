@@ -567,20 +567,34 @@ export default function GitPanel() {
                           </p>
                         </div>
                       ) : (
-                        <div className="px-3 py-1">
+                        <div className="">
                           {/* Staged Files */}
                           {status.staged.length > 0 && (
-                            <div className="mb-2">
-                              {/* <div className="text-xs font-semibold text-git-success px-2 py-1.5 uppercase tracking-wide">
-                                Staged ({status.staged.length})
-                              </div> */}
+                            <div className="">
+                              <div className="text-xs bg-white/10 font-semibold text-git-success px-2 py-1.5 tracking-wide">
+                                STAGED ({status.staged.length})
+                              </div>
                               <ul className="space-y-0.5">
                                 {status.staged.map((f) => (
                                   <li
                                     key={f.path}
-                                    className="flex justify-between items-center hover:bg-sidebar-accent/40 px-2 py-1.5 rounded text-xs transition-colors"
+                                    className={`flex justify-between items-center ${
+                                      f.status === "M"
+                                        ? "hover:bg-yellow-800/15"
+                                        : f.status === "A"
+                                        ? "hover:bg-green-800/15"
+                                        : "hover:bg-red-800/15"
+                                    } px-2 py-1.5 text-xs transition-colors`}
                                   >
-                                    <span className="text-git-success font-medium truncate">
+                                    <span
+                                      className={`truncate ${
+                                        f.status === "M"
+                                          ? "text-yellow-400"
+                                          : f.status === "A"
+                                          ? "text-green-500"
+                                          : "text-red-500 line-through"
+                                      }`}
+                                    >
                                       {f.path}
                                     </span>
                                     <div className="flex gap-1 flex-shrink-0">
@@ -593,6 +607,22 @@ export default function GitPanel() {
                                       >
                                         <Minus className="w-3 h-3" />
                                       </Button>
+                                      <span className="truncate max-w-xs flex items-center gap-1">
+                                        {/* Git status */}
+                                        {f.status && (
+                                          <span
+                                            className={`ml-2 font-medium ${
+                                              f.status === "M"
+                                                ? "text-yellow-500"
+                                                : f.status === "A"
+                                                ? "text-green-500"
+                                                : "text-red-500"
+                                            }`}
+                                          >
+                                            {f.status}
+                                          </span>
+                                        )}
+                                      </span>
                                     </div>
                                   </li>
                                 ))}
@@ -602,17 +632,27 @@ export default function GitPanel() {
 
                           {/* Unstaged Files */}
                           {status.unstaged.length > 0 && (
-                            <div className="mb-2">
-                              {/* <div className="text-xs font-semibold text-git-warning px-2 py-1.5 uppercase tracking-wide">
-                                Modified ({status.unstaged.length})
-                              </div> */}
+                            <div className="">
+                              <div className="text-xs bg-white/10 font-semibold text-git-warning px-2 py-1.5 tracking-wide">
+                                UNSTAGED ({status.unstaged.length})
+                              </div>
                               <ul className="space-y-0.5">
                                 {status.unstaged.map((f) => (
                                   <li
                                     key={f.path}
-                                    className="flex justify-between items-center hover:bg-sidebar-accent/40 px-2 py-1.5 rounded text-xs transition-colors"
+                                    className={`flex justify-between items-center px-2 py-1.5 text-xs transition-colors ${
+                                      f.status === "M"
+                                        ? "hover:bg-yellow-800/15"
+                                        : "hover:bg-red-800/15"
+                                    }`}
                                   >
-                                    <span className="text-git-warning truncate">
+                                    <span
+                                      className={`truncate ${
+                                        f.status === "M"
+                                          ? "text-yellow-500/70"
+                                          : "text-red-500/30 line-through"
+                                      }`}
+                                    >
                                       {f.path}
                                     </span>
                                     <div className="flex gap-1 flex-shrink-0">
@@ -634,24 +674,37 @@ export default function GitPanel() {
                                       >
                                         <Plus className="w-3 h-3 " />
                                       </Button>
+                                      <span className="truncate max-w-xs flex items-center gap-1">
+                                        {/* Git status */}
+                                        {f.status && (
+                                          <span
+                                            className={`ml-2 font-medium ${
+                                              f.status === "M"
+                                                ? "text-yellow-500"
+                                                : "text-red-500"
+                                            }`}
+                                          >
+                                            {f.status}
+                                          </span>
+                                        )}
+                                      </span>
                                     </div>
                                   </li>
                                 ))}
                               </ul>
                             </div>
                           )}
-
                           {/* Untracked Files */}
                           {status.untracked.length > 0 && (
                             <div>
-                              {/* <div className="text-xs font-semibold text-sidebar-foreground/50 px-2 py-1.5 uppercase tracking-wide">
-                                Untracked ({status.untracked.length})
-                              </div> */}
+                              <div className="text-xs bg-white/10 font-semibold px-2 py-1.5 tracking-wide">
+                                UNTRACKED ({status.untracked.length})
+                              </div>
                               <ul className="space-y-0.5">
                                 {status.untracked.map((f) => (
                                   <li
                                     key={f.path}
-                                    className="flex justify-between items-center hover:bg-sidebar-accent/40 px-2 py-1.5 rounded text-xs transition-colors cursor-pointer"
+                                    className="flex justify-between items-center hover:bg-orange-800/15 px-2 py-1.5 text-xs transition-colors"
                                     onClick={async () => {
                                       const path = await join(
                                         workspace,
@@ -668,7 +721,7 @@ export default function GitPanel() {
                                       );
                                     }}
                                   >
-                                    <span className="text-p6/80 truncate">
+                                    <span className="truncate text-orange-500/50">
                                       {f.path}
                                     </span>
                                     <div className="flex gap-1 flex-shrink-0">
@@ -738,11 +791,22 @@ export default function GitPanel() {
                                         size="sm"
                                         variant="ghost"
                                         className="w-5 h-5 p-0 hover:bg-sidebar-accent/50 text-p6/80 hover:text-primary-sidebar cursor-pointer"
-                                        onClick={() => handleStage(f)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleStage(f);
+                                        }}
                                         title="Stage"
                                       >
                                         <Plus className="w-3 h-3" />
                                       </Button>
+                                      <span className="truncate max-w-xs flex items-center gap-1">
+                                        {/* Git status */}
+                                        {f.status && (
+                                          <span className="ml-2 font-medium text-orange-500">
+                                            {f.status}
+                                          </span>
+                                        )}
+                                      </span>
                                     </div>
                                   </li>
                                 ))}
@@ -757,19 +821,9 @@ export default function GitPanel() {
               </Panel>
             </PanelGroup>
 
-            {(error || loading) && (
+            {error && (
               <div className="border-t border-sidebar-border px-4 py-2 bg-primary-sidebar text-xs">
-                {error && (
-                  <div className="text-destructive font-medium">
-                    {error.details}
-                  </div>
-                )}
-                {loading && (
-                  <div className="text-sidebar-foreground/60 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-git-branch animate-pulse" />
-                    Working...
-                  </div>
-                )}
+                <div className="font-medium">{error.details}</div>
               </div>
             )}
 

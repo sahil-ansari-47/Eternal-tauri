@@ -7,6 +7,43 @@ use std::{path::Path, sync::mpsc::channel, time::Duration};
 use tauri::{AppHandle, Emitter};
 
 #[tauri::command]
+fn generate_project(final_command: String, workspace: String) -> Result<String, String> {
+    if final_command.trim().is_empty() {
+        return Err("No command provided".into());
+    }
+
+    if workspace.trim().is_empty() {
+        return Err("No workspace path provided".into());
+    }
+
+    // Build the shell execution depending on OS
+    let output = if cfg!(target_os = "windows") {
+        Command::new("cmd")
+            .current_dir(&workspace) // run inside workspace
+            .arg("/C")
+            .arg(&final_command)
+            .output()
+    } else {
+        Command::new("sh")
+            .current_dir(&workspace) // run inside workspace
+            .arg("-c")
+            .arg(&final_command)
+            .output()
+    };
+
+    let output = output.map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(format!(
+            "Project created successfully in {} using command: {}",
+            workspace, final_command
+        ))
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+#[tauri::command]
 async fn get_user_access_token(user_id: String, sk: String) -> Result<String, String> {
     use serde::Deserialize;
 
@@ -64,6 +101,19 @@ fn is_onedrive_path(path: &str) -> bool {
     let lowercase = path.to_lowercase();
     lowercase.contains("onedrive") || lowercase.contains("sharepoint")
 }
+use std::ffi::OsStr;
+
+fn is_inside_git_dir(p: &Path, workspace_root: &Path) -> bool {
+    // Only check files inside workspace
+    if let Ok(rel) = p.strip_prefix(workspace_root) {
+        for comp in rel.components() {
+            if comp.as_os_str() == OsStr::new(".git") {
+                return true;
+            }
+        }
+    }
+    false
+}
 
 #[tauri::command]
 async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
@@ -108,6 +158,7 @@ async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
                 return;
             }
         }
+        let workspace_root = PathBuf::from(&path);
         for res in rx {
             match res {
                 Ok(event) => {
@@ -115,10 +166,13 @@ async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
                     let paths: Vec<String> = event
                         .paths
                         .iter()
+                        .filter(|p| p.starts_with(&workspace_root))
+                        // must NOT be inside any .git folder
+                        .filter(|p| !is_inside_git_dir(p, &workspace_root))
+                        // convert to string for UI
                         .filter_map(|p| p.to_str().map(|s| s.to_string()))
-                        .filter(|p| p.starts_with(&path))
                         .collect();
-
+                    println!("[Tauri] 📁 Paths: {:?}", paths);
                     if !paths.is_empty() {
                         // println!("[Tauri] 🔔 Emitting fs-change with paths: {:?}", paths);
                     }
@@ -180,12 +234,10 @@ async fn git_command(
                 String::from_utf8_lossy(&out.stdout)
             ));
         }
-
         let text = String::from_utf8_lossy(&out.stdout);
         let mut staged = vec![];
         let mut unstaged = vec![];
         let mut untracked = vec![];
-
         for line in text.lines() {
             if line.len() < 3 {
                 continue;
@@ -194,12 +246,43 @@ async fn git_command(
             let file = line[3..].to_string();
             match status_code {
                 "M " | "A " | "D " => {
-                    staged.push(serde_json::json!({ "path": file, "status": status_code }))
+                    let status = if status_code == "M " {
+                        "M"
+                    } else if status_code == "A " {
+                        "A"
+                    } else {
+                        "D"
+                    };
+
+                    staged.push(serde_json::json!({
+                        "path": file,
+                        "status": status
+                    }));
                 }
-                " M" | " D" => {
-                    unstaged.push(serde_json::json!({ "path": file, "status": status_code }))
+
+                " M" | " D" | "MM" => {
+                    let status = if status_code == " M" {
+                        "M"
+                    } else if status_code == " D" {
+                        "D"
+                    } else {
+                        // "MM"
+                        "M"
+                    };
+
+                    unstaged.push(serde_json::json!({
+                        "path": file,
+                        "status": status
+                    }));
                 }
-                "??" => untracked.push(serde_json::json!({ "path": file, "status": status_code })),
+
+                "??" => {
+                    untracked.push(serde_json::json!({
+                        "path": file,
+                        "status": "U"
+                    }));
+                }
+
                 _ => {}
             }
         }
@@ -237,6 +320,39 @@ async fn git_command(
             "origin": origin
         }));
     }
+    // if action == "file_status" {
+    //     let file: String = payload
+    //         .get("file")
+    //         .and_then(|v| v.as_str())
+    //         .ok_or("Missing file field")?
+    //         .to_string();
+    //     let out = Command::new("git")
+    //         .args(["status", "--porcelain", &file])
+    //         .current_dir(path)
+    //         .output()
+    //         .map_err(|e| e.to_string())?;
+    //     if !out.status.success() {
+    //         return Err(format!(
+    //             "Git file_status failed (exit {}): {}\n{}",
+    //             out.status.code().unwrap_or(-1),
+    //             String::from_utf8_lossy(&out.stderr),
+    //             String::from_utf8_lossy(&out.stdout)
+    //         ));
+    //     }
+    //     let text = String::from_utf8_lossy(&out.stdout);
+    //     let mut git_state = "";
+    //     for line in text.lines() {
+    //         if line.starts_with("??") {
+    //             git_state = "U"; // untracked
+    //         } else if line.starts_with(" M") {
+    //             git_state = "M"; // modified
+    //         } else if line.starts_with("A ") || line.starts_with("M ") {
+    //             git_state = "A"; // staged
+    //         }
+    //     }
+    //     return Ok(serde_json::json!({ "status": git_state }));
+    // }
+
     if action == "file_status" {
         let file: String = payload
             .get("file")
@@ -261,10 +377,24 @@ async fn git_command(
         for line in text.lines() {
             if line.starts_with("??") {
                 git_state = "U"; // untracked
-            } else if line.starts_with(" M") {
-                git_state = "M"; // modified
-            } else if line.starts_with("A ") || line.starts_with("M ") {
-                git_state = "A"; // staged
+                continue;
+            }
+            // Git porcelain XY format
+            let chars: Vec<char> = line.chars().collect();
+            if chars.len() < 2 {
+                continue;
+            }
+            let x = chars[0];
+            let y = chars[1];
+            if x == 'D' || y == 'D' {
+                git_state = "D";
+                continue;
+            }
+            if x == 'A' || x == 'M' {
+                git_state = "A";
+            }
+            if y == 'M' {
+                git_state = "M";
             }
         }
         return Ok(serde_json::json!({ "status": git_state }));
@@ -879,7 +1009,8 @@ pub fn run() {
             git_clone,
             git_command,
             watch_workspace,
-            get_user_access_token
+            get_user_access_token,
+            generate_project
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -19,6 +19,7 @@ declare global {
     children?: FsNode[];
     expanded?: boolean;
     loading?: boolean;
+    gitStatus?: "A" | "M" | "U" | "D" | "";
   };
   type Friend = {
     username: string;
