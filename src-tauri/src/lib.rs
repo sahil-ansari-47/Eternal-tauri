@@ -391,10 +391,10 @@ async fn git_command(
                 git_state = "D";
                 continue;
             }
-            if x == 'A' || x == 'M' {
+            if x == 'A' {
                 git_state = "A";
             }
-            if y == 'M' {
+            if y == 'M' || x == 'M' {
                 git_state = "M";
             }
         }

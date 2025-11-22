@@ -164,7 +164,8 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }
   const handlePublish = async (name: string, priv: boolean = false) => {
-    const token = localStorage.getItem("token");
+    const token = await getUserAccessToken();
+    // localStorage.setItem("token", token);
     console.log(name, token);
     await fetch("https://api.github.com/user/repos", {
       method: "POST",

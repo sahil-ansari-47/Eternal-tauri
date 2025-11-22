@@ -171,13 +171,14 @@ export default function GitPanel() {
     if (!workspace) return;
     try {
       const filePath = await join(workspace, file.path);
-      const content = viewRefs.current[filePath].state.doc.toString();
-      await onSave(filePath, content, true);
+      if (viewRefs.current[filePath]) {
+        const content = viewRefs.current[filePath].state.doc.toString();
+        await onSave(filePath, content, true);
+      }
       await runGit("stage", { workspace, file });
       await refreshStatus();
-      const token = await getUserAccessToken();
-      localStorage.setItem("token", token);
     } catch (e: any) {
+      console.log(e);
       setError(e);
     } finally {
       setLoading(false);
@@ -189,17 +190,22 @@ export default function GitPanel() {
     try {
       for (const file of status.unstaged) {
         const filePath = await join(workspace, file.path);
-        const content = viewRefs.current[filePath].state.doc.toString();
-        await onSave(filePath, content, true);
+        if (viewRefs.current[filePath]) {
+          const content = viewRefs.current[filePath].state.doc.toString();
+          await onSave(filePath, content, true);
+        }
       }
       for (const file of status.untracked) {
         const filePath = await join(workspace, file.path);
-        const content = viewRefs.current[filePath].state.doc.toString();
-        await onSave(filePath, content, true);
+        if (viewRefs.current[filePath]) {
+          const content = viewRefs.current[filePath].state.doc.toString();
+          await onSave(filePath, content, true);
+        }
       }
       await runGit("stage-all", { workspace });
       await refreshStatus();
     } catch (e: any) {
+      console.log(e);
       setError(e);
     } finally {
       setLoading(false);
