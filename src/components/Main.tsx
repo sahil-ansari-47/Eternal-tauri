@@ -28,7 +28,6 @@ const Main = () => {
       setActiveTab("Editor");
     } else {
       setTabList((prev) => prev.filter((tab) => tab !== "Editor"));
-      setActiveTab("Splash");
     }
   }, [openFiles]);
 

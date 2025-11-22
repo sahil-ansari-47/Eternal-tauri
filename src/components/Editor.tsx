@@ -16,6 +16,7 @@ export default function Editor() {
     viewRefs,
     onSave,
     normalize,
+    setActiveTab,
   } = useEditor();
   useEffect(() => {
     const handler = (e: Event) => {
@@ -89,6 +90,9 @@ export default function Editor() {
     onClose(filePath);
     const remaining = openFiles.filter((f) => f.path !== filePath);
     setActivePath(remaining.length > 0 ? remaining[0].path : "");
+    if (remaining.length === 0) {
+      setActiveTab("Splash");
+    }
   };
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
