@@ -3,9 +3,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { Copy } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useEditor } from "./contexts/EditorContext";
-import Loading from "./Loading";
 import { useLayout } from "./contexts/LayoutContext";
 import { normalize } from "@tauri-apps/api/path";
+import { Button } from "./ui/button";
 interface Framework {
   name: string;
   image: string;
@@ -13,12 +13,11 @@ interface Framework {
 }
 
 export default function ProjectTemplates() {
-  const { setWorkspace } = useEditor();
+  const { setWorkspace, setActiveTab } = useEditor();
   const [selectedFramework, setSelectedFramework] = useState<Framework | null>(
     null
   );
   const { setLeftOpen, setLeftContent } = useLayout();
-  const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [projectName, setProjectName] = useState("");
@@ -27,18 +26,18 @@ export default function ProjectTemplates() {
   const frameworks: Framework[] = [
     {
       name: "React",
-      image: "/frameworks/react.png",
+      image: "/react.svg",
       tags: ["pnpm", "typescript", "swc"],
     },
-    { name: "Vue", image: "/frameworks/vue.svg", tags: ["pnpm", "typescript"] },
+    { name: "Vue", image: "/vue.svg", tags: ["pnpm", "typescript"] },
     {
       name: "Svelte",
-      image: "/frameworks/svelte.svg",
+      image: "/svelte.svg",
       tags: ["pnpm", "typescript"],
     },
     {
       name: "Next.js",
-      image: "/frameworks/next.svg",
+      image: "/next.svg",
       tags: [
         "typescript",
         "tailwind",
@@ -52,13 +51,13 @@ export default function ProjectTemplates() {
     },
     {
       name: "Angular",
-      image: "/frameworks/angular.svg",
+      image: "/angular.svg",
       tags: ["css", "scss", "sass", "less", "no-git", "standlalone", "ssr"],
     },
-    { name: "Django", image: "/frameworks/django.svg", tags: [] },
+    { name: "Django", image: "/django.svg", tags: [] },
     {
       name: "Expo",
-      image: "/frameworks/expo.svg",
+      image: "/expo.svg",
       tags: [
         "pnpm",
         "no-git",
@@ -71,7 +70,7 @@ export default function ProjectTemplates() {
     },
     {
       name: "Nuxt.js",
-      image: "/frameworks/nuxt.svg",
+      image: "/nuxt.svg",
       tags: ["NuxtUI", "Nuxt 4", "Content-Driven", "Nuxt Module"],
     },
   ];
@@ -115,7 +114,9 @@ export default function ProjectTemplates() {
       case "Vue":
         cmd = `${tags.includes("pnpm") ? "pnpm" : "npm"} create vite@latest ${
           name || "my-vue-app"
-        } --template vue${tags.includes("typescript") ? "-ts" : ""}`;
+        } ${tags.includes("pnpm") ? "" : "--"} --template vue${
+          tags.includes("typescript") ? "-ts" : ""
+        }`;
         break;
 
       case "Svelte":
@@ -152,15 +153,15 @@ export default function ProjectTemplates() {
     const workspace = await open({ directory: true });
     if (!workspace) return;
     setShowCreateModal(false);
-    setLoading(true);
+    setActiveTab("Loading");
     await invoke("generate_project", {
       finalCommand,
       workspace,
     });
     const normalpath = await normalize(`${workspace}/${projectName}`);
+    setActiveTab("Splash");
     setWorkspace(normalpath);
     localStorage.setItem("workspacePath", normalpath);
-    setLoading(false);
     setLeftOpen(true);
     setLeftContent("files");
     setSelectedTags([]);
@@ -169,8 +170,6 @@ export default function ProjectTemplates() {
   };
 
   const copyCommand = () => navigator.clipboard.writeText(finalCommand);
-
-  if (loading) return <Loading message="Creating Project..." />;
 
   return (
     <>
@@ -185,10 +184,11 @@ export default function ProjectTemplates() {
               setShowCreateModal(true);
               setFinalCommand("");
             }}
-            className="group p-6 rounded-lg aspect-square flex flex-col items-center justify-center hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer bg-primary-sidebar/70 border border-p6/50 shadow-sm hover:shadow-lg"
+            className="group p-6 rounded-lg aspect-square flex flex-col items-center justify-center hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer bg-p6/20 border border-p6/50 shadow-sm hover:shadow-lg z-10"
+            title={framework.name}
           >
             <img
-              src="/frameworks/next.svg"
+              src={framework.image}
               alt={framework.name}
               className="w-12 h-12 mb-3 object-contain"
             />
@@ -199,7 +199,7 @@ export default function ProjectTemplates() {
 
       {showCreateModal && selectedFramework && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
-          <div className="bg-primary-sidebar p-6 rounded-xl w-[420px] shadow-2xl border border-p6 relative">
+          <div className="bg-p5 p-6 rounded-xl w-[420px] shadow-2xl border border-p6 relative">
             <div className="flex flex-col items-center mb-4">
               <img src={selectedFramework.image} className="w-20 h-20 mb-3" />
             </div>
@@ -246,18 +246,25 @@ export default function ProjectTemplates() {
             </div>
 
             <div className="flex justify-end gap-2 mt-4">
-              <button
-                className="px-3 py-1 rounded bg-gray-300"
-                onClick={() => setShowCreateModal(false)}
+              <Button
+                variant="secondary"
+                className="cursor-pointer"
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setProjectName("");
+                }}
               >
                 Cancel
-              </button>
-              <button
-                className="px-3 py-1 rounded bg-blue-600 text-white"
-                onClick={createProject}
+              </Button>
+              <Button
+                onClick={() => {
+                  createProject();
+                }}
+                className="border-1 border-neutral-500 cursor-pointer disabled:opacity:50"
+                disabled={projectName.trim() === ""}
               >
                 Create
-              </button>
+              </Button>
             </div>
           </div>
         </div>

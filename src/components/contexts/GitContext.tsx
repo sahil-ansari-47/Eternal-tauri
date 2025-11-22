@@ -41,7 +41,7 @@ interface GitContextType {
 }
 const GitContext = createContext<GitContextType | undefined>(undefined);
 export const GitProvider = ({ children }: { children: React.ReactNode }) => {
-  const workspace = localStorage.getItem("workspacePath"); 
+  const workspace = localStorage.getItem("workspacePath");
   const { user } = useUser();
   const [status, setStatus] = useState<GitStatus>({
     staged: [],
@@ -64,7 +64,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<GitError | null>(null);
   let origin = "";
-    async function refreshStatus() {
+  async function refreshStatus() {
     setLoading(true);
     try {
       const payload = await runGit<GitStatus>("status", { workspace });
@@ -164,7 +164,8 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }
   const handlePublish = async (name: string, priv: boolean = false) => {
-    const token = localStorage.getItem("token");
+    const token = await getUserAccessToken();
+    // localStorage.setItem("token", token);
     console.log(name, token);
     await fetch("https://api.github.com/user/repos", {
       method: "POST",

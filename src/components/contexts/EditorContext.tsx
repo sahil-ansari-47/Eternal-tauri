@@ -90,6 +90,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         multiple: false,
       });
       if (!selected || Array.isArray(selected)) return;
+      setActiveTab("Splash");
       setWorkspace(selected);
       localStorage.setItem("workspacePath", selected);
       setError(null);
@@ -114,6 +115,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         targetDir = await join(targetDir, repoName);
       }
       await invoke("git_clone", { repoUrl: clone_url, targetDir });
+      setActiveTab("Splash");
       setWorkspace(targetDir);
       localStorage.setItem("workspacePath", targetDir);
       setCloneDialogOpen(false);
@@ -136,11 +138,11 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       );
       const sorted = sortNodes(nodes);
       setRoots((prevRoots) => {
-        console.log("prevRoots", prevRoots);
+        // console.log("prevRoots", prevRoots);
         const expandedMap = prevRoots ? preserveExpanded(prevRoots) : {};
-        console.log("expandedMap", expandedMap);
+        // console.log("expandedMap", expandedMap);
         const roots = applyExpanded(sorted, expandedMap);
-        console.log("roots", roots);
+        // console.log("roots", roots);
         return roots;
       });
       setError(null);

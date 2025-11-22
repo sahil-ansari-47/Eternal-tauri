@@ -57,6 +57,7 @@ const FileSystem = () => {
     roots,
     setRoots,
     viewRefs,
+    setActiveTab,
   } = useEditor();
   const { refreshStatus, status } = useGit();
   const [targetNode, setTargetNode] = useState<FsNode | null>(null);
@@ -396,6 +397,7 @@ const FileSystem = () => {
                   className="text-xs text-neutral-300 hover:underline cursor-pointer"
                   onClick={() => {
                     localStorage.removeItem("workspacePath");
+                    setActiveTab("Home");
                     setWorkspace(null);
                     setRoots(null);
                   }}
@@ -452,6 +454,7 @@ const FileSystem = () => {
         <ContextMenuItem
           onClick={() => {
             localStorage.removeItem("workspacePath");
+            setActiveTab("Home");
             setWorkspace(null);
             setRoots(null);
           }}

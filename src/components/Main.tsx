@@ -7,6 +7,8 @@ import { DottedGlowBackground } from "./ui/dotted-glow-background";
 import { useEditor } from "./contexts/EditorContext";
 import { useMessage } from "./contexts/MessageContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import Splash from "./Splash";
+import Loading from "./Loading";
 const Main = () => {
   const { tabList, setTabList, openFiles, activeTab, setActiveTab } =
     useEditor();
@@ -26,13 +28,15 @@ const Main = () => {
       setActiveTab("Editor");
     } else {
       setTabList((prev) => prev.filter((tab) => tab !== "Editor"));
-      setActiveTab("Home");
+      setActiveTab("Splash");
     }
   }, [openFiles]);
 
   return (
     <div className="w-full h-full">
-      {activeTab === "Home" && (
+      {(activeTab === "Home" ||
+        activeTab === "Splash" ||
+        activeTab === "Loading") && (
         <DottedGlowBackground
           className="pointer-events-none mask-radial-to-90% mask-radial-at-center z-0"
           opacity={0.5}
@@ -65,6 +69,12 @@ const Main = () => {
         </div>
         <TabsContent value="Home">
           <Welcome />
+        </TabsContent>
+        <TabsContent value="Loading">
+          <Loading />
+        </TabsContent>
+        <TabsContent value="Splash">
+          <Splash />
         </TabsContent>
         <TabsContent value="Editor">
           <Editor />
