@@ -227,7 +227,10 @@ const FileSystem = () => {
   const toggleExpand = async (nodePath: string) => {
     if (!roots) return;
     const updated = await traverseAndUpdate(roots, nodePath, async (n) => {
-      if (!n.isDirectory) return n;
+      if (!n.isDirectory) {
+        console.log("not a directory", n);
+        return n;
+      }
       if (!n.children) {
         n.loading = true;
         const children = await loadChildren(n.path);
@@ -254,6 +257,7 @@ const FileSystem = () => {
             style={{ paddingLeft: `${level * 12}px` }}
             onClick={() => {
               if (node.isDirectory) {
+                console.log(node);
                 toggleExpand(node.path);
               } else {
                 handleFileClick(node);

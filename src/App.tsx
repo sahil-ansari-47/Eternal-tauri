@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   Dialog,
@@ -27,6 +27,7 @@ import {
   MenuBar,
   StatusBar,
 } from "./components/ComponentIndex";
+import { useLayout } from "./components/contexts/LayoutContext";
 
 const App = () => {
   const { isSignedIn } = useAuth();
@@ -68,15 +69,18 @@ const App = () => {
     setErrorMessage,
     handleClone,
   } = useEditor();
-  const [leftOpen, setLeftOpen] = useState(false);
-  const [rightOpen, setRightOpen] = useState(false);
-  const [downOpen, setDownOpen] = useState(false);
-  const [leftContent, setLeftContent] = useState<
-    "files" | "search" | "git" | "db" | "music" | null
-  >(null);
-  const [rightContent, setRightContent] = useState<"assist" | "chat" | null>(
-    null
-  );
+  const {
+    leftOpen,
+    setLeftOpen,
+    rightOpen,
+    setRightOpen,
+    downOpen,
+    setDownOpen,
+    leftContent,
+    setLeftContent,
+    rightContent,
+    setRightContent,
+  } = useLayout();
   const bufferedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   useEffect(() => {
     if (!isSignedIn || !userData?.username) {

@@ -14,10 +14,10 @@ const Sidebar = ({
   onSelect,
   onSelectRight,
 }: {
-  current: "files" | "search" | "git" | "db" | "music" | null;
+  current: "files" | "search" | "git" | "db" | null;
   currentRight: "chat" | "assist" | null;
   onSelect: (
-    content: "files" | "search" | "git" | "db" | "music" | null
+    content: "files" | "search" | "git" | "db" | null
   ) => void;
   onSelectRight: (content: "chat" | "assist" | null) => void;
 }) => {

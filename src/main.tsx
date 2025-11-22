@@ -7,6 +7,7 @@ import { UserProvider } from "./components/contexts/UserContext";
 import { MessageProvider } from "./components/contexts/MessageContext";
 import { GitProvider } from "./components/contexts/GitContext";
 import { EditorProvider } from "./components/contexts/EditorContext";
+import { LayoutProvider } from "./components/contexts/LayoutContext";
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 if (!PUBLISHABLE_KEY) {
@@ -15,14 +16,16 @@ if (!PUBLISHABLE_KEY) {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-    <UserProvider>
-      <MessageProvider>
-        <GitProvider>
-          <EditorProvider>
-            <App />
-          </EditorProvider>
-        </GitProvider>
-      </MessageProvider>
-    </UserProvider>
+    <LayoutProvider>
+      <UserProvider>
+        <MessageProvider>
+          <GitProvider>
+            <EditorProvider>
+              <App />
+            </EditorProvider>
+          </GitProvider>
+        </MessageProvider>
+      </UserProvider>
+    </LayoutProvider>
   </ClerkProvider>
 );

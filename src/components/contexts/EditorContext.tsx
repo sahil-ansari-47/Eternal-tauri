@@ -126,7 +126,6 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const reloadWorkspace = async () => {
     if (!workspace) return;
     try {
-      const expandedMap = roots ? preserveExpanded(roots) : {};
       const entries = await readDir(workspace);
       const nodes: FsNode[] = await Promise.all(
         entries.map(async (e: DirEntry) => ({
@@ -136,8 +135,14 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         }))
       );
       const sorted = sortNodes(nodes);
-      // console.log(sorted);
-      setRoots(applyExpanded(sorted, expandedMap));
+      setRoots((prevRoots) => {
+        console.log("prevRoots", prevRoots);
+        const expandedMap = prevRoots ? preserveExpanded(prevRoots) : {};
+        console.log("expandedMap", expandedMap);
+        const roots = applyExpanded(sorted, expandedMap);
+        console.log("roots", roots);
+        return roots;
+      });
       setError(null);
     } catch (e: any) {
       console.error(e);
@@ -226,13 +231,15 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
     onSave(absPath, content, false);
   };
   const normalize = (s: string) => s.replace(/\n/g, "\r\n");
-  const onSave = async (filePath: string, newContent: string, convert: boolean) => {
+  const onSave = async (
+    filePath: string,
+    newContent: string,
+    convert: boolean
+  ) => {
     const file = openFiles.find((f) => f.path === filePath);
     if (!file) return;
-    if(convert) newContent = normalize(newContent);
+    if (convert) newContent = normalize(newContent);
     await writeTextFile(file.path, newContent);
-    console.log(JSON.stringify(file.content));
-    console.log(JSON.stringify(newContent));
     setOpenFiles((prev) =>
       prev.map((f) =>
         f.path === filePath ? { ...f, content: newContent, isDirty: false } : f

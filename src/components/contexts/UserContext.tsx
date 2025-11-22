@@ -23,7 +23,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [pendingOffer, setPendingOffer] = useState<any>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const backendUrl = "https://eternalv2.onrender.com";
-  console.log(backendUrl);
   const fetchUser = async () => {
     if (isSignedIn) {
       const token = await getToken();

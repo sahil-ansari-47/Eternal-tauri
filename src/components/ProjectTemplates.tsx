@@ -3,7 +3,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { Copy } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useEditor } from "./contexts/EditorContext";
-
+import Loading from "./Loading";
+import { useLayout } from "./contexts/LayoutContext";
+import { normalize } from "@tauri-apps/api/path";
 interface Framework {
   name: string;
   image: string;
@@ -15,6 +17,7 @@ export default function ProjectTemplates() {
   const [selectedFramework, setSelectedFramework] = useState<Framework | null>(
     null
   );
+  const { setLeftOpen, setLeftContent } = useLayout();
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -154,15 +157,20 @@ export default function ProjectTemplates() {
       finalCommand,
       workspace,
     });
+    const normalpath = await normalize(`${workspace}/${projectName}`);
+    setWorkspace(normalpath);
+    localStorage.setItem("workspacePath", normalpath);
     setLoading(false);
-    setWorkspace(workspace);
-    localStorage.setItem("workspacePath", workspace);
+    setLeftOpen(true);
+    setLeftContent("files");
     setSelectedTags([]);
     setProjectName("");
     setFinalCommand("");
   };
 
   const copyCommand = () => navigator.clipboard.writeText(finalCommand);
+
+  if (loading) return <Loading message="Creating Project..." />;
 
   return (
     <>
