@@ -11,7 +11,6 @@ interface Framework {
   image: string;
   tags: string[];
 }
-
 export default function ProjectTemplates() {
   const { setWorkspace } = useEditor();
   const [selectedFramework, setSelectedFramework] = useState<Framework | null>(
@@ -94,7 +93,6 @@ export default function ProjectTemplates() {
 
   const updateCommand = (framework: string, tags: string[], name: string) => {
     let cmd = "";
-
     switch (framework) {
       case "React":
         cmd = `${tags.includes("pnpm") ? "pnpm" : "npm"} create vite@latest ${
@@ -103,7 +101,6 @@ export default function ProjectTemplates() {
           tags.includes("swc") ? "-swc" : ""
         }${tags.includes("typescript") ? "-ts" : ""}`;
         break;
-
       case "Next.js":
         cmd = `${
           tags.includes("pnpm") ? "pnpm" : "npm"
@@ -111,35 +108,29 @@ export default function ProjectTemplates() {
           .map((t) => `--${t.replace(/\s/g, "-")}`)
           .join(" ")}`;
         break;
-
       case "Vue":
         cmd = `${tags.includes("pnpm") ? "pnpm" : "npm"} create vite@latest ${
           name || "my-vue-app"
         } --template vue${tags.includes("typescript") ? "-ts" : ""}`;
         break;
-
       case "Svelte":
         cmd = `npm create vite@latest ${
           name || "my-svelte-app"
         } --template svelte${tags.includes("typescript") ? "-ts" : ""}`;
         break;
-
       case "Angular":
         cmd = `ng new ${name || "my-angular-app"} ${tags
           .map((t) => `--${t}`)
           .join(" ")}`;
         break;
-
       case "Django":
         cmd = `django-admin startproject ${name || "myproject"}`;
         break;
-
       case "Expo":
         cmd = `npx create-expo-app ${name || "my-expo-app"} ${tags
           .map((t) => `--${t}`)
           .join(" ")}`;
         break;
-
       case "Nuxt.js":
         cmd = `npx nuxi init ${name || "my-nuxt-app"}`;
         break;

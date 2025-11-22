@@ -20,7 +20,6 @@ export async function traverseAndUpdate(
   targetPath: string,
   updater: (n: FsNode) => Promise<FsNode>
 ) {
-  console.log("traverseAndUpdate", targetPath);
   const result: FsNode[] = [];
   for (const n of nodes) {
     const nodePath = await normalize(n.path);

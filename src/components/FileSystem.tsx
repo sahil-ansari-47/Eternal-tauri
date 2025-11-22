@@ -10,7 +10,7 @@ import {
 } from "@tauri-apps/plugin-fs";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import { join } from "@tauri-apps/api/path";
+import { join, normalize } from "@tauri-apps/api/path";
 import { loadChildren, traverseAndUpdate, sortNodes } from "../utils/fsfunc";
 import {
   ContextMenu,
@@ -66,9 +66,10 @@ const FileSystem = () => {
     reloadWorkspace();
     if (workspace) {
       invoke("watch_workspace", { path: workspace });
-      const unlisten = listen("fs-change", () => {
-        // console.log("Change:", event.payload);
+      const unlisten = listen("fs-change", (event) => {
+        console.log("Change:", event.payload);
         reloadWorkspace();
+        refreshStatus();
       });
       return () => {
         unlisten
@@ -80,30 +81,61 @@ const FileSystem = () => {
     }
   }, [workspace]);
   useEffect(() => {
-    if (!roots || !status) return;
-    const updated = applyGitStatusToNodes(roots, status);
-
-    setRoots(updated);
+    if (!status || !roots) return;
+    let cancelled = false;
+    (async () => {
+      const updated = await applyGitStatusToNodes(roots, status);
+      if (!cancelled) {
+        setRoots((prev) => {
+          if (!prev) return prev;
+          return updated;
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [status]);
 
-  const applyGitStatusToNodes = (nodes: FsNode[], status: GitStatus) => {
-    const map = buildGitStatusMap(status);
-    return nodes.map((node) => ({
-      ...node,
-      gitStatus: (node.isDirectory ? "" : map.get(node.path) ?? "") as
-        | ""
-        | "A"
-        | "M"
-        | "D"
-        | "U"
-        | undefined,
-    }));
+  const applyGitStatusToNodes = async (
+    nodes: FsNode[],
+    status: GitStatus
+  ): Promise<FsNode[]> => {
+    const map = await buildGitStatusMap(status);
+
+    const apply = async (list: FsNode[]): Promise<FsNode[]> => {
+      return Promise.all(
+        list.map(async (node) => {
+          const norm = await normalize(node.path);
+          const gitStatus = node.isDirectory ? "" : map.get(norm) ?? "";
+
+          const children = node.children
+            ? await apply(node.children) // <-- FIXED: await the recursive call
+            : undefined;
+
+          return {
+            ...node,
+            gitStatus,
+            children,
+          };
+        })
+      );
+    };
+
+    return apply(nodes);
   };
-  const buildGitStatusMap = (status: GitStatus) => {
+
+  const buildGitStatusMap = async (status: GitStatus) => {
     const map = new Map<string, "A" | "M" | "D" | "U">();
-    for (const f of status.staged) map.set(f.path, "A");
-    for (const f of status.unstaged) map.set(f.path, "M");
-    for (const f of status.untracked) map.set(f.path, "U");
+    const add = async (path: string, s: "A" | "M" | "D" | "U") => {
+      const full = await normalize(`${workspace}/${path}`);
+      map.set(full, s);
+    };
+    await Promise.all([
+      ...status.staged.map((f) => add(f.path, "A")),
+      ...status.unstaged.map((f) => add(f.path, "M")),
+      ...status.untracked.map((f) => add(f.path, "U")),
+    ]);
     return map;
   };
 
@@ -227,10 +259,7 @@ const FileSystem = () => {
   const toggleExpand = async (nodePath: string) => {
     if (!roots) return;
     const updated = await traverseAndUpdate(roots, nodePath, async (n) => {
-      if (!n.isDirectory) {
-        console.log("not a directory", n);
-        return n;
-      }
+      if (!n.isDirectory) return n;
       if (!n.children) {
         n.loading = true;
         const children = await loadChildren(n.path);
@@ -253,11 +282,11 @@ const FileSystem = () => {
         <ContextMenuTrigger asChild>
           <div
             key={node.path}
-            className="flex items-center gap-2 px-2 py-1 hover:bg-gray-700 rounded cursor-pointer select-none"
+            className="flex items-center gap-2 py-1 hover:bg-neutral-700 cursor-pointer select-none"
             style={{ paddingLeft: `${level * 12}px` }}
             onClick={() => {
               if (node.isDirectory) {
-                console.log(node);
+                // console.log(node);
                 toggleExpand(node.path);
               } else {
                 handleFileClick(node);
@@ -267,9 +296,9 @@ const FileSystem = () => {
           >
             {node.isDirectory &&
               (node.expanded ? (
-                <ChevronDown className="w-4 h-4" />
+                <ChevronDown className="w-4 h-4 ml-2" />
               ) : (
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4 ml-2" />
               ))}
             {node.isDirectory ? (
               node.loading ? (
@@ -280,7 +309,7 @@ const FileSystem = () => {
                 <Folder className="w-4 h-4 text-yellow-500" />
               )
             ) : (
-              <File className="w-4 h-4" />
+              <File className="w-4 h-4 ml-8" />
             )}
             <div className="flex justify-between">
               <span
@@ -322,6 +351,15 @@ const FileSystem = () => {
                 }}
               >
                 New Folder
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={async () => {
+                  const newSpace = await normalize(`${workspace}/${node.name}`);
+                  setWorkspace(newSpace);
+                  localStorage.setItem("workspacePath", newSpace);
+                }}
+              >
+                Change Worksspace
               </ContextMenuItem>
               <ContextMenuSeparator />
             </>
@@ -366,8 +404,8 @@ const FileSystem = () => {
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div className="h-full overflow-auto bg-primary-sidebar text-neutral-300 text-sm p-2">
-          <div className="h-full w-full border border-neutral-600 rounded-xl px-2 py-4 overflow-y-hidden">
-            <div className="flex items-center justify-between mb-2 px-2">
+          <div className="h-full w-full border border-neutral-600 rounded-xl py-4 overflow-y-hidden">
+            <div className="flex items-center justify-between mb-2 px-6">
               <div className="text-p6 font-semibold">
                 {workspace.split(/[\\/]/).pop()}
               </div>
@@ -413,7 +451,7 @@ const FileSystem = () => {
               </div>
             </div>
 
-            <div className="px-2 overflow-y-scroll max-h-full scrollbar">
+            <div className="overflow-y-scroll pb-4 max-h-full scrollbar">
               {roots === null ? (
                 <div className="text-sm text-gray-500">Loading…</div>
               ) : roots.length === 0 ? (

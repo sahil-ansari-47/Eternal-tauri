@@ -136,11 +136,8 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       );
       const sorted = sortNodes(nodes);
       setRoots((prevRoots) => {
-        console.log("prevRoots", prevRoots);
         const expandedMap = prevRoots ? preserveExpanded(prevRoots) : {};
-        console.log("expandedMap", expandedMap);
         const roots = applyExpanded(sorted, expandedMap);
-        console.log("roots", roots);
         return roots;
       });
       setError(null);

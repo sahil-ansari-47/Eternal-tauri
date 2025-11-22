@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::{path::Path, sync::mpsc::channel, time::Duration};
 use tauri::{AppHandle, Emitter};
+use std::ffi::OsStr;
 
 #[tauri::command]
 fn generate_project(final_command: String, workspace: String) -> Result<String, String> {
@@ -63,7 +64,6 @@ async fn get_user_access_token(user_id: String, sk: String) -> Result<String, St
         "https://api.clerk.com/v1/users/{}/oauth_access_tokens/oauth_github?paginated=true&limit=10&offset=0",
         user_id
     );
-
     let client = reqwest::Client::new();
     let resp = client
         .get(&url)
@@ -101,20 +101,27 @@ fn is_onedrive_path(path: &str) -> bool {
     let lowercase = path.to_lowercase();
     lowercase.contains("onedrive") || lowercase.contains("sharepoint")
 }
-use std::ffi::OsStr;
-
 fn is_inside_git_dir(p: &Path, workspace_root: &Path) -> bool {
-    // Only check files inside workspace
     if let Ok(rel) = p.strip_prefix(workspace_root) {
         for comp in rel.components() {
-            if comp.as_os_str() == OsStr::new(".git") {
+            let name = comp.as_os_str();
+            if name == OsStr::new(".git") {
                 return true;
             }
         }
     }
     false
 }
-
+fn is_temp_sync_file(file: &Path) -> bool {
+    if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
+        let ext_lower = ext.to_lowercase();
+        return ext_lower == "tmp"
+            || ext_lower == "crdownload"
+            || ext_lower == "partial"
+            || ext_lower.starts_with("goutput"); // OneDrive temp
+    }
+    false
+}
 #[tauri::command]
 async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
     println!("[Tauri] 🔍 Starting watcher setup for: {}", path);
@@ -122,7 +129,6 @@ async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
     let app_handle = app.clone();
 
     std::thread::spawn(move || {
-        // 🔎 Detect whether it's a OneDrive path
         let use_polling = is_onedrive_path(&path);
         println!(
             "[Tauri] 🧠 Path detection → {} → using {} mode",
@@ -137,47 +143,42 @@ async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
         } else {
             Config::default()
         };
+
         let mut watcher = match RecommendedWatcher::new(tx, config) {
-            Ok(w) => {
-                if use_polling {
-                    println!("[Tauri] ✅ Polling watcher started for OneDrive path");
-                } else {
-                    println!("[Tauri] ✅ Native watcher started");
-                }
-                w
-            }
+            Ok(w) => w,
             Err(e) => {
                 eprintln!("[Tauri] ❌ Watcher creation failed: {}", e);
                 return;
             }
         };
-        match watcher.watch(Path::new(&path), RecursiveMode::Recursive) {
-            Ok(_) => println!("[Tauri] 👀 Now watching path recursively: {}", path),
-            Err(e) => {
-                eprintln!("[Tauri] ❌ Failed to watch path {}: {}", path, e);
-                return;
-            }
+
+        if let Err(e) = watcher.watch(Path::new(&path), RecursiveMode::Recursive) {
+            eprintln!("[Tauri] ❌ Failed to watch {}: {}", path, e);
+            return;
         }
+
         let workspace_root = PathBuf::from(&path);
+
         for res in rx {
             match res {
                 Ok(event) => {
-                    // println!("[Tauri] 📁 Filesystem event detected: {:?}", event.kind);
-                    let paths: Vec<String> = event
+                    // Filter valid paths
+                    let filtered: Vec<String> = event
                         .paths
                         .iter()
                         .filter(|p| p.starts_with(&workspace_root))
-                        // must NOT be inside any .git folder
                         .filter(|p| !is_inside_git_dir(p, &workspace_root))
-                        // convert to string for UI
+                        .filter(|p| !is_temp_sync_file(p))
                         .filter_map(|p| p.to_str().map(|s| s.to_string()))
                         .collect();
-                    println!("[Tauri] 📁 Paths: {:?}", paths);
-                    if !paths.is_empty() {
-                        // println!("[Tauri] 🔔 Emitting fs-change with paths: {:?}", paths);
+
+                    if filtered.is_empty() {
+                        continue; // << prevents useless UI updates
                     }
 
-                    if let Err(e) = app_handle.emit("fs-change", paths) {
+                    println!("[Tauri] 📁 Change detected: {:?}", filtered);
+
+                    if let Err(e) = app_handle.emit("fs-change", filtered) {
                         eprintln!("[Tauri] ❌ Failed to emit fs-change: {}", e);
                     }
                 }
