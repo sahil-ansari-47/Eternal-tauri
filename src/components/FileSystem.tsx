@@ -52,6 +52,7 @@ const FileSystem = () => {
     errorMessage,
     setErrorMessage,
     setActivePath,
+    // openFiles,
     setOpenFiles,
     reloadWorkspace,
     roots,
@@ -59,7 +60,7 @@ const FileSystem = () => {
     viewRefs,
     setActiveTab,
   } = useEditor();
-  const { refreshStatus, status } = useGit();
+  const { status } = useGit();
   const [targetNode, setTargetNode] = useState<FsNode | null>(null);
   const [value, setValue] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -67,10 +68,8 @@ const FileSystem = () => {
     reloadWorkspace();
     if (workspace) {
       invoke("watch_workspace", { path: workspace });
-      const unlisten = listen("fs-change", (event) => {
-        console.log("Change:", event.payload);
+      const unlisten = listen("fs-change", () => {
         reloadWorkspace();
-        refreshStatus();
       });
       return () => {
         unlisten
@@ -103,37 +102,33 @@ const FileSystem = () => {
     status: GitStatus
   ): Promise<FsNode[]> => {
     const map = await buildGitStatusMap(status);
-
     const apply = async (list: FsNode[]): Promise<FsNode[]> => {
       return Promise.all(
         list.map(async (node) => {
           const norm = await normalize(node.path);
-          const gitStatus = node.isDirectory ? "" : map.get(norm) ?? "";
-
+          const status = node.isDirectory ? "" : map.get(norm) ?? "";
           const children = node.children
-            ? await apply(node.children) // <-- FIXED: await the recursive call
+            ? await apply(node.children)
             : undefined;
-
           return {
             ...node,
-            gitStatus,
+            status,
             children,
           };
         })
       );
     };
-
     return apply(nodes);
   };
 
   const buildGitStatusMap = async (status: GitStatus) => {
     const map = new Map<string, "A" | "M" | "D" | "U">();
     const add = async (path: string, s: "A" | "M" | "D" | "U") => {
-      const full = await normalize(`${workspace}/${path}`);
+      const full = await normalize(`${workspace}\\${path}`);
       map.set(full, s);
     };
     await Promise.all([
-      ...status.staged.map((f) => add(f.path, "A")),
+      ...status.staged.map((f) => add(f.path, f.status === "A" ? "A" : "M")),
       ...status.unstaged.map((f) => add(f.path, "M")),
       ...status.untracked.map((f) => add(f.path, "U")),
     ]);
@@ -224,19 +219,24 @@ const FileSystem = () => {
       if (action === "newFile") {
         const path = await join(dir, value.trim());
         await create(path);
-        setOpenFiles((prev) => [...prev, { path, content: "" } as File]);
+        handleOpenFile({
+          name: value.trim(),
+          path,
+          isDirectory: false,
+          status: "U",
+        } as FsNode);
         setActivePath(path);
       } else if (action === "newFolder") {
         await mkdir(await join(dir, value.trim()));
       }
     } else if (action === "delete" && targetNode) {
+      setOpenFiles((prev) => prev.filter((f) => f.path !== targetNode.path));
       await remove(targetNode.path, { recursive: targetNode.isDirectory });
       const view = viewRefs.current[targetNode.path];
       if (view) {
         view.destroy();
         delete viewRefs.current[targetNode.path];
       }
-      setOpenFiles((prev) => prev.filter((f) => f.path !== targetNode.path));
     }
     setDialogOpen(false);
     setValue("");
@@ -245,16 +245,14 @@ const FileSystem = () => {
   };
   const handleFileClick = async (node: FsNode) => {
     if (!node.isDirectory) {
-      const content = await readTextFile(node.path);
-      handleOpenFile(node.path, content);
+      node.content = await readTextFile(node.path);
+      handleOpenFile(node);
     }
   };
-  const handleOpenFile = (path: string, content: string) => {
-    setActivePath(path);
+  const handleOpenFile = (node: FsNode) => {
+    setActivePath(node.path);
     setOpenFiles((prev) =>
-      prev.find((f) => f.path === path)
-        ? prev
-        : [...prev, { path, content } as File]
+      prev.find((f) => f.path === node.path) ? prev : [...prev, node]
     );
   };
   const toggleExpand = async (nodePath: string) => {
@@ -312,23 +310,37 @@ const FileSystem = () => {
             ) : (
               <File className="w-4 h-4 ml-8" />
             )}
-            <div className="flex justify-between">
-              <span
+            <div className="flex w-full justify-between">
+              <div
                 className={`truncate ${
-                  node.gitStatus === "M"
+                  node.status === "M"
                     ? "text-yellow-500"
-                    : node.gitStatus === "A"
+                    : node.status === "A"
                     ? "text-green-500"
-                    : node.gitStatus === "D"
+                    : node.status === "D"
                     ? "text-red-500"
-                    : node.gitStatus === "U"
-                    ? "text-purple-500"
+                    : node.status === "U"
+                    ? "text-orange-500"
                     : ""
                 }`}
               >
                 {node.name}
-              </span>
-              <span className="truncate">{}</span>
+              </div>
+              <div
+                className={`${node.status === "M" ? "mr-3.5" : "mr-4"} ${
+                  node.status === "M"
+                    ? "text-yellow-500"
+                    : node.status === "A"
+                    ? "text-green-500"
+                    : node.status === "D"
+                    ? "text-red-500"
+                    : node.status === "U"
+                    ? "text-orange-500"
+                    : ""
+                }`}
+              >
+                {node.status}
+              </div>
             </div>
           </div>
         </ContextMenuTrigger>

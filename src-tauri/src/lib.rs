@@ -1,11 +1,11 @@
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
+use std::ffi::OsStr;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::{path::Path, sync::mpsc::channel, time::Duration};
 use tauri::{AppHandle, Emitter};
-use std::ffi::OsStr;
 
 #[tauri::command]
 fn generate_project(final_command: String, workspace: String) -> Result<String, String> {
@@ -261,16 +261,14 @@ async fn git_command(
                     }));
                 }
 
-                " M" | " D" | "MM" => {
+                " M" | " D" | "MM" | "AM" => {
                     let status = if status_code == " M" {
                         "M"
                     } else if status_code == " D" {
                         "D"
                     } else {
-                        // "MM"
                         "M"
                     };
-
                     unstaged.push(serde_json::json!({
                         "path": file,
                         "status": status
@@ -310,9 +308,6 @@ async fn git_command(
                 }
             })
             .unwrap_or_default();
-        // println!("stdout: {:?}", String::from_utf8_lossy(&out.stdout));
-        // println!("stderr: {:?}", String::from_utf8_lossy(&out.stderr));
-        // println!("exit code: {:?}", out.status.code());
         return Ok(serde_json::json!({
             "staged": staged,
             "unstaged": unstaged,
@@ -321,39 +316,6 @@ async fn git_command(
             "origin": origin
         }));
     }
-    // if action == "file_status" {
-    //     let file: String = payload
-    //         .get("file")
-    //         .and_then(|v| v.as_str())
-    //         .ok_or("Missing file field")?
-    //         .to_string();
-    //     let out = Command::new("git")
-    //         .args(["status", "--porcelain", &file])
-    //         .current_dir(path)
-    //         .output()
-    //         .map_err(|e| e.to_string())?;
-    //     if !out.status.success() {
-    //         return Err(format!(
-    //             "Git file_status failed (exit {}): {}\n{}",
-    //             out.status.code().unwrap_or(-1),
-    //             String::from_utf8_lossy(&out.stderr),
-    //             String::from_utf8_lossy(&out.stdout)
-    //         ));
-    //     }
-    //     let text = String::from_utf8_lossy(&out.stdout);
-    //     let mut git_state = "";
-    //     for line in text.lines() {
-    //         if line.starts_with("??") {
-    //             git_state = "U"; // untracked
-    //         } else if line.starts_with(" M") {
-    //             git_state = "M"; // modified
-    //         } else if line.starts_with("A ") || line.starts_with("M ") {
-    //             git_state = "A"; // staged
-    //         }
-    //     }
-    //     return Ok(serde_json::json!({ "status": git_state }));
-    // }
-
     if action == "file_status" {
         let file: String = payload
             .get("file")
@@ -436,9 +398,11 @@ async fn git_command(
         }));
     }
     if action == "stage" {
+        let file_path = payload["file"].as_str().ok_or("file must be a string")?;
+
         let out = Command::new("git")
             .arg("add")
-            .arg(payload["file"]["path"].as_str().unwrap_or(""))
+            .arg(file_path)
             .current_dir(path)
             .output()
             .map_err(|e| e.to_string())?;
@@ -500,9 +464,10 @@ async fn git_command(
         }));
     }
     if action == "discard" {
+        let file_path = payload["file"].as_str().ok_or("file must be a string")?;
         let out = Command::new("git")
             .arg("restore")
-            .arg(payload["file"]["path"].as_str().unwrap_or(""))
+            .arg(file_path)
             .current_dir(path)
             .output()
             .map_err(|e| e.to_string())?;
@@ -520,11 +485,10 @@ async fn git_command(
             "stderr": String::from_utf8_lossy(&out.stderr)
         }));
     }
-
     if action == "discard-all" {
         let out = Command::new("git")
-            .arg("reset")
-            .arg("--hard")
+            .arg("restore")
+            .arg(".")
             .current_dir(path)
             .output()
             .map_err(|e| e.to_string())?;
@@ -543,9 +507,8 @@ async fn git_command(
         }));
     }
     if action == "unstage" {
-        let file_path = payload["file"]["path"].as_str().unwrap_or("");
+        let file_path = payload["file"].as_str().ok_or("file must be a string")?;
         println!("Unstaging file: {:?}", file_path);
-
         // Check if HEAD exists
         let head_exists = Command::new("git")
             .args(["rev-parse", "--verify", "HEAD"])
@@ -553,7 +516,6 @@ async fn git_command(
             .output()
             .map(|out| out.status.success())
             .unwrap_or(false);
-
         let out = if head_exists {
             // Repo has commits → safe to use restore
             Command::new("git")
@@ -568,7 +530,6 @@ async fn git_command(
                 .output()
         }
         .map_err(|e| e.to_string())?;
-
         if !out.status.success() {
             return Err(format!(
                 "Git command failed (exit {}): {}\n{}",

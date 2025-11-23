@@ -1,26 +1,21 @@
 export {};
 
 declare global {
-  interface File {
+  type FsNode = {
+    name: string; //
     path: string;
-    content: string;
+    isDirectory: boolean;
+    children?: FsNode[];
+    content?: string;
     isDirty?: boolean;
-    status?: string;
-    hash?: string;
-  }
+    status?: "A" | "M" | "U" | "D" | "";
+    expanded?: boolean;
+    loading?: boolean;
+  };
   interface SearchResult {
     filePath: string;
     matches: { line: number; text: string }[];
   }
-  type FsNode = {
-    name: string;
-    path: string;
-    isDirectory: boolean;
-    children?: FsNode[];  
-    expanded?: boolean;
-    loading?: boolean;
-    gitStatus?: "A" | "M" | "U" | "D" | "";
-  };
   type Friend = {
     username: string;
     avatar: string;
@@ -147,10 +142,14 @@ declare global {
     name: string;
     clone_url: string;
   }
+  interface Gitfile {
+    path: string;
+    status: "A" | "M" | "U" | "D";
+  }
   interface GitStatus {
-    staged: File[];
-    unstaged: File[];
-    untracked: File[];
+    staged: GitFile[];
+    unstaged: GitFile[];
+    untracked: GitFile[];
     branch?: string;
     origin?: string;
   }

@@ -15,7 +15,7 @@ export default function Editor() {
     setActivePath,
     viewRefs,
     onSave,
-    normalize,
+    normalizeLF,
     setActiveTab,
   } = useEditor();
   useEffect(() => {
@@ -40,55 +40,54 @@ export default function Editor() {
     window.addEventListener("scroll-to-line", handler);
     return () => window.removeEventListener("scroll-to-line", handler);
   }, [activePath]);
-  const assignRef = (filePath: string) => (el: HTMLDivElement | null) => {
-    if (!el || viewRefs.current[filePath]) return;
-    const file = openFiles.find((f) => f.path === filePath);
+  const assignRef = (node: FsNode) => (el: HTMLDivElement | null) => {
+    if (!el || viewRefs.current[node.path]) return;
+    console.log("Assigning ref to", node.path);
+    const file = openFiles.find((f) => f.path === node.path);
     if (!file) return;
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.docChanged) {
-        const newContent = normalize(update.state.doc.toString());
-        setOpenFiles((prev) =>
-          prev.map((f) =>
-            f.path === filePath
-              ? { ...f, content: newContent, isDirty: true }
-              : f
-          )
-        );
+        const newContent = normalizeLF(update.state.doc.toString());
+        node.content = newContent;
+        node.isDirty = true;
+        setOpenFiles([...openFiles]);
       }
     });
-    const state = EditorState.create({
-      doc: file.content.toString(),
-      extensions: [
-        basicSetup,
-        barf,
-        getLanguageExtension(file.path),
-        updateListener,
-      ],
-    });
-    viewRefs.current[filePath] = new EditorView({ state, parent: el });
+    let state;
+    if(!file.content) file.content = "";
+    // if (file.content) {
+      state = EditorState.create({
+        doc: file.content.toString(),
+        extensions: [
+          basicSetup,
+          barf,
+          getLanguageExtension(file.path),
+          updateListener,
+        ],
+      });
+    // }
+    viewRefs.current[node.path] = new EditorView({ state, parent: el });
   };
-
   const onClose = (filePath: string) => {
     setOpenFiles((prev) => prev.filter((f) => f.path !== filePath));
   };
-  const handleCloseTab = async (filePath: string) => {
-    const view = viewRefs.current[filePath];
-    const fileExists = await exists(filePath);
+  const handleCloseTab = async (node: FsNode) => {
+    const view = viewRefs.current[node.path];
+    const fileExists = await exists(node.path);
     if (view) {
-      const newContent = view.state.doc.toString();
+      node.content = view.state.doc.toString();
       if (fileExists) {
-        await onSave(filePath, newContent, true);
+        await onSave(node);
       } else {
-        await message(`⚠️ File "${filePath}" not found. Skipping save.`, {
+        await message(`⚠️ File "${node.path}" not found. Skipping save.`, {
           title: "Save Error",
         });
       }
       view.destroy();
-      delete viewRefs.current[filePath];
+      delete viewRefs.current[node.path];
     }
-
-    onClose(filePath);
-    const remaining = openFiles.filter((f) => f.path !== filePath);
+    onClose(node.path);
+    const remaining = openFiles.filter((f) => f.path !== node.path);
     setActivePath(remaining.length > 0 ? remaining[0].path : "");
     if (remaining.length === 0) {
       setActiveTab("Splash");
@@ -100,12 +99,14 @@ export default function Editor() {
         e.preventDefault();
         if (!activePath) return;
         const fileExists = await exists(activePath);
+        const file = openFiles.find((f) => f.path === activePath);
         const view = viewRefs.current[activePath];
         if (!view) return;
-
-        const content = view.state.doc.toString();
         if (fileExists) {
-          await onSave(activePath, content, true);
+          if (file){
+            file.content = view.state.doc.toString();
+            await onSave(file);
+          } 
         } else {
           await message(
             `⚠️ Cannot save: file "${activePath}" does not exist.`,
@@ -117,7 +118,8 @@ export default function Editor() {
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "w") {
         e.preventDefault();
         if (!activePath) return;
-        handleCloseTab(activePath);
+        const file = openFiles.find((f) => f.path === activePath);
+        if (file) handleCloseTab(file);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -128,7 +130,6 @@ export default function Editor() {
       setActivePath(openFiles[0].path);
     }
   }, [openFiles, activePath]);
-  // --- UI ---
   return (
     <div className="w-full h-full flex flex-col">
       {/* Tabs */}
@@ -175,7 +176,7 @@ export default function Editor() {
               }`}
               onClick={(e) => {
                 e.stopPropagation();
-                handleCloseTab(file.path);
+                handleCloseTab(file);
               }}
             >
               ✕
@@ -188,7 +189,7 @@ export default function Editor() {
         {openFiles.map((file) => (
           <div
             key={file.path}
-            ref={assignRef(file.path)}
+            ref={assignRef(file)}
             className={`absolute inset-0 ${
               file.path === activePath ? "block" : "hidden"
             }`}

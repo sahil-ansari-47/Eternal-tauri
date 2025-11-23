@@ -67,7 +67,7 @@ export default function SearchPanel() {
   const openMatch = (filePath: string, line: number) => {
     if (!openFiles.find((f) => f.path === filePath)) {
       readTextFile(filePath).then((content: string) => {
-        setOpenFiles((prev) => [...prev, { path: filePath, content } as File]);
+        setOpenFiles((prev) => [...prev, { path: filePath, content } as FsNode]);
         setActivePath(filePath);
         if (line !== undefined) {
           setTimeout(() => {
@@ -117,7 +117,7 @@ export default function SearchPanel() {
           replace_all: false,
         },
       });
-
+      //TODO: change open file editor state
       setResults(results.slice(1));
     } catch (err) {
       console.error("Replace next failed:", err);

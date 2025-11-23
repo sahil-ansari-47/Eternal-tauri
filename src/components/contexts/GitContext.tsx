@@ -75,6 +75,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
         branch: payload.branch || "master",
         origin: payload.origin,
       });
+      console.log(payload);
       origin = payload.origin || "";
       setIsInit(true);
     } catch (e: any) {

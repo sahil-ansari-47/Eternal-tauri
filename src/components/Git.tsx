@@ -29,7 +29,7 @@ import {
   Link,
   GitCommit,
 } from "lucide-react";
-import { join } from "@tauri-apps/api/path";
+import { join, normalize } from "@tauri-apps/api/path";
 import { useEditor } from "./contexts/EditorContext";
 import { useGit } from "./contexts/GitContext";
 import { open as openLink } from "@tauri-apps/plugin-shell";
@@ -44,6 +44,7 @@ export default function GitPanel() {
     reloadFileContent,
     viewRefs,
     onSave,
+    getSingleFileGitState,
   } = useEditor();
   const {
     status,
@@ -58,7 +59,6 @@ export default function GitPanel() {
     isInit,
     refreshStatus,
     runGit,
-    getUserAccessToken,
     handlePublish,
     syncStatus,
     handlePush,
@@ -166,16 +166,23 @@ export default function GitPanel() {
       setLoading(false);
     }
   }
-  async function handleStage(file: File) {
+  async function handleStage(gitfile: Gitfile) {
     setLoading(true);
     if (!workspace) return;
     try {
-      const filePath = await join(workspace, file.path);
-      if (viewRefs.current[filePath]) {
-        const content = viewRefs.current[filePath].state.doc.toString();
-        await onSave(filePath, content, true);
+      const abspath = await join(workspace, gitfile.path);
+      const norm = await normalize(abspath);
+      if (viewRefs.current[norm]) {
+        const file = {} as FsNode;
+        file.path = norm;
+        file.content = viewRefs.current[norm].state.doc.toString();
+        await onSave(file);
       }
-      await runGit("stage", { workspace, file });
+      await runGit("stage", { workspace, file: gitfile.path });
+      const newState = await getSingleFileGitState(gitfile.path);
+      setOpenFiles((prev) =>
+        prev.map((f) => (f.path === norm ? { ...f, status: newState } : f))
+      );
       await refreshStatus();
     } catch (e: any) {
       console.log(e);
@@ -188,21 +195,67 @@ export default function GitPanel() {
     setLoading(true);
     if (!workspace) return;
     try {
-      for (const file of status.unstaged) {
-        const filePath = await join(workspace, file.path);
-        if (viewRefs.current[filePath]) {
-          const content = viewRefs.current[filePath].state.doc.toString();
-          await onSave(filePath, content, true);
-        }
-      }
-      for (const file of status.untracked) {
-        const filePath = await join(workspace, file.path);
-        if (viewRefs.current[filePath]) {
-          const content = viewRefs.current[filePath].state.doc.toString();
-          await onSave(filePath, content, true);
-        }
+      const openPaths = Object.keys(viewRefs.current);
+      let newstatus = [];
+      for (const fullPath of openPaths) {
+        const ref = viewRefs.current[fullPath];
+        if (!ref) continue;
+        const content = ref.state.doc.toString();
+        await onSave({
+          path: fullPath,
+          content,
+        } as FsNode);
       }
       await runGit("stage-all", { workspace });
+      for (const fullPath of openPaths) {
+        newstatus.push(await getSingleFileGitState(fullPath));
+      }
+      setOpenFiles((prev) =>
+        prev.map((f) =>
+          openPaths.includes(f.path)
+            ? ({ ...f, status: newstatus[openPaths.indexOf(f.path)] } as FsNode)
+            : f
+        )
+      );
+      await refreshStatus();
+    } catch (e: any) {
+      console.error(e);
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+  async function handleUnstage(gitfile: Gitfile) {
+    if (!workspace) return;
+    setLoading(true);
+    try {
+      const abspath = await join(workspace, gitfile.path);
+      const norm = await normalize(abspath);
+      await runGit("unstage", { workspace, file: gitfile.path });
+      setOpenFiles((prev) =>
+        prev.map((f) =>
+          f.path === norm
+            ? { ...f, status: gitfile.status === "A" ? "U" : "M" }
+            : f
+        )
+      );
+      await refreshStatus();
+    } catch (e: any) {
+      console.log(e);
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+  const handleUnstageAll = async () => {
+    setLoading(true);
+    try {
+      await runGit("unstage-all", { workspace });
+      setOpenFiles((prev) =>
+        prev.map((f) =>
+          f.status === "A" ? { ...f, status: "U" } : { ...f, status: "M" }
+        )
+      );
       await refreshStatus();
     } catch (e: any) {
       console.log(e);
@@ -211,17 +264,6 @@ export default function GitPanel() {
       setLoading(false);
     }
   };
-  async function handleUnstage(file: File) {
-    setLoading(true);
-    try {
-      await runGit("unstage", { workspace, file });
-      await refreshStatus();
-    } catch (e: any) {
-      setError(e);
-    } finally {
-      setLoading(false);
-    }
-  }
   async function handlePull() {
     setLoading(true);
     try {
@@ -237,60 +279,41 @@ export default function GitPanel() {
       setLoading(false);
     }
   }
-  const handleUnstageAll = async () => {
+  const handleDiscard = async (gitfile: Gitfile) => {
     setLoading(true);
     try {
-      await runGit("unstage-all", { workspace });
+      await runGit("discard", { workspace, file: gitfile.path });
       await refreshStatus();
+      await reloadFileContent(gitfile);
     } catch (e: any) {
-      setError(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-  const handleDiscard = async (file: File) => {
-    setLoading(true);
-    try {
-      await runGit("discard", { workspace, file });
-      await refreshStatus();
-      await reloadFileContent(file.path);
-    } catch (e: any) {
+      console.log(e);
       setError(e);
     } finally {
       setLoading(false);
     }
   };
   const handleDiscardAll = async () => {
+    if (!workspace) return;
     setLoading(true);
     try {
       await runGit("discard-all", { workspace });
-      if (!workspace) return;
-      for (const f of status.staged) {
-        if (
-          openFiles.find(
-            (file) => file.path.slice(workspace.length + 1) === f.path
-          )
-        )
-          await reloadFileContent(f.path);
-      }
+      const absPathsSet = new Set(openFiles.map((f) => f.path));
       for (const f of status.unstaged) {
-        if (
-          openFiles.find(
-            (file) => file.path.slice(workspace.length + 1) === f.path
-          )
-        )
-          await reloadFileContent(f.path);
+        const absPath = await join(workspace, f.path);
+        if (absPathsSet.has(absPath)) {
+          await reloadFileContent(f);
+        }
       }
       for (const f of status.untracked) {
-        const abspath = await join(workspace, f.path);
-        console.log(abspath);
-        if (openFiles.find((file) => file.path === abspath))
-          setOpenFiles((prev) => prev.filter((file) => file.path !== abspath));
-        await remove(abspath);
-        const view = viewRefs.current[abspath];
+        const absPath = await join(workspace, f.path);
+        if (absPathsSet.has(absPath)) {
+          setOpenFiles((prev) => prev.filter((file) => file.path !== absPath));
+        }
+        await remove(absPath);
+        const view = viewRefs.current[absPath];
         if (view) {
           view.destroy();
-          delete viewRefs.current[abspath];
+          delete viewRefs.current[absPath];
         }
       }
       await refreshStatus();
@@ -718,12 +741,15 @@ export default function GitPanel() {
                                       );
                                       console.log(path);
                                       const content = await readTextFile(path);
-                                      const file = { path, content } as File;
+                                      const file = { path, content } as FsNode;
                                       setActivePath(file.path);
                                       setOpenFiles((prev) =>
                                         prev.find((file) => file.path === path)
                                           ? prev
-                                          : [...prev, { path, content } as File]
+                                          : [
+                                              ...prev,
+                                              { path, content } as FsNode,
+                                            ]
                                       );
                                     }}
                                   >
@@ -747,7 +773,7 @@ export default function GitPanel() {
                                           const file = {
                                             path,
                                             content,
-                                          } as File;
+                                          } as FsNode;
                                           setActivePath(file.path);
                                           setOpenFiles((prev) =>
                                             prev.find(
@@ -756,7 +782,7 @@ export default function GitPanel() {
                                               ? prev
                                               : [
                                                   ...prev,
-                                                  { path, content } as File,
+                                                  { path, content } as FsNode,
                                                 ]
                                           );
                                         }}
@@ -787,7 +813,7 @@ export default function GitPanel() {
                                             view.destroy();
                                             delete viewRefs.current[absPath];
                                           }
-                                          refreshStatus();
+                                          await refreshStatus();
                                         }}
                                         title="Discard"
                                       >
