@@ -37,7 +37,6 @@ interface GitContextType {
   handlePush: () => Promise<void>;
   commitMsg: string;
   setCommitMsg: React.Dispatch<React.SetStateAction<string>>;
-  handleCommit: () => Promise<void>;
 }
 const GitContext = createContext<GitContextType | undefined>(undefined);
 export const GitProvider = ({ children }: { children: React.ReactNode }) => {
@@ -75,7 +74,6 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
         branch: payload.branch || "master",
         origin: payload.origin,
       });
-      console.log(payload);
       origin = payload.origin || "";
       setIsInit(true);
     } catch (e: any) {
@@ -148,22 +146,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     }
   }
-  async function handleCommit() {
-    setLoading(true);
-    try {
-      await runGit("commit", {
-        workspace,
-        message: commitMsg.trim() === "" ? "initial commit" : commitMsg,
-      });
-      setCommitMsg("");
-      await refreshStatus();
-      // fetchGraph();
-    } catch (e: any) {
-      setError(e);
-    } finally {
-      setLoading(false);
-    }
-  }
+  
   const handlePublish = async (name: string, priv: boolean = false) => {
     const token = await getUserAccessToken();
     // localStorage.setItem("token", token);
@@ -208,7 +191,6 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
         handlePush,
         commitMsg,
         setCommitMsg,
-        handleCommit,
         handleSetRemote,
       }}
     >

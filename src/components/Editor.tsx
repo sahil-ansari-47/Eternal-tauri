@@ -23,13 +23,11 @@ export default function Editor() {
       const { filePath, line, query } = (e as CustomEvent).detail;
       const view = viewRefs.current[filePath];
       if (filePath !== activePath || !view) return;
-
       const docLine = view.state.doc.line(line);
       const start = docLine.text.toLowerCase().indexOf(query.toLowerCase());
       if (start === -1) return;
       const from = docLine.from + start;
       const to = from + query.length;
-
       view.dispatch({
         selection: { anchor: from, head: to },
         effects: EditorView.scrollIntoView(from, { y: "center" }),
@@ -48,23 +46,27 @@ export default function Editor() {
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.docChanged) {
         const newContent = normalizeLF(update.state.doc.toString());
-        node.content = newContent;
-        node.isDirty = true;
-        setOpenFiles([...openFiles]);
+        setOpenFiles((prev) =>
+          prev.map((f) =>
+            f.path === node.path
+              ? { ...f, content: newContent, isDirty: true }
+              : f
+          )
+        );
       }
     });
     let state;
-    if(!file.content) file.content = "";
+    if (!file.content) file.content = "";
     // if (file.content) {
-      state = EditorState.create({
-        doc: file.content.toString(),
-        extensions: [
-          basicSetup,
-          barf,
-          getLanguageExtension(file.path),
-          updateListener,
-        ],
-      });
+    state = EditorState.create({
+      doc: file.content.toString(),
+      extensions: [
+        basicSetup,
+        barf,
+        getLanguageExtension(file.path),
+        updateListener,
+      ],
+    });
     // }
     viewRefs.current[node.path] = new EditorView({ state, parent: el });
   };
@@ -103,10 +105,10 @@ export default function Editor() {
         const view = viewRefs.current[activePath];
         if (!view) return;
         if (fileExists) {
-          if (file){
+          if (file) {
             file.content = view.state.doc.toString();
             await onSave(file);
-          } 
+          }
         } else {
           await message(
             `⚠️ Cannot save: file "${activePath}" does not exist.`,

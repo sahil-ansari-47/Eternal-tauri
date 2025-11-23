@@ -210,12 +210,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
     console.log("Reloading file content:", gitfile.path);
     const absPath = await join(workspace, gitfile.path);
     const content = await readTextFile(absPath);
-    // const status = await getSingleFileGitState(absPath);
-    // setOpenFiles((prev) =>
-    //   prev.map((f) =>
-    //     f.path === absPath ? { ...f, content, isDirty: false } : f
-    //   )
-    // );
+    const status = await getSingleFileGitState(absPath);
     const view = viewRefs.current[absPath];
     if (view) {
       view.dispatch({
@@ -226,7 +221,11 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         },
       });
     }
-    onSave({ path: absPath, content } as FsNode);
+    setOpenFiles((prev) =>
+      prev.map((f) =>
+        f.path === absPath ? { ...f, content, isDirty: false, status } : f
+      )
+    );
   };
   const normalizeLF = (s: string) => s.replace(/\r?\n/g, "\r\n");
 
@@ -234,14 +233,14 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
     if (!node.content) return;
     const normalized = normalizeLF(node.content);
     await writeTextFile(node.path, normalized);
-    node.status = await getSingleFileGitState(node.path);
-    console.log(node.status);
+    const status = await getSingleFileGitState(node.path);
+    console.log(status);
     setOpenFiles((prev) =>
       prev.map((f) =>
         f.path === node.path
           ? {
               ...f,
-              status: node.status,
+              status: status,
               isDirty: false,
             }
           : f

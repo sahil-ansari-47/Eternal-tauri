@@ -64,7 +64,6 @@ export default function GitPanel() {
     handlePush,
     fetchSyncStatus,
     handleSetRemote,
-    handleCommit,
     commitMsg,
     setCommitMsg,
   } = useGit();
@@ -323,6 +322,34 @@ export default function GitPanel() {
       setLoading(false);
     }
   };
+  async function handleCommit() {
+    if (!workspace) return;
+    setLoading(true);
+    try {
+      await runGit("commit", {
+        workspace,
+        message: commitMsg.trim() === "" ? "initial commit" : commitMsg,
+      });
+      setCommitMsg("");
+      await refreshStatus();
+      const stagedRelPaths = new Set(status.staged.map((f) => f.path));
+      setOpenFiles((prev) =>
+        prev.map((f) => {
+          const rel = f.path.slice(workspace.length + 1);
+          if (stagedRelPaths.has(rel)) {
+            return { ...f, status: "" };
+          }
+          return f;
+        })
+      );
+      // fetchGraph();
+    } catch (e: any) {
+      console.log(e);
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  }
   if (!workspace) return <NoWorkspace />;
   return (
     <div className="h-full bg-primary-sidebar p-2">
