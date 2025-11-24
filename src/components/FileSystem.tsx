@@ -1,7 +1,8 @@
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
-  readDir,
+  // readDir,
+  // DirEntry,
   readTextFile,
   rename,
   create,
@@ -11,7 +12,7 @@ import {
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { join, normalize } from "@tauri-apps/api/path";
-import { loadChildren, traverseAndUpdate, sortNodes } from "../utils/fsfunc";
+import { loadChildren, sortNodes } from "../utils/fsfunc";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -52,7 +53,6 @@ const FileSystem = () => {
     errorMessage,
     setErrorMessage,
     setActivePath,
-    // openFiles,
     setOpenFiles,
     reloadWorkspace,
     roots,
@@ -60,43 +60,93 @@ const FileSystem = () => {
     viewRefs,
     setActiveTab,
   } = useEditor();
-  const { status } = useGit();
+  const { status, refreshStatus } = useGit();
+  const rootsRef = useRef<FsNode[] | null>(null);
+  const nodeMapRef = useRef(new Map<string, FsNode>());
+  const statusDebounceRef = useRef<any>(null);
+  const skipNextStatusRefreshRef = useRef(false);
   const [targetNode, setTargetNode] = useState<FsNode | null>(null);
   const [value, setValue] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const getParentDir = (path: string) => {
+    const parts = path.split(/[\\/]/);
+    parts.pop();
+    return parts.join("/");
+  };
   useEffect(() => {
     reloadWorkspace();
-    if (workspace) {
-      invoke("watch_workspace", { path: workspace });
-      const unlisten = listen("fs-change", () => {
-        reloadWorkspace();
-      });
-      return () => {
-        unlisten
-          .then((u) => console.log("unlisten:", u))
-          .catch((e) => {
-            console.error("Failed to unlisten fs-change:", e);
-          });
-      };
-    }
+    if (!workspace) return;
+    invoke("watch_workspace", { path: workspace });
+    let buffer: string[] = [];
+    let debounceTimer: any = null;
+    const processBuffer = async () => {
+      const paths = buffer;
+      buffer = []; // clear
+      if (paths.length === 0) return;
+      const uniqueParents = new Set(paths.map(getParentDir));
+      let nextRoots = rootsRef.current;
+      if (!nextRoots) return;
+      for (const dir of uniqueParents) {
+        await refreshSubtreeFast(dir);
+      }
+      setRoots(nextRoots);
+    };
+    const unlistenPromise = listen("fs-change", (event: any) => {
+      const changedPaths: string[] = event.payload;
+      if (!Array.isArray(changedPaths) || changedPaths.length === 0) return;
+      // push into buffer
+      buffer.push(...changedPaths);
+      // debounce (100ms is good, VS Code uses similar)
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        processBuffer().catch(console.error);
+      }, 500);
+    });
+    return () => {
+      clearTimeout(debounceTimer);
+      unlistenPromise
+        .then((unlisten) => unlisten())
+        .catch((e) => console.error("Failed to unlisten fs-change:", e));
+    };
   }, [workspace]);
   useEffect(() => {
+    if (!roots) return;
+    rootsRef.current = roots;
+    const map = new Map<string, FsNode>();
+    const walk = (nodes: FsNode[]) => {
+      for (const n of nodes) {
+        map.set(n.path, n);
+        if (n.children) walk(n.children);
+      }
+    };
+    walk(roots);
+    nodeMapRef.current = map;
+    if (!skipNextStatusRefreshRef.current) {
+      clearTimeout(statusDebounceRef.current);
+      statusDebounceRef.current = setTimeout(() => {
+        refreshStatus();
+      }, 1500);
+    } else {
+      skipNextStatusRefreshRef.current = false;
+    }
+  }, [roots]);
+  useEffect(() => {
     if (!status || !roots) return;
+
     let cancelled = false;
+
     (async () => {
       const updated = await applyGitStatusToNodes(roots, status);
       if (!cancelled) {
-        setRoots((prev) => {
-          if (!prev) return prev;
-          return updated;
-        });
+        skipNextStatusRefreshRef.current = true;
+        setRoots(updated);
       }
     })();
+
     return () => {
       cancelled = true;
     };
   }, [status]);
-
   const applyGitStatusToNodes = async (
     nodes: FsNode[],
     status: GitStatus
@@ -106,10 +156,14 @@ const FileSystem = () => {
       return Promise.all(
         list.map(async (node) => {
           const norm = await normalize(node.path);
-          const status = node.isDirectory ? "" : map.get(norm) ?? "";
           const children = node.children
             ? await apply(node.children)
             : undefined;
+          const status = !node.isDirectory
+            ? map.get(norm) ?? ""
+            : children?.some((c) => c.status !== "")
+            ? "M"
+            : "";
           return {
             ...node,
             status,
@@ -120,11 +174,11 @@ const FileSystem = () => {
     };
     return apply(nodes);
   };
-
   const buildGitStatusMap = async (status: GitStatus) => {
     const map = new Map<string, "A" | "M" | "D" | "U">();
     const add = async (path: string, s: "A" | "M" | "D" | "U") => {
-      const full = await normalize(`${workspace}\\${path}`);
+      if (!workspace) return;
+      const full = await normalize(await join(workspace, path));
       map.set(full, s);
     };
     await Promise.all([
@@ -134,37 +188,41 @@ const FileSystem = () => {
     ]);
     return map;
   };
+  const refreshSubtreeFast = async (dir: string) => {
+    const node = nodeMapRef.current.get(dir);
+    if (!node || !node.isDirectory || !node.expanded) return;
 
-  const refreshSubtree = async (
-    nodes: FsNode[],
-    dirPath: string
-  ): Promise<FsNode[]> => {
-    return Promise.all(
-      nodes.map(async (node) => {
-        if (node.path === dirPath && node.isDirectory && node.expanded) {
-          const entries = await readDir(dirPath);
-          const children: FsNode[] = [];
-          for (const e of entries) {
-            if (e.name) {
-              children.push({
-                name: e.name,
-                path: await join(dirPath, e.name),
-                isDirectory: e.isDirectory,
-              });
-            }
-          }
-          return { ...node, children: sortNodes(children) };
-        }
-        if (node.children) {
-          return {
-            ...node,
-            children: await refreshSubtree(node.children, dirPath),
-          };
-        }
-        return node;
-      })
-    );
+    node.children = sortNodes(await loadChildren(node.path));
+    setRoots((prev) => [...prev!]);
   };
+  // const refreshSubtree = async (
+  //   nodes: FsNode[],
+  //   targetDir: string
+  // ): Promise<FsNode[]> => {
+  //   return Promise.all(
+  //     nodes.map(async (node) => {
+  //       if (!node.expanded) return node;
+  //       if (node.path === targetDir) {
+  //         const entries = await readDir(targetDir);
+  //         const children = await Promise.all(
+  //           entries.map(async (e: DirEntry) => ({
+  //             name: e.name,
+  //             path: await join(targetDir, e.name),
+  //             isDirectory: e.isDirectory,
+  //           }))
+  //         );
+  //         return { ...node, children: sortNodes(children) };
+  //       }
+  //       if (node.children) {
+  //         return {
+  //           ...node,
+  //           children: await refreshSubtree(node.children, targetDir),
+  //         };
+  //       }
+  //       return node;
+  //     })
+  //   );
+  // };
   const handleConfirm = async () => {
     if (!workspace) return;
 
@@ -255,22 +313,20 @@ const FileSystem = () => {
       prev.find((f) => f.path === node.path) ? prev : [...prev, node]
     );
   };
-  const toggleExpand = async (nodePath: string) => {
-    if (!roots) return;
-    const updated = await traverseAndUpdate(roots, nodePath, async (n) => {
-      if (!n.isDirectory) return n;
-      if (!n.children) {
-        n.loading = true;
-        const children = await loadChildren(n.path);
-        n.children = sortNodes(children);
-        n.loading = false;
-        n.expanded = true;
-      } else {
-        n.expanded = !n.expanded;
-      }
-      return n;
+  const toggleExpand = (nodePath: string) => {
+    const node = nodeMapRef.current.get(nodePath);
+    if (!node || !node.isDirectory) return;
+    // instant visual feedback
+    node.expanded = !node.expanded;
+    // trigger minimal rerender
+    setRoots((prev: FsNode[] | null) => (prev ? [...prev] : prev));
+    // if already loaded or collapsing → done
+    if (node.children || !node.expanded) return;
+    // lazily load children
+    loadChildren(nodePath).then((children) => {
+      node.children = sortNodes(children);
+      setRoots((prev: FsNode[] | null) => (prev ? [...prev] : prev));
     });
-    setRoots(updated);
   };
   const TreeItem: React.FC<{ node: FsNode; level?: number }> = ({
     node,
@@ -285,7 +341,6 @@ const FileSystem = () => {
             style={{ paddingLeft: `${level * 12}px` }}
             onClick={() => {
               if (node.isDirectory) {
-                // console.log(node);
                 toggleExpand(node.path);
               } else {
                 handleFileClick(node);
@@ -310,10 +365,12 @@ const FileSystem = () => {
             ) : (
               <File className="w-4 h-4 ml-8" />
             )}
-            <div className="flex w-full justify-between">
+            <div className="flex w-full justify-between items-center">
               <div
                 className={`truncate ${
-                  node.status === "M"
+                  node.isDirectory && node.status === "M"
+                    ? "text-yellow-200/70"
+                    : node.status === "M"
                     ? "text-yellow-500"
                     : node.status === "A"
                     ? "text-green-500"
@@ -326,21 +383,30 @@ const FileSystem = () => {
               >
                 {node.name}
               </div>
-              <div
-                className={`${node.status === "M" ? "mr-3.5" : "mr-4"} ${
-                  node.status === "M"
-                    ? "text-yellow-500"
-                    : node.status === "A"
-                    ? "text-green-500"
-                    : node.status === "D"
-                    ? "text-red-500"
-                    : node.status === "U"
-                    ? "text-orange-500"
-                    : ""
-                }`}
-              >
-                {node.status}
-              </div>
+              {node.isDirectory ? (
+                <div
+                  className={`${
+                    node.status === "M" &&
+                    "bg-yellow-200/50 size-2 mr-4 rounded-full"
+                  }`}
+                />
+              ) : (
+                <div
+                  className={`${node.status === "M" ? "mr-3.5" : "mr-4"} ${
+                    node.status === "M"
+                      ? "text-yellow-500"
+                      : node.status === "A"
+                      ? "text-green-500"
+                      : node.status === "D"
+                      ? "text-red-500"
+                      : node.status === "U"
+                      ? "text-orange-500"
+                      : ""
+                  }`}
+                >
+                  {node.status}
+                </div>
+              )}
             </div>
           </div>
         </ContextMenuTrigger>

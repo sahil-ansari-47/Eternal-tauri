@@ -34,13 +34,11 @@ export default function Editor() {
       });
       view.focus();
     };
-
     window.addEventListener("scroll-to-line", handler);
     return () => window.removeEventListener("scroll-to-line", handler);
   }, [activePath]);
   const assignRef = (node: FsNode) => (el: HTMLDivElement | null) => {
     if (!el || viewRefs.current[node.path]) return;
-    console.log("Assigning ref to", node.path);
     const file = openFiles.find((f) => f.path === node.path);
     if (!file) return;
     const updateListener = EditorView.updateListener.of((update) => {

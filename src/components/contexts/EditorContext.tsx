@@ -5,7 +5,14 @@ import { DirEntry, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import { EditorView } from "codemirror";
 import { useAuth } from "@clerk/clerk-react";
-import { applyExpanded, preserveExpanded, sortNodes } from "../../utils/fsfunc";
+import {
+  preserveExpanded,
+  sortNodes,
+  buildPrevMap,
+  mergeWithPrev,
+  // readTree,
+  // applyExpanded
+} from "../../utils/fsfunc";
 import { readDir } from "@tauri-apps/plugin-fs";
 import { useGit } from "./GitContext";
 interface EditorContextType {
@@ -121,6 +128,30 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       console.error("Clone failed:", err);
     }
   };
+  // const reloadWorkspace = async () => {
+  //   if (!workspace) return;
+  //   try {
+  //     const entries = await readDir(workspace);
+  //     const nodes: FsNode[] = await Promise.all(
+  //       entries.map(async (e: DirEntry) => ({
+  //         name: e.name,
+  //         path: await join(workspace, e.name),
+  //         isDirectory: e.isDirectory,
+  //       }))
+  //     );
+  //     const sorted = sortNodes(nodes);
+  //     setRoots((prevRoots) => {
+  //       const expandedMap = prevRoots ? preserveExpanded(prevRoots) : {};
+  //       const roots = applyExpanded(sorted, expandedMap);
+  //       return roots;
+  //     });
+  //     refreshStatus();
+  //     setError(null);
+  //   } catch (e: any) {
+  //     console.error(e);
+  //     setError(String(e?.message ?? e));
+  //   }
+  // };
   const reloadWorkspace = async () => {
     if (!workspace) return;
     try {
@@ -134,11 +165,14 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       );
       const sorted = sortNodes(nodes);
       setRoots((prevRoots) => {
+        const prevMap = buildPrevMap(prevRoots);
         const expandedMap = prevRoots ? preserveExpanded(prevRoots) : {};
-        const roots = applyExpanded(sorted, expandedMap);
-        return roots;
+        const merged = mergeWithPrev(sorted, prevMap, expandedMap);
+        return merged;
       });
-      refreshStatus();
+      // If refreshStatus triggers async work that reads `roots`, prefer to call it from a useEffect
+      // that watches roots. If not, calling here is usually fine.
+      await refreshStatus();
       setError(null);
     } catch (e: any) {
       console.error(e);
@@ -194,7 +228,6 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error(`API error: ${res.status} - ${text}`);
       }
       const data = await res.json();
-      // console.log(data);
       const res2 = await fetch(
         `https://api.github.com/users/${data.user.username}/repos`
       );

@@ -187,6 +187,7 @@ export default function GitPanel() {
       console.log(e);
       setError(e);
     } finally {
+      setError(null);
       setLoading(false);
     }
   }
@@ -277,7 +278,6 @@ export default function GitPanel() {
       });
       await refreshStatus();
       for (const file of openFiles) {
-        console.log("Reloading file after pull:", file.path);
         await reloadFileContent({ path: file.path } as Gitfile);
       }
     } catch (e: any) {
@@ -867,7 +867,6 @@ export default function GitPanel() {
                                         <Plus className="w-3 h-3" />
                                       </Button>
                                       <span className="truncate max-w-xs flex items-center gap-1">
-                                        {/* Git status */}
                                         {f.status && (
                                           <span className="ml-2 font-medium text-orange-500">
                                             {f.status}
@@ -889,8 +888,8 @@ export default function GitPanel() {
             </PanelGroup>
 
             {error && (
-              <div className="border-t border-sidebar-border px-4 py-2 bg-primary-sidebar text-xs">
-                <div className="font-medium">{error.details}</div>
+              <div className="border-t border-sidebar-border px-4 py-2 bg-white text-red-500">
+                {error.message}
               </div>
             )}
 

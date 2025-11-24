@@ -202,10 +202,10 @@ export const DottedGlowBackground = ({
     regenDots();
 
     const draw = (now: number) => {
-      let last = performance.now();
+      // let last = performance.now();
       if (stopped) return;
       //   const dt = (now - last) / 1000; // seconds
-      last = now;
+      // last = now;
       const { width, height } = container.getBoundingClientRect();
 
       ctx.clearRect(0, 0, el.width, el.height);
