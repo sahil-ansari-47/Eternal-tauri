@@ -156,9 +156,7 @@ async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
             eprintln!("[Tauri] ❌ Failed to watch {}: {}", path, e);
             return;
         }
-
         let workspace_root = PathBuf::from(&path);
-
         for res in rx {
             match res {
                 Ok(event) => {
@@ -167,6 +165,11 @@ async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
                         .paths
                         .iter()
                         .filter(|p| p.starts_with(&workspace_root))
+                        .filter(|p| !p.ends_with("node_modules"))
+                        .filter(|p| !p.ends_with(".git"))
+                        .filter(|p| !p.ends_with("dist"))
+                        .filter(|p| !p.ends_with("build"))
+                        .filter(|p| !p.ends_with(".next"))
                         .filter(|p| !is_inside_git_dir(p, &workspace_root))
                         .filter(|p| !is_temp_sync_file(p))
                         .filter_map(|p| p.to_str().map(|s| s.to_string()))

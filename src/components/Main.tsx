@@ -6,11 +6,11 @@ import AddTask from "./AddTask";
 import { DottedGlowBackground } from "./ui/dotted-glow-background";
 import { useEditor } from "./contexts/EditorContext";
 import { useMessage } from "./contexts/MessageContext";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Tabs, TabsContent } from "./ui/tabs";
 import Splash from "./Splash";
 import Loading from "./Loading";
 const Main = () => {
-  const { tabList, setTabList, openFiles, activeTab, setActiveTab } =
+  const { setTabList, openFiles, activeTab, setActiveTab } =
     useEditor();
   const { inCall } = useMessage();
   useEffect(() => {
