@@ -208,7 +208,9 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const reloadFileContent = async (gitfile: Gitfile) => {
     if (!workspace) return;
     console.log("Reloading file content:", gitfile.path);
-    const absPath = await join(workspace, gitfile.path);
+    const absPath = gitfile.path.includes(workspace)
+      ? gitfile.path
+      : await join(workspace, gitfile.path);
     const content = await readTextFile(absPath);
     const status = await getSingleFileGitState(absPath);
     const view = viewRefs.current[absPath];

@@ -252,7 +252,11 @@ export default function GitPanel() {
       await runGit("unstage-all", { workspace });
       setOpenFiles((prev) =>
         prev.map((f) =>
-          f.status === "A" ? { ...f, status: "U" } : { ...f, status: "M" }
+          f.status === "A"
+            ? { ...f, status: "U" }
+            : f.status === "M"
+            ? { ...f, status: "M" }
+            : f
         )
       );
       await refreshStatus();
@@ -272,6 +276,10 @@ export default function GitPanel() {
         branch: status.branch || "master",
       });
       await refreshStatus();
+      for (const file of openFiles) {
+        console.log("Reloading file after pull:", file.path);
+        await reloadFileContent({ path: file.path } as Gitfile);
+      }
     } catch (e: any) {
       setError(e);
     } finally {
