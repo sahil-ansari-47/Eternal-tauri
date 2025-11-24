@@ -1,8 +1,8 @@
 import * as React from "react";
 import { useEffect, useState, useRef } from "react";
 import {
-  readDir,
-  DirEntry,
+  // readDir,
+  // DirEntry,
   readTextFile,
   rename,
   create,
@@ -63,6 +63,8 @@ const FileSystem = () => {
   const { status, refreshStatus } = useGit();
   const rootsRef = useRef<FsNode[] | null>(null);
   const nodeMapRef = useRef(new Map<string, FsNode>());
+  const statusDebounceRef = useRef<any>(null);
+  const skipNextStatusRefreshRef = useRef(false);
   const [targetNode, setTargetNode] = useState<FsNode | null>(null);
   const [value, setValue] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -75,57 +77,76 @@ const FileSystem = () => {
     reloadWorkspace();
     if (!workspace) return;
     invoke("watch_workspace", { path: workspace });
-    const unlistenPromise = listen("fs-change", async (event: any) => {
-      const changedPaths: string[] = event.payload;
-      if (!Array.isArray(changedPaths) || changedPaths.length === 0) return;
-      const uniqueParents = new Set(changedPaths.map(getParentDir));
+    let buffer: string[] = [];
+    let debounceTimer: any = null;
+    const processBuffer = async () => {
+      const paths = buffer;
+      buffer = []; // clear
+      if (paths.length === 0) return;
+      const uniqueParents = new Set(paths.map(getParentDir));
       let nextRoots = rootsRef.current;
+      if (!nextRoots) return;
       for (const dir of uniqueParents) {
-        if (nextRoots === null) return;
-        nextRoots = await refreshSubtree(nextRoots, dir);
+        await refreshSubtreeFast(dir);
       }
       setRoots(nextRoots);
+    };
+    const unlistenPromise = listen("fs-change", (event: any) => {
+      const changedPaths: string[] = event.payload;
+      if (!Array.isArray(changedPaths) || changedPaths.length === 0) return;
+      // push into buffer
+      buffer.push(...changedPaths);
+      // debounce (100ms is good, VS Code uses similar)
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        processBuffer().catch(console.error);
+      }, 500);
     });
     return () => {
+      clearTimeout(debounceTimer);
       unlistenPromise
         .then((unlisten) => unlisten())
         .catch((e) => console.error("Failed to unlisten fs-change:", e));
     };
   }, [workspace]);
-
   useEffect(() => {
     if (!roots) return;
-    refreshStatus();
     rootsRef.current = roots;
     const map = new Map<string, FsNode>();
-
     const walk = (nodes: FsNode[]) => {
       for (const n of nodes) {
         map.set(n.path, n);
         if (n.children) walk(n.children);
       }
     };
-
     walk(roots);
     nodeMapRef.current = map;
+    if (!skipNextStatusRefreshRef.current) {
+      clearTimeout(statusDebounceRef.current);
+      statusDebounceRef.current = setTimeout(() => {
+        refreshStatus();
+      }, 1500);
+    } else {
+      skipNextStatusRefreshRef.current = false;
+    }
   }, [roots]);
   useEffect(() => {
     if (!status || !roots) return;
+
     let cancelled = false;
+
     (async () => {
       const updated = await applyGitStatusToNodes(roots, status);
       if (!cancelled) {
-        setRoots((prev) => {
-          if (!prev) return prev;
-          return updated;
-        });
+        skipNextStatusRefreshRef.current = true;
+        setRoots(updated);
       }
     })();
+
     return () => {
       cancelled = true;
     };
   }, [status]);
-
   const applyGitStatusToNodes = async (
     nodes: FsNode[],
     status: GitStatus
@@ -167,34 +188,41 @@ const FileSystem = () => {
     ]);
     return map;
   };
-  const refreshSubtree = async (
-    nodes: FsNode[],
-    targetDir: string
-  ): Promise<FsNode[]> => {
-    return Promise.all(
-      nodes.map(async (node) => {
-        if (!node.expanded) return node;
-        if (node.path === targetDir) {
-          const entries = await readDir(targetDir);
-          const children = await Promise.all(
-            entries.map(async (e: DirEntry) => ({
-              name: e.name,
-              path: await join(targetDir, e.name),
-              isDirectory: e.isDirectory,
-            }))
-          );
-          return { ...node, children: sortNodes(children) };
-        }
-        if (node.children) {
-          return {
-            ...node,
-            children: await refreshSubtree(node.children, targetDir),
-          };
-        }
-        return node;
-      })
-    );
+  const refreshSubtreeFast = async (dir: string) => {
+    const node = nodeMapRef.current.get(dir);
+    if (!node || !node.isDirectory || !node.expanded) return;
+
+    node.children = sortNodes(await loadChildren(node.path));
+    setRoots((prev) => [...prev!]);
   };
+  // const refreshSubtree = async (
+  //   nodes: FsNode[],
+  //   targetDir: string
+  // ): Promise<FsNode[]> => {
+  //   return Promise.all(
+  //     nodes.map(async (node) => {
+  //       if (!node.expanded) return node;
+  //       if (node.path === targetDir) {
+  //         const entries = await readDir(targetDir);
+  //         const children = await Promise.all(
+  //           entries.map(async (e: DirEntry) => ({
+  //             name: e.name,
+  //             path: await join(targetDir, e.name),
+  //             isDirectory: e.isDirectory,
+  //           }))
+  //         );
+  //         return { ...node, children: sortNodes(children) };
+  //       }
+  //       if (node.children) {
+  //         return {
+  //           ...node,
+  //           children: await refreshSubtree(node.children, targetDir),
+  //         };
+  //       }
+  //       return node;
+  //     })
+  //   );
+  // };
   const handleConfirm = async () => {
     if (!workspace) return;
 
@@ -280,12 +308,10 @@ const FileSystem = () => {
     }
   };
   const handleOpenFile = (node: FsNode) => {
+    setActivePath(node.path);
     setOpenFiles((prev) =>
       prev.find((f) => f.path === node.path) ? prev : [...prev, node]
     );
-    setTimeout(() => {
-      setActivePath(node.path);
-    }, 200);
   };
   const toggleExpand = (nodePath: string) => {
     const node = nodeMapRef.current.get(nodePath);
