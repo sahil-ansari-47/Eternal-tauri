@@ -8,6 +8,7 @@ declare global {
     children?: FsNode[];
     content?: string;
     isDirty?: boolean;
+    isIgnored?: boolean;
     status?: "A" | "M" | "U" | "D" | "";
     expanded?: boolean;
     loading?: boolean;

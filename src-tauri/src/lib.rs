@@ -2,6 +2,7 @@ use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;
 use std::fs;
+use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
 use std::{path::Path, sync::mpsc::channel, time::Duration};
@@ -23,6 +24,7 @@ fn generate_project(final_command: String, workspace: String) -> Result<String, 
             .current_dir(&workspace) // run inside workspace
             .arg("/C")
             .arg(&final_command)
+            .creation_flags(0x08000000)
             .output()
     } else {
         Command::new("sh")
@@ -160,7 +162,6 @@ async fn watch_workspace(path: String, app: AppHandle) -> Result<(), String> {
         for res in rx {
             match res {
                 Ok(event) => {
-                    // Filter valid paths
                     let filtered: Vec<String> = event
                         .paths
                         .iter()
@@ -202,7 +203,6 @@ async fn git_command(
     action: String,
     payload: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
-    use std::process::Command;
     let maybe_path = payload["workspace"].as_str();
     let path = match maybe_path {
         Some(p) if !p.trim().is_empty() => p,
@@ -215,6 +215,7 @@ async fn git_command(
         let out = Command::new("git")
             .arg("init")
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
         println!("{}", String::from_utf8_lossy(&out.stdout));
@@ -228,6 +229,7 @@ async fn git_command(
             .arg("status")
             .arg("--porcelain")
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
@@ -291,6 +293,7 @@ async fn git_command(
         let branch_out = Command::new("git")
             .args(["rev-parse", "--abbrev-ref", "HEAD"])
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output();
 
         let branch = match branch_out {
@@ -300,6 +303,7 @@ async fn git_command(
         let origin_out = Command::new("git")
             .args(["remote", "get-url", "origin"])
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .ok();
         let origin = origin_out
@@ -328,6 +332,7 @@ async fn git_command(
         let out = Command::new("git")
             .args(["status", "--porcelain", &file])
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
@@ -370,12 +375,14 @@ async fn git_command(
         let _ = Command::new("git")
             .args(["fetch"])
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output();
 
         // Check commits ahead (to push)
         let ahead = Command::new("git")
             .args(["rev-list", "--count", "@{u}..HEAD"])
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
 
@@ -383,6 +390,7 @@ async fn git_command(
         let behind = Command::new("git")
             .args(["rev-list", "--count", "HEAD..@{u}"])
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
 
@@ -407,6 +415,7 @@ async fn git_command(
             .arg("add")
             .arg(file_path)
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
@@ -429,6 +438,7 @@ async fn git_command(
             .arg("add")
             .arg(".")
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
@@ -450,6 +460,7 @@ async fn git_command(
         let out = Command::new("git")
             .arg("reset")
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
@@ -472,6 +483,7 @@ async fn git_command(
             .arg("restore")
             .arg(file_path)
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
@@ -493,6 +505,7 @@ async fn git_command(
             .arg("restore")
             .arg(".")
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
@@ -516,6 +529,7 @@ async fn git_command(
         let head_exists = Command::new("git")
             .args(["rev-parse", "--verify", "HEAD"])
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map(|out| out.status.success())
             .unwrap_or(false);
@@ -554,6 +568,7 @@ async fn git_command(
             .arg("-m")
             .arg(payload["message"].as_str().unwrap_or(""))
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
@@ -576,6 +591,7 @@ async fn git_command(
             .arg(payload["remote"].as_str().unwrap_or("origin"))
             .arg(payload["branch"].as_str().unwrap_or("master"))
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
@@ -596,6 +612,7 @@ async fn git_command(
         let out = Command::new("git")
             .arg("branch")
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
 
@@ -619,6 +636,7 @@ async fn git_command(
             .arg("-b")
             .arg(payload["name"].as_str().unwrap_or(""))
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
 
@@ -641,6 +659,7 @@ async fn git_command(
             .arg("checkout")
             .arg(payload["name"].as_str().unwrap_or(""))
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
 
@@ -664,6 +683,7 @@ async fn git_command(
             .arg(payload["remote"].as_str().unwrap_or("origin"))
             .arg(payload["branch"].as_str().unwrap_or("master"))
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
@@ -687,6 +707,7 @@ async fn git_command(
             .arg("origin")
             .arg(payload["url"].as_str().unwrap_or(""))
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
@@ -710,6 +731,7 @@ async fn git_command(
             .arg("--graph")
             .arg("--pretty=format:%h|%s|%d")
             .current_dir(path)
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
 
@@ -771,6 +793,7 @@ async fn git_clone(repo_url: String, target_dir: String) -> Result<bool, String>
 
     let output = Command::new("git")
         .args(["clone", &repo_url, &target_dir])
+        .creation_flags(0x08000000)
         .output()
         .map_err(|e| format!("Failed to start git process: {}", e))?;
 
