@@ -61,6 +61,7 @@ interface EditorContextType {
   getSingleFileGitState: (filePath: string) => Promise<"U" | "M" | "A" | "">;
   onSave: (node: FsNode) => Promise<void>;
   normalizeLF: (s: string) => string;
+  ignoreFiles: string[];
 }
 
 const EditorContext = createContext<EditorContextType | undefined>(undefined);
@@ -86,6 +87,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const [repos, setRepos] = useState<GitRepo[] | null>(null);
   const [roots, setRoots] = useState<FsNode[] | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [ignoreFiles, setIgnoreFiles] = useState<string[]>([]);
   const handleOpenFolder = async () => {
     try {
       const selected = await open({
@@ -281,6 +283,15 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
           : f
       )
     );
+    if (node.name === ".gitignore") {
+      const relPaths = normalized
+        .split("\r\n")
+        .map((p) => p.trim())
+        .map((p) => p.startsWith("/") ? p.slice(1) : p)
+        .filter((p) => p.length > 0)
+        .filter((p) => !p.startsWith("#"));
+      setIgnoreFiles([...relPaths]);
+    }
   }
   const handleOpenFile = async () => {
     const path = await open({
@@ -339,6 +350,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         viewRefs,
         getSingleFileGitState,
         onSave,
+        ignoreFiles,
       }}
     >
       {children}

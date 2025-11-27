@@ -8,6 +8,8 @@ import {
   create,
   mkdir,
   remove,
+  readDir,
+  DirEntry,
 } from "@tauri-apps/plugin-fs";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
@@ -59,6 +61,7 @@ const FileSystem = () => {
     setRoots,
     viewRefs,
     setActiveTab,
+    ignoreFiles,
   } = useEditor();
   const { status, refreshStatus } = useGit();
   const rootsRef = useRef<FsNode[] | null>(null);
@@ -71,7 +74,7 @@ const FileSystem = () => {
   const getParentDir = (path: string) => {
     const parts = path.split(/[\\/]/);
     parts.pop();
-    return parts.join("/");
+    return parts.join("\\");
   };
   useEffect(() => {
     reloadWorkspace();
@@ -80,23 +83,22 @@ const FileSystem = () => {
     let buffer: string[] = [];
     let debounceTimer: any = null;
     const processBuffer = async () => {
-      const paths = buffer;
+      const paths = Array.from(new Set(buffer));
       buffer = []; // clear
       if (paths.length === 0) return;
       const uniqueParents = new Set(paths.map(getParentDir));
       let nextRoots = rootsRef.current;
       if (!nextRoots) return;
       for (const dir of uniqueParents) {
-        await refreshSubtreeFast(dir);
+        nextRoots = await refreshSubtree(nextRoots, dir);
+        console.log("Updated roots:", nextRoots);
       }
       setRoots(nextRoots);
     };
     const unlistenPromise = listen("fs-change", (event: any) => {
       const changedPaths: string[] = event.payload;
       if (!Array.isArray(changedPaths) || changedPaths.length === 0) return;
-      // push into buffer
       buffer.push(...changedPaths);
-      // debounce (100ms is good, VS Code uses similar)
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         processBuffer().catch(console.error);
@@ -109,6 +111,73 @@ const FileSystem = () => {
         .catch((e) => console.error("Failed to unlisten fs-change:", e));
     };
   }, [workspace]);
+  async function refreshSubtree(
+    nodes: FsNode[],
+    targetDir: string
+  ): Promise<FsNode[]> {
+    // SPECIAL CASE: refresh workspace root
+    if (targetDir === workspace) {
+      const entries = await readDir(workspace);
+      return sortNodes(await buildMergedChildren(entries, nodes, workspace));
+    }
+    async function update(nodes: FsNode[]): Promise<[FsNode[], boolean]> {
+      let found = false;
+      const result = await Promise.all(
+        nodes.map(async (node) => {
+          // Only skip collapsed nodes (but root handled above)
+          if (!node.expanded) return node;
+          // Direct match → refresh this folder
+          if (node.path === targetDir) {
+            found = true;
+            const entries = await readDir(targetDir);
+            const newChildren = await buildMergedChildren(
+              entries,
+              node.children,
+              targetDir
+            );
+            return {
+              ...node,
+              children: sortNodes(newChildren),
+            };
+          }
+          // Recurse
+          if (node.children) {
+            const [updatedChildren, childFound] = await update(node.children);
+            if (childFound) {
+              found = true;
+              return { ...node, children: updatedChildren };
+            }
+          }
+          return node;
+        })
+      );
+      return [result, found];
+    }
+    const [updated] = await update(nodes);
+    return updated;
+  }
+  /** Merge new directory listing with old node state */
+  async function buildMergedChildren(
+    entries: DirEntry[],
+    oldChildren: FsNode[] | undefined,
+    parentPath: string
+  ): Promise<FsNode[]> {
+    return Promise.all(
+      entries.map(async (e) => {
+        const fullPath = await join(parentPath, e.name);
+
+        const newChild: FsNode = {
+          name: e.name,
+          path: fullPath,
+          isDirectory: e.isDirectory,
+        };
+
+        const old = oldChildren?.find((c) => c.path === newChild.path);
+        // Merge view state (expanded, children, status, etc)
+        return old ? { ...old, ...newChild } : newChild;
+      })
+    );
+  }
   useEffect(() => {
     if (!roots) return;
     rootsRef.current = roots;
@@ -152,26 +221,39 @@ const FileSystem = () => {
     status: GitStatus
   ): Promise<FsNode[]> => {
     const map = await buildGitStatusMap(status);
+
     const apply = async (list: FsNode[]): Promise<FsNode[]> => {
+      if (!workspace) return [];
+
       return Promise.all(
         list.map(async (node) => {
           const norm = await normalize(node.path);
+          const ignored = checkIgnored(node.path);
+          const gitStatus = map.get(norm);
+          // 1) if ignored → no status
+          // 2) if untracked → no status
+          const effectiveStatus =
+            ignored || gitStatus === "U" ? "" : gitStatus ?? "";
+
           const children = node.children
             ? await apply(node.children)
             : undefined;
-          const status = !node.isDirectory
-            ? map.get(norm) ?? ""
-            : children?.some((c) => c.status !== "")
-            ? "M"
-            : "";
+
+          const finalStatus = node.isDirectory
+            ? children?.some((c) => c.status !== "")
+              ? "M"
+              : ""
+            : effectiveStatus;
+
           return {
             ...node,
-            status,
+            status: finalStatus,
             children,
           };
         })
       );
     };
+
     return apply(nodes);
   };
   const buildGitStatusMap = async (status: GitStatus) => {
@@ -188,41 +270,17 @@ const FileSystem = () => {
     ]);
     return map;
   };
-  const refreshSubtreeFast = async (dir: string) => {
-    const node = nodeMapRef.current.get(dir);
-    if (!node || !node.isDirectory || !node.expanded) return;
+  // const refreshSubtreeFast = async (dir: string) => {
+  //   const node = nodeMapRef.current.get(dir);
+  //   if (!node || !node.isDirectory || !node.expanded) return;
 
-    node.children = sortNodes(await loadChildren(node.path));
-    setRoots((prev) => [...prev!]);
-  };
-  // const refreshSubtree = async (
-  //   nodes: FsNode[],
-  //   targetDir: string
-  // ): Promise<FsNode[]> => {
-  //   return Promise.all(
-  //     nodes.map(async (node) => {
-  //       if (!node.expanded) return node;
-  //       if (node.path === targetDir) {
-  //         const entries = await readDir(targetDir);
-  //         const children = await Promise.all(
-  //           entries.map(async (e: DirEntry) => ({
-  //             name: e.name,
-  //             path: await join(targetDir, e.name),
-  //             isDirectory: e.isDirectory,
-  //           }))
-  //         );
-  //         return { ...node, children: sortNodes(children) };
-  //       }
-  //       if (node.children) {
-  //         return {
-  //           ...node,
-  //           children: await refreshSubtree(node.children, targetDir),
-  //         };
-  //       }
-  //       return node;
-  //     })
-  //   );
+  //   node.children = sortNodes(await loadChildren(node.path));
+  //   setRoots((prev) => [...prev!]);
   // };
+  const checkIgnored = (path: string): boolean => {
+    const rel = workspace ? path.slice(workspace.length + 1) : path;
+    return ignoreFiles.some((pattern) => rel.includes(pattern));
+  };
   const handleConfirm = async () => {
     if (!workspace) return;
 
@@ -316,13 +374,9 @@ const FileSystem = () => {
   const toggleExpand = (nodePath: string) => {
     const node = nodeMapRef.current.get(nodePath);
     if (!node || !node.isDirectory) return;
-    // instant visual feedback
     node.expanded = !node.expanded;
-    // trigger minimal rerender
     setRoots((prev: FsNode[] | null) => (prev ? [...prev] : prev));
-    // if already loaded or collapsing → done
     if (node.children || !node.expanded) return;
-    // lazily load children
     loadChildren(nodePath).then((children) => {
       node.children = sortNodes(children);
       setRoots((prev: FsNode[] | null) => (prev ? [...prev] : prev));
@@ -367,8 +421,12 @@ const FileSystem = () => {
             )}
             <div className="flex w-full justify-between items-center">
               <div
-                className={`truncate ${
-                  node.isDirectory && node.status === "M"
+                className={`
+                truncate
+                ${
+                  checkIgnored(node.path)
+                    ? "text-neutral-500"
+                    : node.isDirectory && node.status === "M"
                     ? "text-yellow-200/70"
                     : node.status === "M"
                     ? "text-yellow-500"
@@ -379,10 +437,12 @@ const FileSystem = () => {
                     : node.status === "U"
                     ? "text-orange-500"
                     : ""
-                }`}
+                }
+              `}
               >
                 {node.name}
               </div>
+
               {node.isDirectory ? (
                 <div
                   className={`${
