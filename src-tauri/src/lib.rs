@@ -228,6 +228,7 @@ async fn git_command(
         let out = Command::new("git")
             .arg("status")
             .arg("--porcelain")
+            .arg("--ignored") // <--- IMPORTANT
             .current_dir(path)
             .creation_flags(0x08000000)
             .output()
@@ -244,6 +245,7 @@ async fn git_command(
         let mut staged = vec![];
         let mut unstaged = vec![];
         let mut untracked = vec![];
+        let mut ignored = vec![]; // <---- NEW VECTOR
         for line in text.lines() {
             if line.len() < 3 {
                 continue;
@@ -259,13 +261,11 @@ async fn git_command(
                     } else {
                         "D"
                     };
-
                     staged.push(serde_json::json!({
                         "path": file,
                         "status": status
                     }));
                 }
-
                 " M" | " D" | "MM" | "AM" => {
                     let status = if status_code == " M" {
                         "M"
@@ -284,6 +284,11 @@ async fn git_command(
                     untracked.push(serde_json::json!({
                         "path": file,
                         "status": "U"
+                    }));
+                }
+                "!!" => {
+                    ignored.push(serde_json::json!({
+                        "path": file
                     }));
                 }
 
@@ -319,6 +324,7 @@ async fn git_command(
             "staged": staged,
             "unstaged": unstaged,
             "untracked": untracked,
+            "ignored": ignored,     // <----- HERE IT IS
             "branch": branch,
             "origin": origin
         }));
@@ -538,12 +544,14 @@ async fn git_command(
             Command::new("git")
                 .args(["restore", "--staged", file_path])
                 .current_dir(path)
+                .creation_flags(0x08000000)
                 .output()
         } else {
             // Repo has no commits yet → use rm --cached fallback
             Command::new("git")
                 .args(["rm", "--cached", file_path])
                 .current_dir(path)
+                .creation_flags(0x08000000)
                 .output()
         }
         .map_err(|e| e.to_string())?;
