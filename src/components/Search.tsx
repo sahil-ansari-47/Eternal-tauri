@@ -57,6 +57,27 @@ export default function SearchPanel() {
     return () => clearTimeout(handler);
   }, [query, matchCase, matchWhole, useRegex, workspace]);
 
+  function highlightMatch(text: string, query: string, matchCase: boolean) {
+    if (!query) return text;
+
+    const flags = matchCase ? "g" : "gi";
+    const regex = new RegExp(
+      query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+      flags
+    );
+    return text.split(regex).reduce((acc: React.ReactNode[], part, i, arr) => {
+      acc.push(part);
+      if (i < arr.length - 1) {
+        acc.push(
+          <span key={i} className="bg-neutral-200 text-black px-1 rounded-xs">
+            {text.match(regex)?.[0] ?? query}
+          </span>
+        );
+      }
+      return acc;
+    }, []);
+  }
+
   const toggleFile = (filePath: string) => {
     setExpandedFiles((prev) => ({
       ...prev,
@@ -67,7 +88,10 @@ export default function SearchPanel() {
   const openMatch = (filePath: string, line: number) => {
     if (!openFiles.find((f) => f.path === filePath)) {
       readTextFile(filePath).then((content: string) => {
-        setOpenFiles((prev) => [...prev, { path: filePath, content } as FsNode]);
+        setOpenFiles((prev) => [
+          ...prev,
+          { path: filePath, content } as FsNode,
+        ]);
         setActivePath(filePath);
         if (line !== undefined) {
           setTimeout(() => {
@@ -206,7 +230,7 @@ export default function SearchPanel() {
         </div>
 
         {/* Replace Bar */}
-        <div className="flex items-center gap-2 p-2 border-b border-neutral-300">
+        <div className="flex items-center gap-2 p-2">
           <input
             type="text"
             placeholder="Replace"
@@ -227,14 +251,14 @@ export default function SearchPanel() {
         </div>
 
         {/* Results */}
-        <div className="flex-1 overflow-auto p-2 text-sm">
+        <div className="flex-1 overflow-auto text-sm scrollbar">
           {results.length === 0 && (
-            <div className="text-neutral-500 italic">No results</div>
+            <div className="text-neutral-500 italic p-4">No results</div>
           )}
           {results.map((file) => (
             <div key={file.filePath} className="mb-2">
               <div
-                className="cursor-pointer font-semibold text-neutral-300 hover:text-white flex items-center"
+                className="cursor-pointer font-semibold text-neutral-300 hover:text-white flex items-center px-4"
                 onClick={() => toggleFile(file.filePath)}
               >
                 {expandedFiles[file.filePath] ? (
@@ -245,15 +269,17 @@ export default function SearchPanel() {
                 {file.filePath.replace(workspace + "", "").slice(1)}
               </div>
               {expandedFiles[file.filePath] && (
-                <ul className="ml-5 mt-1 space-y-1">
+                <ul className="mt-1 space-y-1">
                   {file.matches.map((m, i) => (
                     <li
                       key={i}
-                      className="cursor-pointer hover:bg-neutral-700 px-2 py-1 rounded"
+                      className="cursor-pointer hover:bg-neutral-700 py-1 pl-5"
                       onClick={() => openMatch(file.filePath, m.line)}
                     >
                       <span className="text-neutral-400">Line {m.line}:</span>{" "}
-                      <span className="text-neutral-200">{m.text}</span>
+                      <span className="text-neutral-200">
+                        {highlightMatch(m.text, query, matchCase)}
+                      </span>
                     </li>
                   ))}
                 </ul>

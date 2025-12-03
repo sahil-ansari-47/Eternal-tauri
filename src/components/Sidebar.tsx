@@ -1,11 +1,11 @@
 import clsx from "clsx";
-import { useEditor } from "./contexts/EditorContext";
+// import { useEditor } from "./contexts/EditorContext";
 import {
   Files,
   SourceControl,
   Search,
   Messages,
-  Trello,
+  // Trello,
 } from "./svgs/SvgIndex";
 
 const Sidebar = ({
@@ -21,7 +21,7 @@ const Sidebar = ({
   ) => void;
   onSelectRight: (content: "chat" | "assist" | null) => void;
 }) => {
-  const { setActiveTab } = useEditor();
+  // const { setActiveTab } = useEditor();
   return (
     <ul className="flex flex-col items-center gap-3.5 justify-start w-12 h-[calc(100vh-52px)] bg-p5 z-10">
       <li
@@ -69,7 +69,7 @@ const Sidebar = ({
       >
         <Messages active={currentRight === "chat"} />
       </li>
-      <li
+      {/* <li
         className={clsx(
           " px-2 py-2 cursor-pointer"
           // current === "files" && "bg-gray-200"
@@ -77,7 +77,7 @@ const Sidebar = ({
         onClick={() => setActiveTab("Trello")}
       >
         <Trello />
-      </li>
+      </li> */}
       {/* <li
         className=" px-2 py-4"
         onClick={() => onSelect("music")}

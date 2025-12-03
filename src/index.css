@@ -29,7 +29,6 @@
     background-color: rgba(160, 160, 160, 0.7);
   }
   .xterm-screen {
-    padding: 10px;
     box-sizing: border-box;
   }
   .xterm-viewport::-webkit-scrollbar {

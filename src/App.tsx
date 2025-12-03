@@ -68,6 +68,7 @@ const App = () => {
     errorMessage,
     setErrorMessage,
     handleClone,
+    setRecents,
   } = useEditor();
   const {
     leftOpen,
@@ -83,6 +84,8 @@ const App = () => {
   } = useLayout();
   const bufferedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   useEffect(() => {
+    const recents = JSON.parse(localStorage.getItem("recents") || "[]");
+    setRecents(recents);
     if (!isSignedIn || !userData?.username) {
       if (socket.connected) socket.disconnect();
       return;

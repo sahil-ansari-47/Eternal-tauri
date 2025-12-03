@@ -46,6 +46,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     staged: [],
     unstaged: [],
     untracked: [],
+    ignored: [],
     branch: "master",
     origin: "",
   });
@@ -64,17 +65,13 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
   const [error, setError] = useState<GitError | null>(null);
   let origin = "";
   async function refreshStatus() {
+    if (!workspace) return;
     setLoading(true);
     try {
       const payload = await runGit<GitStatus>("status", { workspace });
-      setStatus({
-        staged: payload.staged || [],
-        unstaged: payload.unstaged || [],
-        untracked: payload.untracked || [],
-        branch: payload.branch || "master",
-        origin: payload.origin,
-      });
-      origin = payload.origin || "";
+      const fixed = normalizeGitPayloadPaths(payload);
+      setStatus(fixed);
+      origin = fixed.origin || "";
       setIsInit(true);
     } catch (e: any) {
       setIsInit(false);
@@ -82,6 +79,20 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setLoading(false);
     }
+  }
+  function normalizeGitPayloadPaths(status: GitStatus): GitStatus {
+    const fixSlash = (p: string) => p.replace(/\//g, "\\");
+    return {
+      staged: status.staged.map((f) => ({ ...f, path: fixSlash(f.path) })),
+      unstaged: status.unstaged.map((f) => ({ ...f, path: fixSlash(f.path) })),
+      untracked: status.untracked.map((f) => ({
+        ...f,
+        path: fixSlash(f.path),
+      })),
+      ignored: status.ignored.map((f) => ({ ...f, path: fixSlash(f.path) })),
+      branch: status.branch || "master",
+      origin: status.origin,
+    };
   }
   async function runGit<T>(action: string, payload = {}): Promise<T> {
     try {
@@ -106,6 +117,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     return token;
   };
   async function fetchSyncStatus() {
+    if(!workspace) return;
     setLoading(true);
     try {
       const result = await runGit<{ ahead: number; behind: number }>(
@@ -120,6 +132,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }
   async function handlePush() {
+    if (!workspace) return;
     setLoading(true);
     try {
       await runGit("push", {
@@ -136,6 +149,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }
   async function handleSetRemote(url: string) {
+    if(!workspace) return;
     setLoading(true);
     try {
       await runGit("set-remote", { workspace, url });
@@ -146,7 +160,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     }
   }
-  
+
   const handlePublish = async (name: string, priv: boolean = false) => {
     const token = await getUserAccessToken();
     // localStorage.setItem("token", token);

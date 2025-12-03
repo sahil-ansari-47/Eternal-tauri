@@ -154,6 +154,7 @@ export default function GitPanel() {
     }
   }
   async function handleInit() {
+    if (!workspace) return;
     setLoading(true);
     try {
       await runGit("init", { workspace });
@@ -166,8 +167,8 @@ export default function GitPanel() {
     }
   }
   async function handleStage(gitfile: Gitfile) {
-    setLoading(true);
     if (!workspace) return;
+    setLoading(true);
     try {
       const abspath = await join(workspace, gitfile.path);
       const norm = await normalize(abspath);
@@ -192,8 +193,8 @@ export default function GitPanel() {
     }
   }
   const handleStageAll = async () => {
-    setLoading(true);
     if (!workspace) return;
+    setLoading(true);
     try {
       const openPaths = Object.keys(viewRefs.current);
       let newstatus = [];
@@ -248,6 +249,7 @@ export default function GitPanel() {
     }
   }
   const handleUnstageAll = async () => {
+    if(!workspace) return;
     setLoading(true);
     try {
       await runGit("unstage-all", { workspace });
@@ -269,6 +271,7 @@ export default function GitPanel() {
     }
   };
   async function handlePull() {
+    if(!workspace) return;
     setLoading(true);
     try {
       await runGit("pull", {
@@ -362,7 +365,7 @@ export default function GitPanel() {
   return (
     <div className="h-full bg-primary-sidebar p-2">
       <div className="h-full w-full text-neutral-300 text-sm flex flex-col overflow-hidden border border-neutral-600 rounded-xl">
-        {!isInit ? (
+        {!loading && !isInit ? (
           <div className="flex flex-col justify-center items-center h-full gap-4 px-4">
             <div className="relative">
               <div className="absolute inset-0 bg-git-branch opacity-20 blur-3xl rounded-full" />

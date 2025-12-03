@@ -61,7 +61,6 @@ const FileSystem = () => {
     setRoots,
     viewRefs,
     setActiveTab,
-    ignoreFiles,
   } = useEditor();
   const { status, refreshStatus } = useGit();
   const rootsRef = useRef<FsNode[] | null>(null);
@@ -71,6 +70,8 @@ const FileSystem = () => {
   const [targetNode, setTargetNode] = useState<FsNode | null>(null);
   const [value, setValue] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [ignoredFiles, setIgnoredFiles] = useState(new Set<string>());
+  const [ignoredDirs, setIgnoredDirs] = useState<string[]>([]);
   const getParentDir = (path: string) => {
     const parts = path.split(/[\\/]/);
     parts.pop();
@@ -84,7 +85,7 @@ const FileSystem = () => {
     let debounceTimer: any = null;
     const processBuffer = async () => {
       const paths = Array.from(new Set(buffer));
-      buffer = []; // clear
+      buffer = [];
       if (paths.length === 0) return;
       const uniqueParents = new Set(paths.map(getParentDir));
       let nextRoots = rootsRef.current;
@@ -140,7 +141,6 @@ const FileSystem = () => {
               children: sortNodes(newChildren),
             };
           }
-          // Recurse
           if (node.children) {
             const [updatedChildren, childFound] = await update(node.children);
             if (childFound) {
@@ -171,7 +171,6 @@ const FileSystem = () => {
           path: fullPath,
           isDirectory: e.isDirectory,
         };
-
         const old = oldChildren?.find((c) => c.path === newChild.path);
         // Merge view state (expanded, children, status, etc)
         return old ? { ...old, ...newChild } : newChild;
@@ -194,96 +193,101 @@ const FileSystem = () => {
       clearTimeout(statusDebounceRef.current);
       statusDebounceRef.current = setTimeout(() => {
         refreshStatus();
-      }, 1500);
+      }, 500);
     } else {
       skipNextStatusRefreshRef.current = false;
     }
   }, [roots]);
   useEffect(() => {
     if (!status || !roots) return;
-
     let cancelled = false;
-
-    (async () => {
-      const updated = await applyGitStatusToNodes(roots, status);
+    (() => {
+      const updated = applyGitStatusToNodes(roots, status);
       if (!cancelled) {
         skipNextStatusRefreshRef.current = true;
         setRoots(updated);
       }
     })();
-
     return () => {
       cancelled = true;
     };
   }, [status]);
-  const applyGitStatusToNodes = async (
+  const applyGitStatusToNodes = (
     nodes: FsNode[],
     status: GitStatus
-  ): Promise<FsNode[]> => {
-    const map = await buildGitStatusMap(status);
-
-    const apply = async (list: FsNode[]): Promise<FsNode[]> => {
-      if (!workspace) return [];
-
-      return Promise.all(
-        list.map(async (node) => {
-          const norm = await normalize(node.path);
-          const ignored = checkIgnored(node.path);
-          const gitStatus = map.get(norm);
-          // 1) if ignored → no status
-          // 2) if untracked → no status
-          const effectiveStatus =
-            ignored || gitStatus === "U" ? "" : gitStatus ?? "";
-
-          const children = node.children
-            ? await apply(node.children)
-            : undefined;
-
-          const finalStatus = node.isDirectory
-            ? children?.some((c) => c.status !== "")
-              ? "M"
-              : ""
-            : effectiveStatus;
-
+  ): FsNode[] => {
+    if (!workspace) return [];
+    const map = buildGitStatusMap(status);
+    prepareIgnoredSets(status);
+    function apply(list: FsNode[]): FsNode[] {
+      return list.map((node) => {
+        if (!workspace) return {} as FsNode;
+        const rel = node.path.slice(workspace.length + 1);
+        if (isIgnoredPath(rel)) {
           return {
             ...node,
-            status: finalStatus,
-            children,
+            status: "I",
+            children: node.children,
           };
-        })
-      );
-    };
-
+        }
+        const gitStatus = map.get(node.path) ?? "";
+        let children: FsNode[] | undefined = undefined;
+        if (node.children) {
+          children = apply(node.children);
+        }
+        const finalStatus = node.isDirectory
+          ? children?.some((c) => c.status !== "" && c.status !== "I")
+            ? "M"
+            : ""
+          : gitStatus;
+        return {
+          ...node,
+          status: finalStatus,
+          children,
+        };
+      });
+    }
     return apply(nodes);
   };
-  const buildGitStatusMap = async (status: GitStatus) => {
-    const map = new Map<string, "A" | "M" | "D" | "U">();
-    const add = async (path: string, s: "A" | "M" | "D" | "U") => {
-      if (!workspace) return;
-      const full = await normalize(await join(workspace, path));
-      map.set(full, s);
+  function buildGitStatusMap(status: GitStatus) {
+    const map = new Map<string, "A" | "M" | "D" | "U" | "I">();
+    const add = (path: string, s: "A" | "M" | "D" | "U" | "I") => {
+      map.set(path, s);
     };
-    await Promise.all([
-      ...status.staged.map((f) => add(f.path, f.status === "A" ? "A" : "M")),
-      ...status.unstaged.map((f) => add(f.path, "M")),
-      ...status.untracked.map((f) => add(f.path, "U")),
-    ]);
+    for (const f of status.staged) {
+      add(f.path, f.status === "A" ? "A" : "M");
+    }
+    for (const f of status.unstaged) {
+      add(f.path, "M");
+    }
+    for (const f of status.untracked) {
+      add(f.path, "U");
+    }
+    for (const f of status.ignored) {
+      add(f.path, "I");
+    }
     return map;
-  };
-  // const refreshSubtreeFast = async (dir: string) => {
-  //   const node = nodeMapRef.current.get(dir);
-  //   if (!node || !node.isDirectory || !node.expanded) return;
-
-  //   node.children = sortNodes(await loadChildren(node.path));
-  //   setRoots((prev) => [...prev!]);
-  // };
-  const checkIgnored = (path: string): boolean => {
-    const rel = workspace ? path.slice(workspace.length + 1) : path;
-    return ignoreFiles.some((pattern) => rel.includes(pattern));
-  };
+  }
+  function prepareIgnoredSets(status: GitStatus) {
+    const igf = new Set<string>();
+    const igd: string[] = [];
+    for (const entry of status.ignored) {
+      const rel = entry.path;
+      if (rel.endsWith("\\")) igd.push(rel);
+      else igf.add(rel);
+    }
+    setIgnoredFiles(igf);
+    setIgnoredDirs(igd);
+  }
+  function isIgnoredPath(rel: string) {
+    for (const d of ignoredDirs) {
+      if (rel.startsWith(d.slice(0, -1))) return true;
+    }
+    if (ignoredFiles.has(rel)) return true;
+    return false;
+  }
   const handleConfirm = async () => {
     if (!workspace) return;
-
     if (action === "rename" || action === "newFile" || action === "newFolder") {
       const name = value.trim();
       if (!name) {
@@ -386,16 +390,20 @@ const FileSystem = () => {
     node,
     level = 0,
   }) => {
+    if (!workspace) return;
     return (
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
             key={node.path}
-            className="flex items-center gap-2 py-1 hover:bg-neutral-700 cursor-pointer select-none"
+            className={`flex items-center gap-2 py-1 hover:bg-neutral-700 cursor-pointer ${
+              targetNode?.path === node.path ? "bg-neutral-600" : ""
+            } select-none `}
             style={{ paddingLeft: `${level * 12}px` }}
             onClick={() => {
               if (node.isDirectory) {
                 toggleExpand(node.path);
+                setTargetNode(node);
               } else {
                 handleFileClick(node);
               }
@@ -424,9 +432,7 @@ const FileSystem = () => {
                 className={`
                 truncate
                 ${
-                  checkIgnored(node.path)
-                    ? "text-neutral-500"
-                    : node.isDirectory && node.status === "M"
+                  node.isDirectory && node.status === "M"
                     ? "text-yellow-200/70"
                     : node.status === "M"
                     ? "text-yellow-500"
@@ -436,6 +442,8 @@ const FileSystem = () => {
                     ? "text-red-500"
                     : node.status === "U"
                     ? "text-orange-500"
+                    : isIgnoredPath(node.path.slice(workspace.length + 1))
+                    ? "text-neutral-500"
                     : ""
                 }
               `}
@@ -464,7 +472,7 @@ const FileSystem = () => {
                       : ""
                   }`}
                 >
-                  {node.status}
+                  {node.status !== "I" && node.status !== "" && node.status}
                 </div>
               )}
             </div>
@@ -548,7 +556,7 @@ const FileSystem = () => {
               <div className="text-p6 font-semibold">
                 {workspace.split(/[\\/]/).pop()}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   className="cursor-pointer"
                   onClick={() => {
@@ -557,7 +565,7 @@ const FileSystem = () => {
                   }}
                   title="New File"
                 >
-                  <FilePlus2 className="size-3.5" />
+                  <FilePlus2 className="size-4.5" />
                 </button>
                 <button
                   className="cursor-pointer"
@@ -567,7 +575,7 @@ const FileSystem = () => {
                   }}
                   title="New Folder"
                 >
-                  <FolderPlus className="size-4" />
+                  <FolderPlus className="size-5" />
                 </button>
                 <button
                   className="text-xs text-neutral-300 hover:underline cursor-pointer"
@@ -576,17 +584,18 @@ const FileSystem = () => {
                     setActiveTab("Home");
                     setWorkspace(null);
                     setRoots(null);
+                    setErrorMessage(null);
                   }}
                   title="Close Folder"
                 >
-                  <FolderMinus className="size-4" />
+                  <FolderMinus className="size-5" />
                 </button>
                 <button
                   className="cursor-pointer"
                   onClick={reloadWorkspace}
-                  title="Collapse"
+                  title="Reload"
                 >
-                  <FolderSync className="size-4" />
+                  <FolderSync className="size-5" />
                 </button>
               </div>
             </div>
@@ -595,7 +604,7 @@ const FileSystem = () => {
               {roots === null ? (
                 <div className="text-sm text-gray-500">Loading…</div>
               ) : roots.length === 0 ? (
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-center text-gray-500 px-16 mt-5">
                   The folder you have selected is currently empty.
                 </div>
               ) : (

@@ -23,6 +23,7 @@ export default function Welcome() {
     handleOpenFile,
     setCloneDialogOpen,
     getUserRepos,
+    recents,
   } = useEditor();
 
   const sidebarItems = [
@@ -49,20 +50,14 @@ export default function Welcome() {
     },
   ];
 
-  const recentProjects = [
-    { name: "React Dashboard", language: "TypeScript", date: "2 days ago" },
-    { name: "API Server", language: "Node.js", date: "1 week ago" },
-    { name: "Mobile App", language: "React Native", date: "2 weeks ago" },
-  ];
-
   return (
-    <div className="h-full text-p6 flex">
+    <div className="h-full text-p6 flex max-h-[calc(100vh-52px)]">
       {/* Sidebar */}
-      <aside className="w-64 from-primary-sidebar to-transparent h-full flex flex-col z-10 bg-gradient-to-r">
+      <aside className="w-64 from-primary-sidebar to-transparent flex flex-col z-10 bg-gradient-to-r">
         <div className="p-6 flex items-center gap-3">
           <div className="w-8 h-8 relative">
             <img
-              src="../../src-tauri/icons/logo.png"
+              src="/logo.png"
               alt="IDE Logo"
               width={32}
               height={32}
@@ -104,283 +99,278 @@ export default function Welcome() {
         </div>
       </aside>
       {/* Main Content */}
-      <main className="flex-1 scrollbar overflow-x-hidden w-full">
-        {/* Content Area */}
-        <div className="p-8">
-          {activeTab === "welcome" && (
-            <div className="w-full space-y-12 z-10">
-              {/* Hero Section */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-6">
-                  <div className="w-24 h-24 relative flex-shrink-0">
-                    <img
-                      src="../../src-tauri/icons/logo.png"
-                      alt="IDE Logo"
-                      width={96}
-                      height={96}
-                      className="w-full h-full"
-                    />
-                  </div>
-                  <div className="space-y-3 z-10">
-                    <h2 className="text-4xl font-bold">Welcome to Eternal</h2>
-                    <p className="text-lg text-neutral-400">
-                      A modern IDE built for developers who demand speed,
-                      elegance, and infinite possibilities.
-                    </p>
-                  </div>
+      <main className="flex-1 scrollbar overflow-x-hidden p-8 overflow-y-auto w-full">
+        {activeTab === "welcome" && (
+          <div className="w-full space-y-12 z-10">
+            {/* Hero Section */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-6">
+                <div className="w-24 h-24 relative flex-shrink-0">
+                  <img
+                    src="/logo.png"
+                    alt="IDE Logo"
+                    width={96}
+                    height={96}
+                    className="w-full h-full"
+                  />
+                </div>
+                <div className="space-y-3 z-10">
+                  <h2 className="text-4xl font-bold">Welcome to Eternal</h2>
+                  <p className="text-lg text-neutral-400">
+                    A modern IDE built for developers who demand speed,
+                    elegance, and infinite possibilities.
+                  </p>
                 </div>
               </div>
-              <AnimatePresence mode="wait">
-                {!showFileOptions && !showProjectOptions && (
-                  <motion.div
-                    key="main-sections"
-                    initial={{ opacity: 1, x: 0 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -80 }}
-                    transition={{ duration: 0.05 }}
-                    className="space-y-12"
-                  >
-                    <div className="space-y-4 w-full">
-                      <h3 className="text-lg font-semibold">Quick Actions</h3>
-                      <div className="flex flex-row flex-wrap gap-4 w-full">
-                        <button
-                          onClick={() => setShowFileOptions(true)}
-                          className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-semibold text-lg">
-                              Open a File
-                            </span>
-                          </div>
-                          <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
-                            Create a new file or open an existing one
-                          </p>
-                        </button>
-                        <button
-                          onClick={handleOpenFolder}
-                          className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-semibold text-lg">
-                              Open Folder
-                            </span>
-                          </div>
-                          <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
-                            Create new folder or open an existing one
-                          </p>
-                        </button>
-                        <button
-                          onClick={() => setShowProjectOptions(true)}
-                          className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-semibold text-lg">
-                              New Project
-                            </span>
-                          </div>
-                          <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
-                            Build a new project from templates
-                          </p>
-                        </button>
-                        <button
-                          onClick={() => {
-                            getUserRepos();
-                            setCloneDialogOpen(true);
-                          }}
-                          className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-semibold text-lg">
-                              Clone Repository
-                            </span>
-                          </div>
-                          <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
-                            Clone from Git repository
-                          </p>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Key Features */}
-                    <div className="space-y-4 z-10">
-                      <h3 className="text-lg font-semibold">Key Features</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        {[Code2, Zap, GitBranch, Settings].map((Icon, idx) => (
-                          <div
-                            key={idx}
-                            className="p-4 rounded-lg hover:border-primary transition-colors flex items-start gap-3"
-                          >
-                            <Icon className="w-5 h-5 text-p6 mt-1 flex-shrink-0" />
-                            <div>
-                              <p className="font-medium">
-                                {
-                                  [
-                                    "Intelligent Code",
-                                    "Lightning Fast",
-                                    "Git Integration",
-                                    "Customizable",
-                                  ][idx]
-                                }
-                              </p>
-                              <p className="text-sm text-neutral-300">
-                                {
-                                  [
-                                    "AI-powered autocomplete",
-                                    "Optimized performance",
-                                    "Built-in version control",
-                                    "Personalize your workspace",
-                                  ][idx]
-                                }
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-                {showFileOptions && (
-                  <motion.div
-                    key="file-options"
-                    initial={{ opacity: 0, x: 80 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 80 }}
-                    transition={{ duration: 0.05 }}
-                    className="flex flex-col gap-6 items-start"
-                  >
-                    <h3 className="text-lg font-semibold">File Options</h3>
-                    <div className="flex flex-wrap gap-4">
-                      <button
-                        onClick={handleCreateNewFile}
-                        className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-semibold text-lg">
-                            Create New
-                          </span>
-                        </div>
-                        <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
-                          Create a new file and open in editor
-                        </p>
-                      </button>
-                      <button
-                        onClick={handleOpenFile}
-                        className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-semibold text-lg">
-                            Open Existing
-                          </span>
-                        </div>
-                        <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
-                          Open an existing file and continue editing
-                        </p>
-                      </button>
-                    </div>
-                    <div
-                      className="flex gap-1 underline cursor-pointer"
-                      onClick={() => setShowFileOptions(false)}
-                    >
-                      <ChevronLeft /> Go Back
-                    </div>
-                  </motion.div>
-                )}
-                {showProjectOptions && (
-                  <motion.div
-                    key="project-options"
-                    initial={{ opacity: 0, x: 80 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 80 }}
-                    transition={{ duration: 0.05 }}
-                    className="flex flex-col gap-6 items-start"
-                  >
-                    <h3 className="text-lg font-semibold">Project Templates</h3>
-                    <ProjectTemplates />
-                    <div
-                      onClick={() => setShowProjectOptions(false)}
-                      className="flex gap-1 underline cursor-pointer mt-2"
-                    >
-                      <ChevronLeft /> Go Back
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
-          )}
-          {/* Get Started Tab */}
-          {activeTab === "getstarted" && (
-            <div className="max-w-4xl space-y-8 z-10">
-              <p className="font-semibold pl-4 text-p6 text-2xl">
-                Get the most out of Eternal
-              </p>
-              <div className="grid gap-6">
-                {gettingStartedGuides.map((guide, idx) => {
-                  const Icon = guide.icon;
-                  return (
-                    <div
-                      key={idx}
-                      className="group p-6 rounded-lg w-lg hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-4 flex-1">
-                          <Icon className="w-6 h-6 mt-1 flex-shrink-0" />
+            <AnimatePresence mode="wait">
+              {!showFileOptions && !showProjectOptions && (
+                <motion.div
+                  key="main-sections"
+                  initial={{ opacity: 1, x: 0 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -80 }}
+                  transition={{ duration: 0.05 }}
+                  className="space-y-12"
+                >
+                  <div className="space-y-4 w-full">
+                    <h3 className="text-lg font-semibold">Quick Actions</h3>
+                    <div className="flex flex-row flex-wrap gap-4 w-full">
+                      <button
+                        onClick={() => setShowFileOptions(true)}
+                        className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-lg">
+                            Open a File
+                          </span>
+                        </div>
+                        <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
+                          Create a new file or open an existing one
+                        </p>
+                      </button>
+                      <button
+                        onClick={handleOpenFolder}
+                        className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-lg">
+                            Open Folder
+                          </span>
+                        </div>
+                        <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
+                          Create new folder or open an existing one
+                        </p>
+                      </button>
+                      <button
+                        onClick={() => setShowProjectOptions(true)}
+                        className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-lg">
+                            New Project
+                          </span>
+                        </div>
+                        <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
+                          Build a new project from templates
+                        </p>
+                      </button>
+                      <button
+                        onClick={() => {
+                          getUserRepos();
+                          setCloneDialogOpen(true);
+                        }}
+                        className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-lg">
+                            Clone Repository
+                          </span>
+                        </div>
+                        <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
+                          Clone from Git repository
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Key Features */}
+                  <div className="space-y-4 z-10">
+                    <h3 className="text-lg font-semibold">Key Features</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {[Code2, Zap, GitBranch, Settings].map((Icon, idx) => (
+                        <div
+                          key={idx}
+                          className="p-4 rounded-lg hover:border-primary transition-colors flex items-start gap-3"
+                        >
+                          <Icon className="w-5 h-5 text-p6 mt-1 flex-shrink-0" />
                           <div>
-                            <h3 className="font-semibold text-lg">
-                              {guide.title}
-                            </h3>
-                            <p className="text-neutral-400 group-hover:text-p5 mt-1">
-                              {guide.description}
+                            <p className="font-medium">
+                              {
+                                [
+                                  "Intelligent Code",
+                                  "Lightning Fast",
+                                  "Git Integration",
+                                  "Customizable",
+                                ][idx]
+                              }
+                            </p>
+                            <p className="text-sm text-neutral-300">
+                              {
+                                [
+                                  "AI-powered autocomplete",
+                                  "Optimized performance",
+                                  "Built-in version control",
+                                  "Personalize your workspace",
+                                ][idx]
+                              }
                             </p>
                           </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Recent Tab */}
-          {/* TODO - Add path and symbol */}
-          {activeTab === "recent" && (
-            <div className="max-w-4xl space-y-6">
-              {recentProjects.length > 0 ? (
-                <div className="grid gap-3">
-                  {recentProjects.map((project, idx) => (
-                    <div
-                      key={idx}
-                      className="group p-6 rounded-lg w-lg hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 border border-p6/50 bg-primary-sidebar/70"
+                  </div>
+                </motion.div>
+              )}
+              {showFileOptions && (
+                <motion.div
+                  key="file-options"
+                  initial={{ opacity: 0, x: 80 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 80 }}
+                  transition={{ duration: 0.05 }}
+                  className="flex flex-col gap-6 items-start"
+                >
+                  <h3 className="text-lg font-semibold">File Options</h3>
+                  <div className="flex flex-wrap gap-4">
+                    <button
+                      onClick={handleCreateNewFile}
+                      className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
                     >
-                      <div className="flex items-center gap-4">
-                        <Code2 className="w-5 h-5 flex-shrink-0" />
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-lg">
+                          Create New
+                        </span>
+                      </div>
+                      <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
+                        Create a new file and open in editor
+                      </p>
+                    </button>
+                    <button
+                      onClick={handleOpenFile}
+                      className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-lg">
+                          Open Existing
+                        </span>
+                      </div>
+                      <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
+                        Open an existing file and continue editing
+                      </p>
+                    </button>
+                  </div>
+                  <div
+                    className="flex gap-1 underline cursor-pointer"
+                    onClick={() => setShowFileOptions(false)}
+                  >
+                    <ChevronLeft /> Go Back
+                  </div>
+                </motion.div>
+              )}
+              {showProjectOptions && (
+                <motion.div
+                  key="project-options"
+                  initial={{ opacity: 0, x: 80 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 80 }}
+                  transition={{ duration: 0.05 }}
+                  className="flex flex-col gap-6 items-start"
+                >
+                  <h3 className="text-lg font-semibold">Project Templates</h3>
+                  <ProjectTemplates />
+                  <div
+                    onClick={() => setShowProjectOptions(false)}
+                    className="flex gap-1 underline cursor-pointer mt-2"
+                  >
+                    <ChevronLeft /> Go Back
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+        {/* Get Started Tab */}
+        {activeTab === "getstarted" && (
+          <div className="max-w-4xl space-y-8 z-10">
+            <p className="font-semibold pl-4 text-p6 text-2xl">
+              Get the most out of Eternal
+            </p>
+            <div className="grid gap-6">
+              {gettingStartedGuides.map((guide, idx) => {
+                const Icon = guide.icon;
+                return (
+                  <div
+                    key={idx}
+                    className="group p-6 rounded-lg w-lg hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4 flex-1">
+                        <Icon className="w-6 h-6 mt-1 flex-shrink-0" />
                         <div>
-                          <p className="font-semibold text-lg">
-                            {project.name}
-                          </p>
+                          <h3 className="font-semibold text-lg">
+                            {guide.title}
+                          </h3>
                           <p className="text-neutral-400 group-hover:text-p5 mt-1">
-                            {project.language}
+                            {guide.description}
                           </p>
                         </div>
                       </div>
-                      {/* <div className="text-sm text-muted-foreground">
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Recent Tab */}
+        {/* TODO - Add path and symbol */}
+        {activeTab === "recent" && (
+          <div className="max-w-4xl space-y-6">
+            {recents.length > 0 ? (
+              <div className="grid gap-3">
+                {recents.map((project, idx) => (
+                  <div
+                    key={idx}
+                    className="group p-6 rounded-lg w-lg hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 border border-p6/50 bg-primary-sidebar/70"
+                  >
+                    <div className="flex items-center gap-4">
+                      <Code2 className="w-5 h-5 flex-shrink-0" />
+                      <div>
+                        <p className="font-semibold text-lg">{project.name}</p>
+                        <p className="text-neutral-400 group-hover:text-p5 mt-1">
+                          {project.language}
+                        </p>
+                      </div>
+                    </div>
+                    {/* <div className="text-sm text-muted-foreground">
                         {project.date}
                       </div> */}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="grid">
-                  <div className="text-center py-12 bg-p5/80 rounded-2xl z-10">
-                    <h2 className="text-bold text-lg text-p6 z-10">
-                      No recent projects yet
-                    </h2>
                   </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid">
+                <div className="text-center py-12 bg-p5/80 rounded-2xl z-10">
+                  <h2 className="text-bold text-lg text-p6 z-10">
+                    No recent projects yet
+                  </h2>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );
