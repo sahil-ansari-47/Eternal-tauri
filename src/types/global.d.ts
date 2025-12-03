@@ -2,14 +2,13 @@ export {};
 
 declare global {
   type FsNode = {
-    name: string; //
+    name: string;
     path: string;
     isDirectory: boolean;
     children?: FsNode[];
     content?: string;
     isDirty?: boolean;
-    isIgnored?: boolean;
-    status?: "A" | "M" | "U" | "D" | "";
+    status?: "A" | "M" | "U" | "D" | "I" | "";
     expanded?: boolean;
     loading?: boolean;
   };
@@ -35,7 +34,12 @@ declare global {
     from: string;
     date: Date;
   };
-
+  type Recents = {
+    name: string;
+    path: string;
+    lastOpened: Date;
+    language: string;
+  };
   type Group = {
     room: string;
     roomId: string;
@@ -151,6 +155,7 @@ declare global {
     staged: GitFile[];
     unstaged: GitFile[];
     untracked: GitFile[];
+    ignored: GitFile[];
     branch?: string;
     origin?: string;
   }

@@ -76,14 +76,12 @@ export default function Terminal({ shell }: { shell: string }) {
         return true;
       });
 
-      // Resize handling
       const observer = new ResizeObserver(() => {
         fit.fit();
         pty.resize(term.cols, term.rows);
       });
       observer.observe(containerRef.current!);
 
-      // Cleanup
       return () => {
         observer.disconnect();
         pty.kill();
@@ -98,5 +96,9 @@ export default function Terminal({ shell }: { shell: string }) {
     };
   }, [shell, cwd]);
 
-  return <div ref={containerRef} className="w-full h-full bg-p5" />;
+  return (
+    <div className="p-4 bg-p5 h-full">
+      <div ref={containerRef} className="w-full h-full" />
+    </div>
+  );
 }

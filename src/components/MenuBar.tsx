@@ -155,7 +155,7 @@ export default function MenuBar() {
       <div className="flex items-center gap-0.5">
         <img
           className="size-6"
-          src="../../src-tauri/icons/logo.png"
+          src="/logo.png"
           alt="Logo"
         />
         <div className="text-xs">Eternal - IDE</div>

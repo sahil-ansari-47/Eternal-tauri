@@ -61,7 +61,8 @@ interface EditorContextType {
   getSingleFileGitState: (filePath: string) => Promise<"U" | "M" | "A" | "">;
   onSave: (node: FsNode) => Promise<void>;
   normalizeLF: (s: string) => string;
-  ignoreFiles: string[];
+  recents: Recents[];
+  setRecents: React.Dispatch<React.SetStateAction<Recents[]>>;
 }
 
 const EditorContext = createContext<EditorContextType | undefined>(undefined);
@@ -69,6 +70,7 @@ const EditorContext = createContext<EditorContextType | undefined>(undefined);
 export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const { isSignedIn, getToken } = useAuth();
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const [recents, setRecents] = useState<Recents[]>([]);
   const [workspace, setWorkspace] = useState<string | null>(
     localStorage.getItem("workspacePath")
   );
@@ -87,7 +89,6 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const [repos, setRepos] = useState<GitRepo[] | null>(null);
   const [roots, setRoots] = useState<FsNode[] | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [ignoreFiles, setIgnoreFiles] = useState<string[]>([]);
   const handleOpenFolder = async () => {
     try {
       const selected = await open({
@@ -99,6 +100,15 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       setWorkspace(selected);
       localStorage.setItem("workspacePath", selected);
       setError(null);
+      localStorage.setItem(
+        "recents",
+        JSON.stringify({
+          name: selected.split("/").pop(),
+          path: selected,
+          lastOpened: new Date(),
+          language: "unknown",
+        })
+      );
     } catch (e: any) {
       console.error(e);
       setError(e?.message ?? String(e));
@@ -126,34 +136,19 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       setCloneDialogOpen(false);
       setRepoUrl("");
       setAction(null);
+      localStorage.setItem(
+        "recents",
+        JSON.stringify({
+          name: targetDir.split("/").pop(),
+          path: targetDir,
+          lastOpened: new Date(),
+          language: "unknown",
+        })
+      );
     } catch (err) {
       console.error("Clone failed:", err);
     }
   };
-  // const reloadWorkspace = async () => {
-  //   if (!workspace) return;
-  //   try {
-  //     const entries = await readDir(workspace);
-  //     const nodes: FsNode[] = await Promise.all(
-  //       entries.map(async (e: DirEntry) => ({
-  //         name: e.name,
-  //         path: await join(workspace, e.name),
-  //         isDirectory: e.isDirectory,
-  //       }))
-  //     );
-  //     const sorted = sortNodes(nodes);
-  //     setRoots((prevRoots) => {
-  //       const expandedMap = prevRoots ? preserveExpanded(prevRoots) : {};
-  //       const roots = applyExpanded(sorted, expandedMap);
-  //       return roots;
-  //     });
-  //     refreshStatus();
-  //     setError(null);
-  //   } catch (e: any) {
-  //     console.error(e);
-  //     setError(String(e?.message ?? e));
-  //   }
-  // };
   const reloadWorkspace = async () => {
     if (!workspace) return;
     try {
@@ -283,15 +278,6 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
           : f
       )
     );
-    if (node.name === ".gitignore") {
-      const relPaths = normalized
-        .split("\r\n")
-        .map((p) => p.trim())
-        .map((p) => p.startsWith("/") ? p.slice(1) : p)
-        .filter((p) => p.length > 0)
-        .filter((p) => !p.startsWith("#"));
-      setIgnoreFiles([...relPaths]);
-    }
   }
   const handleOpenFile = async () => {
     const path = await open({
@@ -350,7 +336,8 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         viewRefs,
         getSingleFileGitState,
         onSave,
-        ignoreFiles,
+        recents,
+        setRecents,
       }}
     >
       {children}

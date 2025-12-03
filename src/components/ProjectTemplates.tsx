@@ -101,11 +101,7 @@ export default function ProjectTemplates() {
         }${tags.includes("typescript") ? "-ts" : ""}`;
         break;
       case "Next.js":
-        cmd = `${
-          tags.includes("pnpm") ? "pnpm" : "npm"
-        } create-next-app@latest ${name || "my-next-app"} ${tags
-          .map((t) => `--${t.replace(/\s/g, "-")}`)
-          .join(" ")}`;
+        cmd = `npx create-next-app@latest ${name || "my-next-app"} ${tags.includes("pnpm") ? "--use-pnpm" : ""} ${tags.includes("typescript") ? "--ts" : ""} ${tags.includes("tailwind") ? "--tailwind" : ""} ${tags.includes("eslint") ? "--eslint" : "--no-linter"} ${tags.includes("app router") ? "--app" : ""} ${tags.includes("src") ? "--src-dir" : ""} ${tags.includes("turbopack") ? "--turbopack" : "--webpack"} ${tags.includes("no-git") ? "--no-git" : ""} --skip-install`;
         break;
       case "Vue":
         cmd = `${tags.includes("pnpm") ? "pnpm" : "npm"} create vite@latest ${
