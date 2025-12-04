@@ -230,7 +230,7 @@ const FileSystem = () => {
             children: node.children,
           };
         }
-        const gitStatus = map.get(node.path) ?? "";
+        const gitStatus = map.get(node.path.slice(workspace.length + 1)) ?? "";
         let children: FsNode[] | undefined = undefined;
         if (node.children) {
           children = apply(node.children);

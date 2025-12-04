@@ -19,6 +19,7 @@
     "dialog:allow-open",
     "dialog:allow-save",
     "dialog:allow-message",
+    "dialog:allow-ask",
     "pty:allow-exitstatus",
     "pty:allow-kill",
     "pty:allow-read",

@@ -594,6 +594,7 @@ async fn git_command(
     if action == "push" {
         let out = Command::new("git")
             .arg("push")
+            .arg("-u")
             .arg(payload["remote"].as_str().unwrap_or("origin"))
             .arg(payload["branch"].as_str().unwrap_or("master"))
             .current_dir(path)
@@ -707,11 +708,103 @@ async fn git_command(
         }));
     }
     if action == "set-remote" {
+        let url = payload["url"].as_str().unwrap_or("");
+
+        // Add remote
         let out = Command::new("git")
             .arg("remote")
             .arg("add")
             .arg("origin")
-            .arg(payload["url"].as_str().unwrap_or(""))
+            .arg(url)
+            .current_dir(path)
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        if !out.status.success() {
+            return Err(format!(
+                "Git remote add failed: {}",
+                String::from_utf8_lossy(&out.stderr)
+            ));
+        }
+
+        // 🚨 FETCH remote branches so origin/main exists
+        let fetch = Command::new("git")
+            .arg("fetch")
+            .arg("origin")
+            .current_dir(path)
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        if !fetch.status.success() {
+            return Err(format!(
+                "Git fetch failed: {}",
+                String::from_utf8_lossy(&fetch.stderr)
+            ));
+        }
+
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
+    // if action == "set-remote" {
+    //     let out = Command::new("git")
+    //         .arg("remote")
+    //         .arg("add")
+    //         .arg("origin")
+    //         .arg(payload["url"].as_str().unwrap_or(""))
+    //         .current_dir(path)
+    //         .creation_flags(0x08000000)
+    //         .output()
+    //         .map_err(|e| e.to_string())?;
+
+    //     if !out.status.success() {
+    //         return Err(format!(
+    //             "Git command failed (exit {}): {}\n{}",
+    //             out.status.code().unwrap_or(-1),
+    //             String::from_utf8_lossy(&out.stderr),
+    //             String::from_utf8_lossy(&out.stdout)
+    //         ));
+    //     }
+
+    //     println!("{}", String::from_utf8_lossy(&out.stdout));
+    //     return Ok(serde_json::json!({
+    //         "stdout": String::from_utf8_lossy(&out.stdout),
+    //         "stderr": String::from_utf8_lossy(&out.stderr)
+    //     }));
+    // }
+
+    if action == "set-upstream" {
+        let branch = payload["branch"].as_str().unwrap_or("master");
+        let out = Command::new("git")
+            .arg("branch")
+            .arg(format!("--set-upstream-to=origin/{}", branch))
+            .current_dir(path)
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+        println!("{}", String::from_utf8_lossy(&out.stdout));
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
+    if action == "remove origin" {
+        let out = Command::new("git")
+            .arg("remote")
+            .arg("rm")
+            .arg("origin")
             .current_dir(path)
             .creation_flags(0x08000000)
             .output()

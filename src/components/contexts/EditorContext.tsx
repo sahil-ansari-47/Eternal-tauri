@@ -5,6 +5,7 @@ import { DirEntry, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import { EditorView } from "codemirror";
 import { useAuth } from "@clerk/clerk-react";
+import { useLayout } from "./LayoutContext";
 import {
   preserveExpanded,
   sortNodes,
@@ -69,6 +70,7 @@ const EditorContext = createContext<EditorContextType | undefined>(undefined);
 
 export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const { isSignedIn, getToken } = useAuth();
+  const { leftContent } = useLayout();
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [recents, setRecents] = useState<Recents[]>([]);
   const [workspace, setWorkspace] = useState<string | null>(
@@ -278,6 +280,11 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
           : f
       )
     );
+    if (leftContent === "files") {
+      reloadWorkspace();
+    } else if (leftContent === "git") {
+      refreshStatus();
+    }
   }
   const handleOpenFile = async () => {
     const path = await open({

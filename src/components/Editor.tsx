@@ -81,6 +81,7 @@ export default function Editor() {
       } else {
         await message(`⚠️ File "${node.path}" not found. Skipping save.`, {
           title: "Save Error",
+          kind: "error",
         });
       }
       view.destroy();

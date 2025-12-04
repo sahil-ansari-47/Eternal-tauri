@@ -1,6 +1,7 @@
 import { createContext, useContext, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useUser } from "@clerk/clerk-react";
+import { message } from "@tauri-apps/plugin-dialog";
 interface GitContextType {
   status: GitStatus;
   setStatus: React.Dispatch<React.SetStateAction<GitStatus>>;
@@ -33,6 +34,7 @@ interface GitContextType {
     React.SetStateAction<{ ahead: number; behind: number }>
   >;
   handleSetRemote: (url: string) => Promise<void>;
+  // handleSetUpstream: () => Promise<void>;
   fetchSyncStatus: () => Promise<void>;
   handlePush: () => Promise<void>;
   commitMsg: string;
@@ -72,6 +74,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
       const fixed = normalizeGitPayloadPaths(payload);
       setStatus(fixed);
       origin = fixed.origin || "";
+      console.log("Git status refreshed", origin);
       setIsInit(true);
     } catch (e: any) {
       setIsInit(false);
@@ -96,9 +99,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
   }
   async function runGit<T>(action: string, payload = {}): Promise<T> {
     try {
-      // console.log("Running git command:", action);
       const result = await invoke<T>("git_command", { action, payload });
-      // console.log(result);
       return result;
     } catch (e: any) {
       const err: GitError = new Error(e.message || String(e));
@@ -116,8 +117,19 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     });
     return token;
   };
+  async function checkGithubRepoExists(): Promise<boolean> {
+    const token = await getUserAccessToken();
+    const reponame = workspace?.split("\\").pop();
+    const res = await fetch(
+      `https://api.github.com/repos/${user?.username}/${reponame}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    return res.status === 200;
+  }
   async function fetchSyncStatus() {
-    if(!workspace) return;
+    if (!workspace) return;
     setLoading(true);
     try {
       const result = await runGit<{ ahead: number; behind: number }>(
@@ -143,16 +155,24 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
       await refreshStatus();
       await fetchSyncStatus();
     } catch (e: any) {
+      console.log(e);
       setError(e);
     } finally {
       setLoading(false);
     }
   }
   async function handleSetRemote(url: string) {
-    if(!workspace) return;
+    if (!workspace) return;
+    if (status.origin) return;
     setLoading(true);
     try {
-      await runGit("set-remote", { workspace, url });
+      origin = url;
+      await runGit("set-remote", {
+        workspace,
+        url,
+        branch: status.branch || "master",
+      });
+      await handleSetUpstream();
       await refreshStatus();
     } catch (e: any) {
       setError(e);
@@ -161,11 +181,26 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }
 
+  async function handleSetUpstream() {
+    if (!workspace) return;
+    setLoading(true);
+    try {
+      await runGit("set-upstream", {
+        workspace,
+        branch: status.branch || "master",
+      });
+    } catch (e: any) {
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const handlePublish = async (name: string, priv: boolean = false) => {
+    // const repoexists = await checkGithubRepoExists();
+    // if (!repoexists) {
     const token = await getUserAccessToken();
-    // localStorage.setItem("token", token);
-    console.log(name, token);
-    await fetch("https://api.github.com/user/repos", {
+    await fetch(`https://api.github.com/user/repos`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -179,6 +214,12 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     const remoteUrl = `https://github.com/${user?.username}/${name}.git`;
     await handleSetRemote(remoteUrl);
     await handlePush();
+    // } else {
+    //   message(
+    //     "Cannot Publish: A repository with this name already exists on your GitHub account.",
+    //     { title: "Publish Error", kind: "error" }
+    //   );
+    // }
   };
   return (
     <GitContext.Provider

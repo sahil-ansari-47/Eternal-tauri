@@ -35,6 +35,7 @@ import { useGit } from "./contexts/GitContext";
 import { open as openLink } from "@tauri-apps/plugin-shell";
 import NoWorkspace from "./NoWorkspace";
 import { readTextFile, remove } from "@tauri-apps/plugin-fs";
+import { message, ask } from "@tauri-apps/plugin-dialog";
 export default function GitPanel() {
   const {
     workspace,
@@ -69,9 +70,13 @@ export default function GitPanel() {
   } = useGit();
   const [remotedialogOpen, setRemoteDialogOpen] = useState(false);
   const [createbranchdialogOpen, setCreateBranchDialogOpen] = useState(false);
+  const [removeOriginDialogOpen, setRemoveOriginDialogOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [newbranch, setNewBranch] = useState("");
   const [branches, setBranches] = useState<string[]>([]);
+
+  const showPublishButton = true;
+  // (!status.origin || status.origin === "") && graphData.length > 0;
   async function loadBranches() {
     setLoading(true);
     try {
@@ -108,9 +113,22 @@ export default function GitPanel() {
     if (!branch) return;
     setLoading(true);
     try {
+      if (
+        status.staged.length > 0 ||
+        status.unstaged.length > 0 ||
+        status.untracked.length > 0
+      ) {
+        message(
+          "Please commit or discard your changes before switching branches."
+        );
+        return;
+      }
       await runGit("checkout", { name: branch, workspace });
       await refreshStatus();
       await loadBranches();
+      for (const file of openFiles) {
+        await reloadFileContent({ path: file.path } as Gitfile);
+      }
     } catch (e) {
       console.error("Failed to switch branch:", e);
     } finally {
@@ -126,6 +144,7 @@ export default function GitPanel() {
     setLoading(true);
     try {
       await handleSetRemote(url.trim());
+      setUrl("");
       setRemoteDialogOpen(false);
     } catch (e: any) {
       setError(e.message || "Failed to set remote");
@@ -163,6 +182,7 @@ export default function GitPanel() {
     } catch (e: any) {
       setError(e);
     } finally {
+      setError(null);
       setLoading(false);
     }
   }
@@ -249,7 +269,7 @@ export default function GitPanel() {
     }
   }
   const handleUnstageAll = async () => {
-    if(!workspace) return;
+    if (!workspace) return;
     setLoading(true);
     try {
       await runGit("unstage-all", { workspace });
@@ -271,7 +291,7 @@ export default function GitPanel() {
     }
   };
   async function handlePull() {
-    if(!workspace) return;
+    if (!workspace) return;
     setLoading(true);
     try {
       await runGit("pull", {
@@ -361,6 +381,18 @@ export default function GitPanel() {
       setLoading(false);
     }
   }
+  async function handleRemoveOrigin() {
+    if (!workspace) return;
+    setLoading(true);
+    try {
+      await runGit("remove origin", { workspace });
+      await refreshStatus();
+    } catch (e: any) {
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  }
   if (!workspace) return <NoWorkspace />;
   return (
     <div className="h-full bg-primary-sidebar p-2">
@@ -444,25 +476,35 @@ export default function GitPanel() {
                   Remote
                 </span>
                 {status.origin ? (
-                  <button
-                    onClick={async () => {
-                      try {
-                        const url = status.origin!;
-                        console.log("Opening link:", url);
-                        await openLink(url);
-                      } catch (err) {
-                        console.error("Failed to open link:", err);
-                      }
-                    }}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-p6/10 rounded-full border border-git-remote/30 hover:border-git-remote/60 hover:bg-git-remote/20 transition-colors cursor-pointer group"
-                    title={status.origin}
-                  >
-                    <span className="text-sm font-medium text-git-remote group-hover:underline truncate">
-                      {status.origin
-                        .replace("https://github.com/", "")
-                        .replace(".git", "")}
-                    </span>
-                  </button>
+                  <>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const url = status.origin!;
+                          // console.log("Opening link:", url);
+                          await openLink(url);
+                        } catch (err) {
+                          console.error("Failed to open link:", err);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-p6/10 rounded-full border border-git-remote/30 hover:border-git-remote/60 hover:bg-git-remote/20 transition-colors cursor-pointer group"
+                      title={status.origin}
+                    >
+                      <span className="text-sm font-medium text-git-remote group-hover:underline truncate">
+                        {status.origin
+                          .replace("https://github.com/", "")
+                          .replace(".git", "")}
+                      </span>
+                    </button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setRemoveOriginDialogOpen(true)}
+                      disabled={loading}
+                      className="bg-sidebar-accent hover:bg-sidebar-accent/50 text-sidebar-foreground text-xs px-3 py-1.5 h-auto transition-colors rounded-xl cursor-pointer"
+                    >
+                      Remove Origin
+                    </Button>
+                  </>
                 ) : (
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-p6/80 italic">
@@ -514,11 +556,28 @@ export default function GitPanel() {
                     Clear
                   </Button>
                 </div>
-                {status.origin !== "" ? (
+                {showPublishButton ? (
+                  <Button
+                    onClick={() => handlePublish(workspace.split("\\").pop()!)}
+                    disabled={loading}
+                    className="bg-sidebar-accent hover:bg-sidebar-accent/50 text-sidebar-foreground text-xs px-3 py-1.5 h-auto transition-colors rounded-xl cursor-pointer"
+                  >
+                    Publish this branch
+                  </Button>
+                ) : status.origin ? (
                   <Button
                     onClick={async () => {
-                      await handlePull();
-                      await handlePush();
+                      const syncConfirm = await ask(
+                        "Are you sure you want to push/pull commits to/from remote origin?",
+                        { title: "Confirm Sync", kind: "warning" }
+                      );
+                      if (!syncConfirm) return;
+                      if (syncStatus.behind > 0) {
+                        await handlePull();
+                      }
+                      if (syncStatus.ahead > 0) {
+                        await handlePush();
+                      }
                     }}
                     disabled={
                       loading ||
@@ -554,14 +613,6 @@ export default function GitPanel() {
                         )}
                       </span>
                     )}
-                  </Button>
-                ) : graphData.length > 0 ? (
-                  <Button
-                    onClick={() => handlePublish(workspace.split("\\").pop()!)}
-                    disabled={loading}
-                    className="bg-sidebar-accent hover:bg-sidebar-accent/50 text-sidebar-foreground text-xs px-3 py-1.5 h-auto transition-colors rounded-xl cursor-pointer"
-                  >
-                    Publish to GitHub
                   </Button>
                 ) : null}
               </div>
@@ -923,8 +974,8 @@ export default function GitPanel() {
                     className="cursor-pointer hover:opacity-50"
                     variant="outline"
                     onClick={() => {
-                      setRemoteDialogOpen(false);
                       setUrl("");
+                      setRemoteDialogOpen(false);
                     }}
                     disabled={loading}
                   >
@@ -984,6 +1035,39 @@ export default function GitPanel() {
                     disabled={loading || !newbranch}
                   >
                     {loading ? "Adding..." : "Create Branch"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            {/* Remove Remote Origin Dialog */}
+            <Dialog
+              open={removeOriginDialogOpen}
+              onOpenChange={setRemoveOriginDialogOpen}
+            >
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle className="text-lg">
+                    Are you sure you want to remove the remote origin?
+                  </DialogTitle>
+                </DialogHeader>
+                <DialogFooter className="mt-4">
+                  <Button
+                    className="cursor-pointer hover:opacity-50"
+                    variant="outline"
+                    onClick={() => setRemoveOriginDialogOpen(false)}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="font-medium disabled:opacity-50 text-p6 cursor-pointer border-1 border-neutral-500"
+                    onClick={() => {
+                      setRemoveOriginDialogOpen(false);
+                      handleRemoveOrigin();
+                    }}
+                    disabled={loading}
+                  >
+                    {loading ? "Removing..." : "Remove Origin"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
