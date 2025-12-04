@@ -749,57 +749,59 @@ async fn git_command(
             "stderr": String::from_utf8_lossy(&out.stderr)
         }));
     }
-    // if action == "set-remote" {
-    //     let out = Command::new("git")
-    //         .arg("remote")
-    //         .arg("add")
-    //         .arg("origin")
-    //         .arg(payload["url"].as_str().unwrap_or(""))
-    //         .current_dir(path)
-    //         .creation_flags(0x08000000)
-    //         .output()
-    //         .map_err(|e| e.to_string())?;
-
-    //     if !out.status.success() {
-    //         return Err(format!(
-    //             "Git command failed (exit {}): {}\n{}",
-    //             out.status.code().unwrap_or(-1),
-    //             String::from_utf8_lossy(&out.stderr),
-    //             String::from_utf8_lossy(&out.stdout)
-    //         ));
-    //     }
-
-    //     println!("{}", String::from_utf8_lossy(&out.stdout));
-    //     return Ok(serde_json::json!({
-    //         "stdout": String::from_utf8_lossy(&out.stdout),
-    //         "stderr": String::from_utf8_lossy(&out.stderr)
-    //     }));
-    // }
 
     if action == "set-upstream" {
-        let branch = payload["branch"].as_str().unwrap_or("master");
-        let out = Command::new("git")
-            .arg("branch")
-            .arg(format!("--set-upstream-to=origin/{}", branch))
+        // Step 1: Get the list of all local branches
+        let branch_list = Command::new("git")
+            .args(["branch", "--format=%(refname:short)"])
             .current_dir(path)
             .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
 
-        if !out.status.success() {
+        if !branch_list.status.success() {
             return Err(format!(
-                "Git command failed (exit {}): {}\n{}",
-                out.status.code().unwrap_or(-1),
-                String::from_utf8_lossy(&out.stderr),
-                String::from_utf8_lossy(&out.stdout)
+                "Failed to list branches: {}\n{}",
+                String::from_utf8_lossy(&branch_list.stderr),
+                String::from_utf8_lossy(&branch_list.stdout)
             ));
         }
-        println!("{}", String::from_utf8_lossy(&out.stdout));
+
+        // Step 2: Parse branch names
+        let branches: Vec<String> = String::from_utf8_lossy(&branch_list.stdout)
+            .lines()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        // Step 3: Loop and set upstream for each
+        for branch in branches {
+            let remote_branch = format!("origin/{}", branch);
+            let out = Command::new("git")
+                .arg("branch")
+                .arg(format!("--set-upstream-to={}", &remote_branch))
+                .arg(&branch)
+                .current_dir(path)
+                .creation_flags(0x08000000)
+                .output()
+                .map_err(|e| e.to_string())?;
+
+            if !out.status.success() {
+                return Err(format!(
+                    "Failed to set upstream for branch '{}': {}\n{}",
+                    branch,
+                    String::from_utf8_lossy(&out.stderr),
+                    String::from_utf8_lossy(&out.stdout)
+                ));
+            }
+        }
+
         return Ok(serde_json::json!({
-            "stdout": String::from_utf8_lossy(&out.stdout),
-            "stderr": String::from_utf8_lossy(&out.stderr)
+            "status": "success",
+            "message": "Upstream set for all local branches."
         }));
     }
+
     if action == "remove origin" {
         let out = Command::new("git")
             .arg("remote")

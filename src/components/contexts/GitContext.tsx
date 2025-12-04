@@ -2,9 +2,11 @@ import { createContext, useContext, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useUser } from "@clerk/clerk-react";
 import { message } from "@tauri-apps/plugin-dialog";
+import { useEffect } from "react";
 interface GitContextType {
   status: GitStatus;
   setStatus: React.Dispatch<React.SetStateAction<GitStatus>>;
+  remoteBranchExists: boolean | null;
   graphData: GitGraphNode[];
   setGraphData: React.Dispatch<React.SetStateAction<GitGraphNode[]>>;
   collapsed: { [key: string]: boolean };
@@ -65,7 +67,12 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
   const [isInit, setIsInit] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<GitError | null>(null);
+  const [remoteBranchExists, setRemoteBranchExists] = useState<boolean | null>(
+    null
+  );
+
   let origin = "";
+
   async function refreshStatus() {
     if (!workspace) return;
     setLoading(true);
@@ -74,7 +81,6 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
       const fixed = normalizeGitPayloadPaths(payload);
       setStatus(fixed);
       origin = fixed.origin || "";
-      console.log("Git status refreshed", origin);
       setIsInit(true);
     } catch (e: any) {
       setIsInit(false);
@@ -110,24 +116,37 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
   }
   const getUserAccessToken = async () => {
     const sk = import.meta.env.VITE_BACKEND_SECRET_KEY;
-    console.log(user?.id, sk);
+    // console.log(user?.id, sk);
     const token = await invoke<string>("get_user_access_token", {
       userId: user?.id,
       sk,
     });
     return token;
   };
-  async function checkGithubRepoExists(): Promise<boolean> {
+
+  async function checkRemoteBranchExists(): Promise<boolean> {
     const token = await getUserAccessToken();
     const reponame = workspace?.split("\\").pop();
+    const branch = status.branch;
+
     const res = await fetch(
-      `https://api.github.com/repos/${user?.username}/${reponame}`,
+      `https://api.github.com/repos/${user?.username}/${reponame}/branches/${branch}`,
       {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github.v3+json",
+        },
       }
     );
+
     return res.status === 200;
   }
+
+  useEffect(() => {
+    if (status.branch) {
+      checkRemoteBranchExists().then(setRemoteBranchExists);
+    }
+  }, [status.branch, status.origin]);
   async function fetchSyncStatus() {
     if (!workspace) return;
     setLoading(true);
@@ -149,13 +168,17 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       await runGit("push", {
         workspace,
-        remote: origin,
+        remote: origin || "origin",
         branch: status.branch || "master",
       });
       await refreshStatus();
       await fetchSyncStatus();
     } catch (e: any) {
       console.log(e);
+      message(
+        "Cannot Push: You are not authorised to push changes to this repository. Ask the repository owner for access.",
+        { title: "Push Error", kind: "error" }
+      );
       setError(e);
     } finally {
       setLoading(false);
@@ -187,7 +210,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       await runGit("set-upstream", {
         workspace,
-        branch: status.branch || "master",
+        // branch: status.branch || "master",
       });
     } catch (e: any) {
       setError(e);
@@ -197,34 +220,37 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const handlePublish = async (name: string, priv: boolean = false) => {
-    // const repoexists = await checkGithubRepoExists();
-    // if (!repoexists) {
-    const token = await getUserAccessToken();
-    await fetch(`https://api.github.com/user/repos`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github.v3+json",
-      },
-      body: JSON.stringify({
-        name: name,
-        private: priv,
-      }),
-    });
-    const remoteUrl = `https://github.com/${user?.username}/${name}.git`;
-    await handleSetRemote(remoteUrl);
-    await handlePush();
-    // } else {
-    //   message(
-    //     "Cannot Publish: A repository with this name already exists on your GitHub account.",
-    //     { title: "Publish Error", kind: "error" }
-    //   );
-    // }
+    const remotebranchexists = await checkRemoteBranchExists();
+    if (!remotebranchexists) {
+      const token = await getUserAccessToken();
+      await fetch(`https://api.github.com/user/repos`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+        body: JSON.stringify({
+          name: name,
+          private: priv,
+        }),
+      });
+      const remoteUrl = `https://github.com/${user?.username}/${name}.git`;
+      await handleSetRemote(remoteUrl);
+      setRemoteBranchExists(true);
+      await refreshStatus();
+      await handlePush();
+    } else {
+      message(
+        "Cannot Publish: A repository with this branch name already exists on your GitHub account.",
+        { title: "Publish Error", kind: "error" }
+      );
+    }
   };
   return (
     <GitContext.Provider
       value={{
         status,
+        remoteBranchExists,
         setStatus,
         loading,
         setLoading,

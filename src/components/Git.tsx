@@ -49,6 +49,7 @@ export default function GitPanel() {
   } = useEditor();
   const {
     status,
+    remoteBranchExists,
     error,
     setError,
     loading,
@@ -75,8 +76,9 @@ export default function GitPanel() {
   const [newbranch, setNewBranch] = useState("");
   const [branches, setBranches] = useState<string[]>([]);
 
-  const showPublishButton = true;
-  // (!status.origin || status.origin === "") && graphData.length > 0;
+  const showPublishButton =
+    graphData.length > 0 && (!status.origin || remoteBranchExists === false);
+
   async function loadBranches() {
     setLoading(true);
     try {
