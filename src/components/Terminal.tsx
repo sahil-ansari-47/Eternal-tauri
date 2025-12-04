@@ -1,104 +1,33 @@
-import { useEffect, useRef } from "react";
-import { Terminal as XTerm } from "@xterm/xterm";
-import { FitAddon } from "@xterm/addon-fit";
-import { WebLinksAddon } from "@xterm/addon-web-links";
-import { SearchAddon } from "@xterm/addon-search";
-import "@xterm/xterm/css/xterm.css";
-import { spawn } from "tauri-pty";
-import { open as openLink } from "@tauri-apps/plugin-shell";
+// src/components/Terminal.tsx
+import { useEffect } from "react";
+import ReactDOM from "react-dom";
+import type { Terminal as XTerm } from "@xterm/xterm";
+import type { FitAddon } from "@xterm/addon-fit";
 
-export default function Terminal({ shell }: { shell: string }) {
-  const cwd = localStorage.getItem("workspacePath") || "/";
-  const containerRef = useRef<HTMLDivElement>(null);
-  const termRef = useRef<XTerm | null>(null);
-  const fitRef = useRef<FitAddon | null>(null);
-  const ptyRef = useRef<Awaited<ReturnType<typeof spawn>> | null>(null);
-
+export default function Terminal({
+  term,
+  fit,
+  container,
+}: {
+  term: XTerm;
+  fit: FitAddon;
+  container: HTMLDivElement;
+}) {
   useEffect(() => {
-    const term = new XTerm({
-      fontFamily: "Menlo, monospace",
-      fontSize: 14,
-      cursorBlink: true,
-      convertEol: true,
-      theme: {
-        background: "hsl(240, 5.9%, 10%)",
-      },
-    });
+    // Terminal already mounted? Skip.
+    if ((container as any)._mounted) return;
 
-    const fit = new FitAddon();
-    const search = new SearchAddon();
-
-    const links = new WebLinksAddon(async (event, uri) => {
-      const isMeta = event.metaKey || event.ctrlKey;
-      if (isMeta) {
-        await openLink(uri);
-      }
-    });
-
-    term.loadAddon(fit);
-    term.loadAddon(search);
-    term.loadAddon(links);
-    term.open(containerRef.current!);
+    term.open(container);
     fit.fit();
-    const start = async () => {
-      const pty = spawn(shell, [], {
-        cols: term.cols,
-        rows: term.rows,
-        cwd,
-      });
-      ptyRef.current = pty;
+    term.focus();
 
-      // PTY → Terminal
-      pty.onData((data) => term.write(data));
+    const observer = new ResizeObserver(() => fit.fit());
+    observer.observe(container);
 
-      // Terminal → PTY
-      term.onData((data) => pty.write(data));
+    (container as any)._mounted = true;
 
-      term.attachCustomKeyEventHandler((e) => {
-        // Ctrl/Cmd + C → copy
-        if ((e.ctrlKey || e.metaKey) && e.key === "c") {
-          const selection = term.getSelection();
-          if (selection) {
-            navigator.clipboard.writeText(selection);
-            term.clearSelection();
-            return false;
-          }
-        }
-        // Ctrl/Cmd + F → find
-        if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-          const query = prompt("Find text:");
-          if (query) {
-            search.findNext(query);
-          }
-          return false;
-        }
+    return () => observer.disconnect();
+  }, [container, term]);
 
-        return true;
-      });
-
-      const observer = new ResizeObserver(() => {
-        fit.fit();
-        pty.resize(term.cols, term.rows);
-      });
-      observer.observe(containerRef.current!);
-
-      return () => {
-        observer.disconnect();
-        pty.kill();
-        term.dispose();
-      };
-    };
-    const cleanupPromise = start();
-    termRef.current = term;
-    fitRef.current = fit;
-    return () => {
-      cleanupPromise.then((cleanup) => cleanup?.());
-    };
-  }, [shell, cwd]);
-
-  return (
-    <div className="p-4 bg-p5 h-full">
-      <div ref={containerRef} className="w-full h-full" />
-    </div>
-  );
+  return ReactDOM.createPortal(<></>, container);
 }

@@ -170,6 +170,13 @@ declare global {
     code?: string;
     details?: string;
   }
+  type Tab = {
+    id: string;
+    title: string;
+    term: XTerm;
+    fit: FitAddon;
+    pty: Awaited<ReturnType<typeof spawn>>;
+  };
   interface Window {
     chatAPI: {
       logMessage: (message: Message) => void;
