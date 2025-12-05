@@ -36,7 +36,6 @@ interface GitContextType {
     React.SetStateAction<{ ahead: number; behind: number }>
   >;
   handleSetRemote: (url: string) => Promise<void>;
-  // handleSetUpstream: () => Promise<void>;
   fetchSyncStatus: () => Promise<void>;
   handlePush: () => Promise<void>;
   commitMsg: string;
@@ -195,23 +194,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
         url,
         branch: status.branch || "master",
       });
-      await handleSetUpstream();
       await refreshStatus();
-    } catch (e: any) {
-      setError(e);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleSetUpstream() {
-    if (!workspace) return;
-    setLoading(true);
-    try {
-      await runGit("set-upstream", {
-        workspace,
-        // branch: status.branch || "master",
-      });
     } catch (e: any) {
       setError(e);
     } finally {
@@ -236,12 +219,13 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
       });
       const remoteUrl = `https://github.com/${user?.username}/${name}.git`;
       await handleSetRemote(remoteUrl);
+      await fetchSyncStatus();
       setRemoteBranchExists(true);
-      await refreshStatus();
       await handlePush();
+      await refreshStatus();
     } else {
       message(
-        "Cannot Publish: A repository with this branch name already exists on your GitHub account.",
+        "Cannot Publish: This repository with this branch name already exists on your GitHub account.",
         { title: "Publish Error", kind: "error" }
       );
     }

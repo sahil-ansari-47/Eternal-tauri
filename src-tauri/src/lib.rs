@@ -378,6 +378,7 @@ async fn git_command(
         // First fetch to update remote refs
         let _ = Command::new("git")
             .args(["fetch"])
+            // .arg("origin")
             .current_dir(path)
             .creation_flags(0x08000000)
             .output();
@@ -743,15 +744,6 @@ async fn git_command(
                 String::from_utf8_lossy(&fetch.stderr)
             ));
         }
-
-        return Ok(serde_json::json!({
-            "stdout": String::from_utf8_lossy(&out.stdout),
-            "stderr": String::from_utf8_lossy(&out.stderr)
-        }));
-    }
-
-    if action == "set-upstream" {
-        // Step 1: Get the list of all local branches
         let branch_list = Command::new("git")
             .args(["branch", "--format=%(refname:short)"])
             .current_dir(path)
