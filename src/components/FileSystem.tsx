@@ -56,6 +56,7 @@ const FileSystem = () => {
     setDialogOpen,
     errorMessage,
     setErrorMessage,
+    activeFile,
     setActiveFile,
     setOpenFiles,
     reloadWorkspace,
@@ -63,15 +64,15 @@ const FileSystem = () => {
     setRoots,
     viewRefs,
     setActiveTab,
+    targetNode,
+    setTargetNode,
   } = useEditor();
   const { status, refreshStatus } = useGit();
   const rootsRef = useRef<FsNode[] | null>(null);
   const nodeMapRef = useRef(new Map<string, FsNode>());
   const statusDebounceRef = useRef<any>(null);
   const skipNextStatusRefreshRef = useRef(false);
-  const [targetNode, setTargetNode] = useState<FsNode | null>(null);
   const [value, setValue] = useState("");
-
   const [ignoredFiles, setIgnoredFiles] = useState(new Set<string>());
   const [ignoredDirs, setIgnoredDirs] = useState<string[]>([]);
   const getParentDir = (path: string) => {
@@ -344,12 +345,6 @@ const FileSystem = () => {
         handleOpenFile({
           name: value.trim(),
           path,
-          isDirectory: false,
-          status: "U",
-        } as FsNode);
-        setActiveFile({
-          name: value.trim(),
-          path,
           content: "",
           isDirectory: false,
           status: "U",
@@ -378,6 +373,7 @@ const FileSystem = () => {
     }
   };
   const handleOpenFile = (node: FsNode) => {
+    setActiveTab("Editor");
     setActiveFile(node);
     setOpenFiles((prev) =>
       prev.find((f) => f.path === node.path) ? prev : [...prev, node]
@@ -405,7 +401,11 @@ const FileSystem = () => {
           <div
             key={node.path}
             className={`flex items-center gap-2 py-1 hover:bg-neutral-700 cursor-pointer ${
-              targetNode?.path === node.path ? "bg-neutral-600" : ""
+              targetNode?.path === node.path
+                ? "bg-neutral-500"
+                : activeFile?.path === node.path
+                ? "bg-neutral-700"
+                : ""
             } select-none `}
             style={{ paddingLeft: `${level * 12}px` }}
             onClick={() => {
@@ -491,8 +491,8 @@ const FileSystem = () => {
             <>
               <ContextMenuItem
                 onClick={() => {
-                  setAction("newFile");
                   setTargetNode(node);
+                  setAction("newFile");
                   setDialogOpen(true);
                 }}
               >

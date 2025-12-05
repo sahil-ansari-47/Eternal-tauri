@@ -1,6 +1,8 @@
+import { useLayout } from "./contexts/LayoutContext";
 import Messaging from "./Messaging";
-const RightPanel = ({ content }: { content: "chat" | "assist" | null }) => {
-  switch (content) {
+const RightPanel = () => {
+  const { rightContent } = useLayout();
+  switch (rightContent) {
     case "chat":
       return <Messaging />;
     case "assist":

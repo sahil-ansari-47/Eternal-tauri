@@ -28,6 +28,7 @@ import {
   Minus,
   Link,
   GitCommit,
+  Trash2,
 } from "lucide-react";
 import { join, normalize } from "@tauri-apps/api/path";
 import { useEditor } from "./contexts/EditorContext";
@@ -46,6 +47,7 @@ export default function GitPanel() {
     viewRefs,
     onSave,
     getSingleFileGitState,
+    setTargetNode,
   } = useEditor();
   const {
     status,
@@ -479,9 +481,9 @@ export default function GitPanel() {
                       variant="secondary"
                       onClick={() => setRemoveOriginDialogOpen(true)}
                       disabled={loading}
-                      className="bg-sidebar-accent hover:bg-sidebar-accent/50 text-sidebar-foreground text-xs px-3 py-1.5 h-auto transition-colors rounded-xl cursor-pointer"
+                      className="bg-sidebar-accent hover:bg-sidebar-accent/50 p-1 transition-colors rounded-sm cursor-pointer"
                     >
-                      Remove Origin
+                      <Trash2 size={20} />
                     </Button>
                   </>
                 ) : (
@@ -562,36 +564,36 @@ export default function GitPanel() {
                       loading ||
                       (syncStatus.ahead === 0 && syncStatus.behind === 0)
                     }
-                    className={`bg-git-branch hover:bg-git-branch/90 text-git-branch-fg text-xs px-3 py-1.5 h-auto font-medium transition-colors flex items-center gap-1.5 ${
+                    className={`bg-transparent text-black hover:text-white text-xs px-3 py-1.5 h-auto font-medium transition-colors flex items-center gap-1.5 ${
                       syncStatus.ahead === 0 && syncStatus.behind === 0
-                        ? "opacity-50 cursor-not-allowed"
-                        : "cursor-pointer"
+                        ? "cursor-not-allowed"
+                        : "bg-p6 cursor-pointer"
                     }`}
                   >
-                    <RefreshCcw
-                      className={`w-3 h-3 ${loading ? "animate-spin" : ""}`}
-                    />
-                    <span>
-                      {syncStatus.ahead === 0 && syncStatus.behind === 0
-                        ? "Synced"
-                        : "Sync"}
-                    </span>
-                    {(syncStatus.ahead > 0 || syncStatus.behind > 0) && (
-                      <span className="flex items-center gap-0.5 text-xs ml-1 bg-sidebar-accent/40 px-1.5 py-0.5 rounded">
-                        {syncStatus.ahead > 0 && (
-                          <span className="flex items-center gap-0.5">
-                            <ArrowUpFromDot className="w-3 h-3" />
-                            {syncStatus.ahead}
-                          </span>
-                        )}
-                        {syncStatus.behind > 0 && (
-                          <span className="flex items-center gap-0.5 ml-1">
-                            <ArrowDownToDot className="w-3 h-3" />
-                            {syncStatus.behind}
-                          </span>
-                        )}
+                    <span
+                      className={`flex items-center gap-0.5 text-xs ml-1 px-1.5 py-1 rounded`}
+                    >
+                      <RefreshCcw
+                        className={`w-3 h-3 ${loading ? "animate-spin" : ""}`}
+                      />
+                      <span className="mr-1">
+                        {syncStatus.ahead === 0 && syncStatus.behind === 0
+                          ? "Synced"
+                          : "Sync"}
                       </span>
-                    )}
+                      {syncStatus.ahead > 0 && (
+                        <span className="flex items-center gap-0.5">
+                          <ArrowUpFromDot className="w-3 h-3" />
+                          {syncStatus.ahead}
+                        </span>
+                      )}
+                      {syncStatus.behind > 0 && (
+                        <span className="flex items-center gap-0.5 ml-1">
+                          <ArrowDownToDot className="w-3 h-3" />
+                          {syncStatus.behind}
+                        </span>
+                      )}
+                    </span>
                   </Button>
                 ) : null}
               </div>
@@ -819,6 +821,12 @@ export default function GitPanel() {
                                               { path, content } as FsNode,
                                             ]
                                       );
+                                      setTargetNode({
+                                        path: file.path
+                                          .split("\\")
+                                          .slice(0, -1)
+                                          .join("\\"),
+                                      } as FsNode);
                                     }}
                                   >
                                     <span className="truncate text-orange-500/50">
@@ -853,6 +861,12 @@ export default function GitPanel() {
                                                   { path, content } as FsNode,
                                                 ]
                                           );
+                                          setTargetNode({
+                                            path: file.path
+                                              .split("\\")
+                                              .slice(0, -1)
+                                              .join("\\"),
+                                          } as FsNode);
                                         }}
                                         title="Open file"
                                       >

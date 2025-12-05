@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 interface LayoutContextType {
   leftOpen: boolean;
@@ -18,9 +18,13 @@ interface LayoutContextType {
 const LayoutContext = createContext<LayoutContextType | null>(null);
 
 export const LayoutProvider = ({ children }: { children: React.ReactNode }) => {
+  const workspace = localStorage.getItem("workspacePath");
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
   const [downOpen, setDownOpen] = useState(false);
+  useEffect(() => {
+    setLeftOpen(true);
+  }, [workspace])
   const [leftContent, setLeftContent] = useState<
     "files" | "search" | "git" | "db"
   >("files");

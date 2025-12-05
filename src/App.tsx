@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   Dialog,
@@ -70,18 +70,8 @@ const App = () => {
     handleClone,
     setRecents,
   } = useEditor();
-  const {
-    leftOpen,
-    setLeftOpen,
-    rightOpen,
-    setRightOpen,
-    downOpen,
-    setDownOpen,
-    leftContent,
-    setLeftContent,
-    rightContent,
-    setRightContent,
-  } = useLayout();
+  const { leftOpen, rightOpen, downOpen, setDownOpen } =
+    useLayout();
   const bufferedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   useEffect(() => {
     const recents = JSON.parse(localStorage.getItem("recents") || "[]");
@@ -259,19 +249,16 @@ const App = () => {
     setIncomingFrom(null);
     setPendingOffer(null);
   };
-  const togglePanel = useCallback(() => {
-    setDownOpen((prev) => !prev);
-  }, []);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === "`") {
         e.preventDefault();
-        togglePanel();
+        setDownOpen((prev) => !prev);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [togglePanel]);
+  }, [downOpen]);
   return (
     <>
       <div className="divide-y divide-neutral-700">
@@ -281,28 +268,7 @@ const App = () => {
             direction="horizontal"
             className="flex divide-x-[1px] divide-neutral-700"
           >
-            <Sidebar
-              current={leftContent}
-              onSelect={(content) => {
-                if (content === leftContent) {
-                  setLeftOpen((prev) => !prev);
-                  setLeftContent(null);
-                } else {
-                  setLeftContent(content);
-                  setLeftOpen(true);
-                }
-              }}
-              currentRight={rightContent}
-              onSelectRight={(content) => {
-                if (content === rightContent) {
-                  setRightOpen((prev) => !prev);
-                  setRightContent(null);
-                } else {
-                  setRightContent(content);
-                  setRightOpen(true);
-                }
-              }}
-            />
+            <Sidebar />
             {leftOpen && (
               <>
                 <Panel
@@ -311,7 +277,7 @@ const App = () => {
                   order={1}
                   className="h-[calc(100vh-52px)] z-10"
                 >
-                  <LeftPanel content={leftContent} />
+                  <LeftPanel />
                 </Panel>
                 <PanelResizeHandle />{" "}
               </>
@@ -333,7 +299,7 @@ const App = () => {
                   <>
                     <PanelResizeHandle />
                     <Panel defaultSize={35} order={2} className="z-10">
-                      <BottomPanel togglePanel={setDownOpen} />
+                      <BottomPanel />
                     </Panel>
                   </>
                 )}
@@ -348,7 +314,7 @@ const App = () => {
                   order={3}
                   className="h-[calc(100vh-52px)] z-10"
                 >
-                  <RightPanel content={rightContent} />
+                  <RightPanel />
                 </Panel>
               </>
             )}

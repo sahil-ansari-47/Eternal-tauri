@@ -11,8 +11,6 @@ import {
   sortNodes,
   buildPrevMap,
   mergeWithPrev,
-  // readTree,
-  // applyExpanded
 } from "../../utils/fsfunc";
 import { readDir } from "@tauri-apps/plugin-fs";
 import { useGit } from "./GitContext";
@@ -65,8 +63,9 @@ interface EditorContextType {
   dialogOpen: boolean;
   setDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setRecents: React.Dispatch<React.SetStateAction<Recents[]>>;
+  targetNode: FsNode | null;
+  setTargetNode: React.Dispatch<React.SetStateAction<FsNode | null>>;
 }
-
 const EditorContext = createContext<EditorContextType | undefined>(undefined);
 
 export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
@@ -82,6 +81,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const [cloneMethod, setCloneMethod] = useState<"github" | "link">("link");
   const [openFiles, setOpenFiles] = useState<FsNode[]>([]);
   const [activeFile, setActiveFile] = useState<FsNode | null>(null);
+  const [targetNode, setTargetNode] = useState<FsNode | null>(null);
   const [query, setQuery] = useState("");
   const [tabList, setTabList] = useState<string[]>(["Home", "Trello"]);
   const [activeTab, setActiveTab] = useState("Home");
@@ -200,15 +200,23 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         title: "Create new file",
         filters: [{ name: "All Files", extensions: ["*"] }],
       });
+
       if (!path) return;
 
       const content = "";
+      // 🔥 Actually create the file on disk
+      await writeTextFile(path, content);
+      // Update React state
+      setActiveTab("Editor");
       setActiveFile({ path, content } as FsNode);
       setOpenFiles((prev) =>
         prev.find((f) => f.path === path)
           ? prev
           : [...prev, { path, content } as FsNode]
       );
+      setTargetNode({
+        path: path.split("\\").slice(0, -1).join("\\"),
+      } as FsNode);
       console.log(`✅ Created new file at ${path}`);
     } catch (err) {
       console.error("Error creating new file:", err);
@@ -349,6 +357,8 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         onSave,
         recents,
         setRecents,
+        targetNode,
+        setTargetNode,
       }}
     >
       {children}

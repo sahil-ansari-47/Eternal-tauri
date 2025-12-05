@@ -11,7 +11,7 @@ import { Minus, Square, Copy, X, Home, Video, Code } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useEditor } from "./contexts/EditorContext";
 import { message, save } from "@tauri-apps/plugin-dialog";
-import { exists } from "@tauri-apps/plugin-fs";
+import { exists, remove } from "@tauri-apps/plugin-fs";
 import { useLayout } from "./contexts/LayoutContext";
 import { useGit } from "./contexts/GitContext";
 import { useMessage } from "./contexts/MessageContext";
@@ -81,10 +81,12 @@ export default function MenuBar() {
       className="flex items-center justify-between bg-p5 text-neutral-300 h-8 px-1 select-none"
     >
       {/* LEFT MENUBAR */}
-      <Menubar className="bg-p5 border-none text-neutral-200 h-8 flex">
+      <Menubar className="bg-p5 border-none text-neutral-200 h-7 flex">
         {/* FILE MENU */}
         <MenubarMenu>
-          <MenubarTrigger className="px-2 font-normal">File</MenubarTrigger>
+          <MenubarTrigger className="px-2 font-normal hover:bg-neutral-600 ">
+            File
+          </MenubarTrigger>
           <MenubarContent className="bg-p5 border border-neutral-700 text-gray-200">
             <MenubarItem
               onClick={() => {
@@ -128,18 +130,52 @@ export default function MenuBar() {
             </MenubarItem>
             <MenubarItem
               disabled={!activeFile}
-              onClick={async () =>
-                activeFile && save(buildSaveOptions(activeFile))
-              }
+              onClick={async () => {
+                if (!activeFile) return;
+                const fileExists = await exists(activeFile.path);
+                const file = openFiles.find((f) => f.path === activeFile.path);
+                const view = viewRefs.current[activeFile.path];
+                if (!view) return;
+                if (fileExists && file) {
+                  const newPath = await save(buildSaveOptions(activeFile));
+                  await remove(activeFile.path);
+                  if (newPath) file.path = newPath;
+                  file.content = view.state.doc.toString();
+                  await onSave(file);
+                } else {
+                  await message(
+                    `Cannot save: file "${activeFile.path}" does not exist.`
+                  );
+                }
+              }}
             >
               Save As
+            </MenubarItem>
+            <MenubarItem
+              disabled={!activeFile}
+              onClick={async () => {
+                const openPaths = Object.keys(viewRefs.current);
+                for (const fullPath of openPaths) {
+                  const ref = viewRefs.current[fullPath];
+                  if (!ref) continue;
+                  const content = ref.state.doc.toString();
+                  await onSave({
+                    path: fullPath,
+                    content,
+                  } as FsNode);
+                }
+              }}
+            >
+              Save All
             </MenubarItem>
             <MenubarItem onClick={() => appWindow.close()}>Exit</MenubarItem>
           </MenubarContent>
         </MenubarMenu>
         {/* EDIT MENU */}
         <MenubarMenu>
-          <MenubarTrigger className="px-2 font-normal">Edit</MenubarTrigger>
+          <MenubarTrigger className="px-2 font-normal hover:bg-neutral-600">
+            Edit
+          </MenubarTrigger>
           <MenubarContent className="bg-p5 border border-neutral-700 text-gray-200">
             <MenubarItem disabled>Undo</MenubarItem>
             <MenubarItem disabled>Redo</MenubarItem>
@@ -150,7 +186,9 @@ export default function MenuBar() {
         </MenubarMenu>
         {/* VIEW MENU */}
         <MenubarMenu>
-          <MenubarTrigger className="px-2 font-normal">View</MenubarTrigger>
+          <MenubarTrigger className="px-2 font-normal hover:bg-neutral-600">
+            View
+          </MenubarTrigger>
           <MenubarContent className="bg-p5 border border-neutral-700 text-gray-200">
             <MenubarItem onClick={() => window.location.reload()}>
               Reload
@@ -170,7 +208,9 @@ export default function MenuBar() {
         </MenubarMenu>
         {/* GIT MENU */}
         <MenubarMenu>
-          <MenubarTrigger className="px-2 font-normal">Git</MenubarTrigger>
+          <MenubarTrigger className="px-2 font-normal hover:bg-neutral-600">
+            Git
+          </MenubarTrigger>
           <MenubarContent className="bg-p5 border border-neutral-700 text-gray-200">
             <MenubarItem disabled={isInit} onClick={handleInit}>
               Initialize…
@@ -195,32 +235,44 @@ export default function MenuBar() {
       </div>
       {/* RIGHT WINDOW BUTTONS */}
       <div className="flex z-10">
-        <div className="flex items-center text-white -translate-x-[5vw]">
+        <div className="flex items-center -translate-x-[5vw]">
           {(inCall || openFiles.length > 0) && (
             <button
               onClick={() => setActiveTab("Home")}
-              className={`cursor-pointer h-full px-2 items-center flex flex-row ${activeTab === "Home" ? "bg-p6/30" : ""}`}
+              className={`cursor-pointer gap-1 h-full px-2 items-center flex flex-row ${
+                activeTab === "Home"
+                  ? "bg-p6/30 border-b border-neutral-300"
+                  : ""
+              }`}
             >
               <Home size={18} color="white" />
-              {/* <div className="text-white">Home</div> */}
+              <div className="text-white text-xs">Home</div>
             </button>
           )}
           {inCall && (
             <button
               onClick={() => setActiveTab("Video")}
-              className={`cursor-pointer h-full px-2 flex flex-row items-center ${activeTab === "Video" ? "bg-p6/30" : ""}`}
+              className={`cursor-pointer gap-1 h-full px-2 flex flex-row items-center ${
+                activeTab === "Video"
+                  ? "bg-p6/30 border-b border-neutral-300"
+                  : ""
+              }`}
             >
               <Video size={18} color="white" />
-              {/* <div>Video</div> */}
+              <div className="text-white text-xs">Video</div>
             </button>
           )}
           {openFiles.length > 0 && (
             <button
               onClick={() => setActiveTab("Editor")}
-              className={`cursor-pointer h-full px-2 flex flex-row items-center ${activeTab === "Editor" ? "bg-p6/30" : ""}`}
+              className={`cursor-pointer gap-1 h-full px-2 flex flex-row items-center ${
+                activeTab === "Editor"
+                  ? "bg-p6/30 border-b border-neutral-300"
+                  : ""
+              }`}
             >
               <Code size={18} color="white" />
-              {/* <div>Editor</div> */}
+              <div className="text-white text-xs">Editor</div>
             </button>
           )}
         </div>

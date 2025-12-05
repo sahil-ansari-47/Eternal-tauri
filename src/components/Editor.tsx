@@ -17,7 +17,16 @@ export default function Editor() {
     onSave,
     normalizeLF,
     setActiveTab,
+    setTargetNode,
   } = useEditor();
+  useEffect(() => {
+    return () => {
+      for (const key in viewRefs.current) {
+        viewRefs.current[key]?.destroy();
+      }
+      viewRefs.current = {};
+    };
+  }, []);
   useEffect(() => {
     const handler = (e: Event) => {
       const { filePath, line, query } = (e as CustomEvent).detail;
@@ -90,8 +99,18 @@ export default function Editor() {
     onClose(node.path);
     const remaining = openFiles.filter((f) => f.path !== node.path);
     setActiveFile(remaining.length > 0 ? remaining[0] : null);
-    if (remaining.length === 0) {
+    setTargetNode(
+      remaining.length > 0
+        ? ({
+            path: remaining[0].path.split("\\").slice(0, -1).join("\\"),
+          } as FsNode)
+        : null
+    );
+    const workspace = localStorage.getItem("workspacePath");
+    if (remaining.length === 0 && workspace) {
       setActiveTab("Splash");
+    } else {
+      setActiveTab("Home");
     }
   };
   useEffect(() => {
@@ -132,6 +151,9 @@ export default function Editor() {
       openFiles.length > 0
     ) {
       setActiveFile(openFiles[0]);
+      setTargetNode({
+        path: openFiles[0].path.split("\\").slice(0, -1).join("\\"),
+      } as FsNode);
     }
   }, [openFiles, activeFile]);
   return (
@@ -146,7 +168,12 @@ export default function Editor() {
                 ? "bg-neutral-700 font-semibold"
                 : "hover:bg-neutral-600"
             }`}
-            onClick={() => setActiveFile(file)}
+            onClick={() => {
+              setActiveFile(file);
+              setTargetNode({
+                path: file.path.split("\\").slice(0, -1).join("\\"),
+              } as FsNode);
+            }}
           >
             <span className="truncate max-w-xs flex items-center gap-1">
               {file.path.split("\\").pop()}

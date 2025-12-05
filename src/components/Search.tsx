@@ -15,8 +15,15 @@ import {
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 export default function SearchPanel() {
-  const { workspace, openFiles, setOpenFiles, setActiveFile, query, setQuery } =
-    useEditor();
+  const {
+    workspace,
+    openFiles,
+    setOpenFiles,
+    setActiveFile,
+    setTargetNode,
+    query,
+    setQuery,
+  } = useEditor();
   const [replaceText, setReplaceText] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [expandedFiles, setExpandedFiles] = useState<Record<string, boolean>>(
@@ -79,35 +86,23 @@ export default function SearchPanel() {
     }));
   };
 
-  const openMatch = (filePath: string, line: number) => {
+  const openMatch = async (filePath: string, line: number) => {
+    const content = await readTextFile(filePath);
     if (!openFiles.find((f) => f.path === filePath)) {
-      readTextFile(filePath).then((content: string) => {
-        setOpenFiles((prev) => [
-          ...prev,
-          { path: filePath, content } as FsNode,
-        ]);
-        setActiveFile({ path: filePath, content } as FsNode);
-        if (line !== undefined) {
-          setTimeout(() => {
-            window.dispatchEvent(
-              new CustomEvent("scroll-to-line", {
-                detail: { filePath, line, query },
-              })
-            );
-          }, 100);
-        }
-      });
-    } else {
-      setActiveFile({ path: filePath } as FsNode);
-      if (line !== undefined) {
-        setTimeout(() => {
-          window.dispatchEvent(
-            new CustomEvent("scroll-to-line", {
-              detail: { filePath, line, query },
-            })
-          );
-        }, 100);
-      }
+      setOpenFiles((prev) => [...prev, { path: filePath, content } as FsNode]);
+    }
+    setActiveFile({ path: filePath, content } as FsNode);
+    setTargetNode({
+      path: filePath.split("\\").slice(0, -1).join("\\"),
+    } as FsNode);
+    if (line !== undefined) {
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("scroll-to-line", {
+            detail: { filePath, line, query },
+          })
+        );
+      }, 100);
     }
   };
 

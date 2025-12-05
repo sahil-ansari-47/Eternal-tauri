@@ -1,13 +1,11 @@
+import { useLayout } from "./contexts/LayoutContext";
 import FileSystem from "./FileSystem";
 import Git from "./Git";
 import SearchPanel from "./Search";
 // import Music from "./Music";
-const LeftPanel = ({
-  content,
-}: {
-  content: "files" | "search" | "git" | "db" | "music" | null;
-}) => {
-  switch (content) {
+const LeftPanel = () => {
+  const { leftContent } = useLayout();
+  switch (leftContent) {
     case "files":
       return <FileSystem />;
     case "search":

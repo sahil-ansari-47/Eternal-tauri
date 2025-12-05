@@ -1,5 +1,5 @@
 // src/components/BottomPanel.tsx
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Terminal from "./Terminal";
 import { Plus } from "lucide-react";
 import { Terminal as XTerm } from "@xterm/xterm";
@@ -9,6 +9,7 @@ import { SearchAddon } from "@xterm/addon-search";
 import "@xterm/xterm/css/xterm.css";
 import { spawn } from "tauri-pty";
 import { open as openLink } from "@tauri-apps/plugin-shell";
+import { useLayout } from "./contexts/LayoutContext";
 
 type Tab = {
   id: string;
@@ -19,11 +20,8 @@ type Tab = {
   container: HTMLDivElement;
 };
 
-export default function BottomPanel({
-  togglePanel,
-}: {
-  togglePanel: React.Dispatch<React.SetStateAction<boolean>>;
-}) {
+export default function BottomPanel() {
+  const { setDownOpen } = useLayout();
   const cwd = localStorage.getItem("workspacePath") || undefined;
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -82,7 +80,7 @@ export default function BottomPanel({
       setActiveId(remaining[0].id);
     } else {
       setActiveId(null);
-      togglePanel(false);
+      setDownOpen(false);
     }
   };
   useEffect(() => {
