@@ -15,27 +15,23 @@ import {
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 export default function SearchPanel() {
-  const { workspace, openFiles, setOpenFiles, setActivePath, query, setQuery } =
+  const { workspace, openFiles, setOpenFiles, setActiveFile, query, setQuery } =
     useEditor();
   const [replaceText, setReplaceText] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [expandedFiles, setExpandedFiles] = useState<Record<string, boolean>>(
     {}
   );
-
   const [matchCase, setMatchCase] = useState(false);
   const [matchWhole, setMatchWhole] = useState(false);
   const [useRegex, setUseRegex] = useState(false);
-
   useEffect(() => {
     if (!query || !workspace) {
       setResults([]);
       return;
     }
-
     const handler = setTimeout(() => {
       console.log("Searching for:", query);
-
       invoke<SearchResult[]>("search_in_workspace", {
         workspace,
         query,
@@ -56,10 +52,8 @@ export default function SearchPanel() {
 
     return () => clearTimeout(handler);
   }, [query, matchCase, matchWhole, useRegex, workspace]);
-
   function highlightMatch(text: string, query: string, matchCase: boolean) {
     if (!query) return text;
-
     const flags = matchCase ? "g" : "gi";
     const regex = new RegExp(
       query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
@@ -92,7 +86,7 @@ export default function SearchPanel() {
           ...prev,
           { path: filePath, content } as FsNode,
         ]);
-        setActivePath(filePath);
+        setActiveFile({ path: filePath, content } as FsNode);
         if (line !== undefined) {
           setTimeout(() => {
             window.dispatchEvent(
@@ -104,7 +98,7 @@ export default function SearchPanel() {
         }
       });
     } else {
-      setActivePath(filePath);
+      setActiveFile({ path: filePath } as FsNode);
       if (line !== undefined) {
         setTimeout(() => {
           window.dispatchEvent(

@@ -40,6 +40,11 @@ interface GitContextType {
   handlePush: () => Promise<void>;
   commitMsg: string;
   setCommitMsg: React.Dispatch<React.SetStateAction<string>>;
+
+  handleInit: () => Promise<void>;
+  fetchGraph: () => Promise<void>;
+  branches: string[];
+  setBranches: React.Dispatch<React.SetStateAction<string[]>>;
 }
 const GitContext = createContext<GitContextType | undefined>(undefined);
 export const GitProvider = ({ children }: { children: React.ReactNode }) => {
@@ -58,6 +63,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     changes: false,
     graph: false,
   });
+  const [branches, setBranches] = useState<string[]>([]);
   const [syncStatus, setSyncStatus] = useState<{
     ahead: number;
     behind: number;
@@ -140,9 +146,8 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
 
     return res.status === 200;
   }
-
   useEffect(() => {
-    if (status.branch) {
+    if (isInit && workspace && status.branch) {
       checkRemoteBranchExists().then(setRemoteBranchExists);
     }
   }, [status.branch, status.origin]);
@@ -159,6 +164,31 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
       console.error("Failed to get sync status", err);
     } finally {
       setLoading(false);
+    }
+  }
+  async function handleInit() {
+    if (!workspace) return;
+    setLoading(true);
+    try {
+      await runGit("init", { workspace });
+      await refreshStatus();
+      fetchGraph();
+    } catch (e: any) {
+      setError(e);
+    } finally {
+      setError(null);
+      setLoading(false);
+    }
+  }
+  async function fetchGraph() {
+    try {
+      const payload = await runGit<GitGraphNode[]>("graph", {
+        workspace,
+      });
+      // console.log("graph", payload);
+      setGraphData(payload || []);
+    } catch {
+      setGraphData([]);
     }
   }
   async function handlePush() {
@@ -257,6 +287,10 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
         commitMsg,
         setCommitMsg,
         handleSetRemote,
+        handleInit,
+        fetchGraph,
+        branches,
+        setBranches,
       }}
     >
       {children}

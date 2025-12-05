@@ -7,14 +7,12 @@ interface LayoutContextType {
   setRightOpen: React.Dispatch<React.SetStateAction<boolean>>;
   downOpen: boolean;
   setDownOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  leftContent: "files" | "search" | "git" | "db" | null;
+  leftContent: "files" | "search" | "git" | "db";
   setLeftContent: React.Dispatch<
-    React.SetStateAction<"files" | "search" | "git" | "db" | null>
+    React.SetStateAction<"files" | "search" | "git" | "db">
   >;
-  rightContent: "assist" | "chat" | null;
-  setRightContent: React.Dispatch<
-    React.SetStateAction<"assist" | "chat" | null>
-  >;
+  rightContent: "assist" | "chat";
+  setRightContent: React.Dispatch<React.SetStateAction<"assist" | "chat">>;
 }
 
 const LayoutContext = createContext<LayoutContextType | null>(null);
@@ -24,11 +22,9 @@ export const LayoutProvider = ({ children }: { children: React.ReactNode }) => {
   const [rightOpen, setRightOpen] = useState(false);
   const [downOpen, setDownOpen] = useState(false);
   const [leftContent, setLeftContent] = useState<
-    "files" | "search" | "git" | "db" | null
-  >(null);
-  const [rightContent, setRightContent] = useState<"assist" | "chat" | null>(
-    null
-  );
+    "files" | "search" | "git" | "db"
+  >("files");
+  const [rightContent, setRightContent] = useState<"assist" | "chat">("chat");
 
   return (
     <LayoutContext.Provider

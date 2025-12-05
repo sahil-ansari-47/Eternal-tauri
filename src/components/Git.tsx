@@ -39,7 +39,7 @@ import { message, ask } from "@tauri-apps/plugin-dialog";
 export default function GitPanel() {
   const {
     workspace,
-    setActivePath,
+    setActiveFile,
     openFiles,
     setOpenFiles,
     reloadFileContent,
@@ -55,7 +55,6 @@ export default function GitPanel() {
     loading,
     setLoading,
     graphData,
-    setGraphData,
     collapsed,
     setCollapsed,
     isInit,
@@ -68,13 +67,16 @@ export default function GitPanel() {
     handleSetRemote,
     commitMsg,
     setCommitMsg,
+    handleInit,
+    fetchGraph,
+    branches,
+    setBranches,
   } = useGit();
   const [remotedialogOpen, setRemoteDialogOpen] = useState(false);
   const [createbranchdialogOpen, setCreateBranchDialogOpen] = useState(false);
   const [removeOriginDialogOpen, setRemoveOriginDialogOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [newbranch, setNewBranch] = useState("");
-  const [branches, setBranches] = useState<string[]>([]);
 
   const showPublishButton =
     graphData.length > 0 && (!status.origin || remoteBranchExists === false);
@@ -163,31 +165,6 @@ export default function GitPanel() {
       loadBranches();
     }
   }, [workspace, status.branch, status.staged.length, status.origin]);
-  async function fetchGraph() {
-    try {
-      const payload = await runGit<GitGraphNode[]>("graph", {
-        workspace,
-      });
-      // console.log("graph", payload);
-      setGraphData(payload || []);
-    } catch {
-      setGraphData([]);
-    }
-  }
-  async function handleInit() {
-    if (!workspace) return;
-    setLoading(true);
-    try {
-      await runGit("init", { workspace });
-      await refreshStatus();
-      fetchGraph();
-    } catch (e: any) {
-      setError(e);
-    } finally {
-      setError(null);
-      setLoading(false);
-    }
-  }
   async function handleStage(gitfile: Gitfile) {
     if (!workspace) return;
     setLoading(true);
@@ -833,7 +810,7 @@ export default function GitPanel() {
                                       console.log(path);
                                       const content = await readTextFile(path);
                                       const file = { path, content } as FsNode;
-                                      setActivePath(file.path);
+                                      setActiveFile(file);
                                       setOpenFiles((prev) =>
                                         prev.find((file) => file.path === path)
                                           ? prev
@@ -865,7 +842,7 @@ export default function GitPanel() {
                                             path,
                                             content,
                                           } as FsNode;
-                                          setActivePath(file.path);
+                                          setActiveFile(file);
                                           setOpenFiles((prev) =>
                                             prev.find(
                                               (file) => file.path === path

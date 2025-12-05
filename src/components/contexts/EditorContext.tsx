@@ -23,8 +23,8 @@ interface EditorContextType {
   openFiles: FsNode[];
   setOpenFiles: React.Dispatch<React.SetStateAction<FsNode[]>>;
 
-  activePath: string | null;
-  setActivePath: React.Dispatch<React.SetStateAction<string | null>>;
+  activeFile: FsNode | null;
+  setActiveFile: React.Dispatch<React.SetStateAction<FsNode | null>>;
 
   query: string;
   setQuery: React.Dispatch<React.SetStateAction<string>>;
@@ -37,7 +37,6 @@ interface EditorContextType {
   setRoots: React.Dispatch<React.SetStateAction<FsNode[] | null>>;
   activeTab: string;
   setActiveTab: React.Dispatch<React.SetStateAction<string>>;
-
   handleOpenFolder: () => void;
   handleCreateNewFile: () => void;
   handleOpenFile: () => void;
@@ -63,6 +62,8 @@ interface EditorContextType {
   onSave: (node: FsNode) => Promise<void>;
   normalizeLF: (s: string) => string;
   recents: Recents[];
+  dialogOpen: boolean;
+  setDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setRecents: React.Dispatch<React.SetStateAction<Recents[]>>;
 }
 
@@ -80,7 +81,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const viewRefs = useRef<Record<string, EditorView>>({});
   const [cloneMethod, setCloneMethod] = useState<"github" | "link">("link");
   const [openFiles, setOpenFiles] = useState<FsNode[]>([]);
-  const [activePath, setActivePath] = useState<string | null>(null);
+  const [activeFile, setActiveFile] = useState<FsNode | null>(null);
   const [query, setQuery] = useState("");
   const [tabList, setTabList] = useState<string[]>(["Home", "Trello"]);
   const [activeTab, setActiveTab] = useState("Home");
@@ -88,6 +89,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
   const [repoUrl, setRepoUrl] = useState("");
   const [action, setAction] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [repos, setRepos] = useState<GitRepo[] | null>(null);
   const [roots, setRoots] = useState<FsNode[] | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -201,7 +203,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       if (!path) return;
 
       const content = "";
-      setActivePath(path);
+      setActiveFile({ path, content } as FsNode);
       setOpenFiles((prev) =>
         prev.find((f) => f.path === path)
           ? prev
@@ -264,8 +266,8 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const normalizeLF = (s: string) => s.replace(/\r?\n/g, "\r\n");
 
   async function onSave(node: FsNode) {
-    if (!node.content) return;
-    const normalized = normalizeLF(node.content);
+    if (!node) return;
+    const normalized = normalizeLF(node?.content ?? "");
     await writeTextFile(node.path, normalized);
     const status = await getSingleFileGitState(node.path);
     console.log(status);
@@ -294,7 +296,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
     });
     if (!path) return;
     const content = await readTextFile(path);
-    setActivePath(path);
+    setActiveFile({ path, content } as FsNode);
     setOpenFiles((prev) =>
       prev.find((f) => f.path === path)
         ? prev
@@ -309,8 +311,8 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         openFiles,
         normalizeLF,
         setOpenFiles,
-        activePath,
-        setActivePath,
+        activeFile,
+        setActiveFile,
         query,
         setQuery,
         tabList,
@@ -336,6 +338,8 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         setRepoUrl,
         action,
         setAction,
+        dialogOpen,
+        setDialogOpen,
         cloneMethod,
         setCloneMethod,
         getUserRepos,

@@ -52,9 +52,11 @@ const FileSystem = () => {
     error,
     action,
     setAction,
+    dialogOpen,
+    setDialogOpen,
     errorMessage,
     setErrorMessage,
-    setActivePath,
+    setActiveFile,
     setOpenFiles,
     reloadWorkspace,
     roots,
@@ -69,7 +71,7 @@ const FileSystem = () => {
   const skipNextStatusRefreshRef = useRef(false);
   const [targetNode, setTargetNode] = useState<FsNode | null>(null);
   const [value, setValue] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
+
   const [ignoredFiles, setIgnoredFiles] = useState(new Set<string>());
   const [ignoredDirs, setIgnoredDirs] = useState<string[]>([]);
   const getParentDir = (path: string) => {
@@ -345,7 +347,13 @@ const FileSystem = () => {
           isDirectory: false,
           status: "U",
         } as FsNode);
-        setActivePath(path);
+        setActiveFile({
+          name: value.trim(),
+          path,
+          content: "",
+          isDirectory: false,
+          status: "U",
+        } as FsNode);
       } else if (action === "newFolder") {
         await mkdir(await join(dir, value.trim()));
       }
@@ -370,7 +378,7 @@ const FileSystem = () => {
     }
   };
   const handleOpenFile = (node: FsNode) => {
-    setActivePath(node.path);
+    setActiveFile(node);
     setOpenFiles((prev) =>
       prev.find((f) => f.path === node.path) ? prev : [...prev, node]
     );

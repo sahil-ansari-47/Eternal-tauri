@@ -11,8 +11,8 @@ export default function Editor() {
   const {
     openFiles,
     setOpenFiles,
-    activePath,
-    setActivePath,
+    activeFile,
+    setActiveFile,
     viewRefs,
     onSave,
     normalizeLF,
@@ -22,7 +22,7 @@ export default function Editor() {
     const handler = (e: Event) => {
       const { filePath, line, query } = (e as CustomEvent).detail;
       const view = viewRefs.current[filePath];
-      if (filePath !== activePath || !view) return;
+      if (filePath !== activeFile?.path || !view) return;
       const docLine = view.state.doc.line(line);
       const start = docLine.text.toLowerCase().indexOf(query.toLowerCase());
       if (start === -1) return;
@@ -36,7 +36,7 @@ export default function Editor() {
     };
     window.addEventListener("scroll-to-line", handler);
     return () => window.removeEventListener("scroll-to-line", handler);
-  }, [activePath]);
+  }, [activeFile]);
   const assignRef = (node: FsNode) => (el: HTMLDivElement | null) => {
     if (!el || viewRefs.current[node.path]) return;
     const file = openFiles.find((f) => f.path === node.path);
@@ -89,7 +89,7 @@ export default function Editor() {
     }
     onClose(node.path);
     const remaining = openFiles.filter((f) => f.path !== node.path);
-    setActivePath(remaining.length > 0 ? remaining[0].path : "");
+    setActiveFile(remaining.length > 0 ? remaining[0] : null);
     if (remaining.length === 0) {
       setActiveTab("Splash");
     }
@@ -98,10 +98,10 @@ export default function Editor() {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        if (!activePath) return;
-        const fileExists = await exists(activePath);
-        const file = openFiles.find((f) => f.path === activePath);
-        const view = viewRefs.current[activePath];
+        if (!activeFile) return;
+        const fileExists = await exists(activeFile.path);
+        const file = openFiles.find((f) => f.path === activeFile.path);
+        const view = viewRefs.current[activeFile.path];
         if (!view) return;
         if (fileExists) {
           if (file) {
@@ -110,7 +110,7 @@ export default function Editor() {
           }
         } else {
           await message(
-            `⚠️ Cannot save: file "${activePath}" does not exist.`,
+            `⚠️ Cannot save: file "${activeFile.path}" does not exist.`,
             {
               title: "Save Error",
             }
@@ -118,19 +118,22 @@ export default function Editor() {
         }
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "w") {
         e.preventDefault();
-        if (!activePath) return;
-        const file = openFiles.find((f) => f.path === activePath);
+        if (!activeFile) return;
+        const file = openFiles.find((f) => f.path === activeFile.path);
         if (file) handleCloseTab(file);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activePath, openFiles]);
+  }, [activeFile, openFiles]);
   useEffect(() => {
-    if (!openFiles.find((f) => f.path === activePath) && openFiles.length > 0) {
-      setActivePath(openFiles[0].path);
+    if (
+      !openFiles.find((f) => f.path === activeFile?.path) &&
+      openFiles.length > 0
+    ) {
+      setActiveFile(openFiles[0]);
     }
-  }, [openFiles, activePath]);
+  }, [openFiles, activeFile]);
   return (
     <div className="w-full h-full flex flex-col">
       {/* Tabs */}
@@ -139,11 +142,11 @@ export default function Editor() {
           <div
             key={file.path}
             className={`flex items-center pl-3 pr-2 py-2 cursor-pointer ${
-              file.path === activePath
+              file.path === activeFile?.path
                 ? "bg-neutral-700 font-semibold"
                 : "hover:bg-neutral-600"
             }`}
-            onClick={() => setActivePath(file.path)}
+            onClick={() => setActiveFile(file)}
           >
             <span className="truncate max-w-xs flex items-center gap-1">
               {file.path.split("\\").pop()}
@@ -171,7 +174,7 @@ export default function Editor() {
 
             <button
               className={`ml-2 px-1.5 py-1 hover:bg-neutral-500 hover:text-neutral-400 rounded-sm cursor-pointer font-bold ${
-                file.path === activePath
+                file.path === activeFile?.path
                   ? "text-neutral-400"
                   : "text-primary-sidebar"
               }`}
@@ -192,7 +195,7 @@ export default function Editor() {
             key={file.path}
             ref={assignRef(file)}
             className={`absolute inset-0 ${
-              file.path === activePath ? "block" : "hidden"
+              file.path === activeFile?.path ? "block" : "hidden"
             }`}
           />
         ))}
