@@ -1,4 +1,3 @@
-// src/components/BottomPanel.tsx
 import { useEffect, useRef, useState } from "react";
 import Terminal from "./Terminal";
 import { Plus } from "lucide-react";
@@ -10,18 +9,13 @@ import "@xterm/xterm/css/xterm.css";
 import { spawn } from "tauri-pty";
 import { open as openLink } from "@tauri-apps/plugin-shell";
 import { useLayout } from "./contexts/LayoutContext";
-
-type Tab = {
-  id: string;
-  title: string;
-  term: XTerm;
-  fit: FitAddon;
-  pty: Awaited<ReturnType<typeof spawn>>;
-  container: HTMLDivElement;
-};
+import { useGit } from "./contexts/GitContext";
+import { useEditor } from "./contexts/EditorContext";
 
 export default function BottomPanel() {
   const { setDownOpen } = useLayout();
+  const { refreshStatus } = useGit();
+  const { reloadWorkspace } = useEditor();
   const cwd = localStorage.getItem("workspacePath") || undefined;
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -34,12 +28,12 @@ export default function BottomPanel() {
   }, []);
   const createTab = async () => {
     const id = crypto.randomUUID();
-    // Create terminal instance
     const term = new XTerm({
       fontFamily: "Menlo, monospace",
       fontSize: 14,
       cursorBlink: true,
       convertEol: true,
+      scrollback: 1000,
       theme: { background: "hsl(240, 5.9%, 10%)" },
     });
     const fit = new FitAddon();
@@ -56,15 +50,41 @@ export default function BottomPanel() {
       rows: term.rows,
       cwd,
     });
-    // Wire PTY <-> Terminal
+    let commandBuffer = "";
     pty.onData((d) => term.write(d));
-    term.onData((d) => pty.write(d));
-    // Create permanent DOM container
+    term.onData((d) => {
+      // Enter pressed → command submitted
+      if (d === "\r") {
+        const command = commandBuffer.trim();
+        console.log("Command:", command);
+        if (command.startsWith("git ")) {
+          // Run AFTER command executes
+          setTimeout(() => {
+            refreshStatus();
+            reloadWorkspace();
+          }, 0);
+        }
+        commandBuffer = "";
+      } else if (d === "\u007f") {
+        commandBuffer = commandBuffer.slice(0, -1);
+      } else if (d.length === 1) {
+        commandBuffer += d;
+      }
+      // Always pass input to PTY
+      pty.write(d);
+    });
+    const resize = () => {
+      fit.fit();
+      pty.resize(term.cols, term.rows);
+    };
+    term.onResize(resize);
+
+    // Permanent container
     const container = document.createElement("div");
     container.style.position = "absolute";
     container.style.inset = "0";
-    container.style.display = "none"; // hidden initially
-    // Attach container into the panel root
+    container.style.display = "none";
+
     if (panelRef.current) {
       panelRef.current.appendChild(container);
     }
@@ -72,9 +92,15 @@ export default function BottomPanel() {
     const newTab: Tab = { id, title, term, fit, pty, container };
     setTabs((prev) => [...prev, newTab]);
     setActiveId(id);
+    requestAnimationFrame(resize);
   };
   const closeTab = (id: string) => {
-    setTabs((prev) => prev.filter((t) => t.id !== id));
+    setTabs((prev) => {
+      const tab = prev.find((t) => t.id === id);
+      tab?.pty.kill();
+      return prev.filter((t) => t.id !== id);
+    });
+
     const remaining = tabs.filter((t) => t.id !== id);
     if (remaining.length) {
       setActiveId(remaining[0].id);
@@ -84,9 +110,7 @@ export default function BottomPanel() {
     }
   };
   useEffect(() => {
-    // Show only the active terminal container
     tabs.forEach((tab) => {
-      if (!tab.container) return;
       const visible = tab.id === activeId;
       tab.container.style.display = visible ? "block" : "none";
       if (visible) {
@@ -94,7 +118,7 @@ export default function BottomPanel() {
         tab.term.focus();
       }
     });
-  }, [activeId, tabs.length]);
+  }, [activeId, tabs]);
 
   return (
     <div className="w-full h-full bg-primary-sidebar p-2">
@@ -128,12 +152,13 @@ export default function BottomPanel() {
             <Plus size={15} />
           </button>
         </div>
-        {/* Terminal container mount point */}
+
+        {/* Terminal mount */}
         <div className="bg-p5 p-4 h-full">
-          <div ref={panelRef} className="flex-1 relative" />
+          <div ref={panelRef} className="relative h-full" />
         </div>
       </div>
-      {/* Render actual Terminal components as portals */}
+
       {tabs.map((tab) => (
         <Terminal
           key={tab.id}

@@ -1,4 +1,3 @@
-// src/components/Terminal.tsx
 import { useEffect } from "react";
 import ReactDOM from "react-dom";
 import type { Terminal as XTerm } from "@xterm/xterm";
@@ -14,7 +13,6 @@ export default function Terminal({
   container: HTMLDivElement;
 }) {
   useEffect(() => {
-    // Terminal already mounted? Skip.
     if ((container as any)._mounted) return;
 
     term.open(container);
@@ -27,7 +25,7 @@ export default function Terminal({
     (container as any)._mounted = true;
 
     return () => observer.disconnect();
-  }, [container, term]);
+  }, [container, term, fit]);
 
-  return ReactDOM.createPortal(<></>, container);
+  return ReactDOM.createPortal(null, container);
 }

@@ -402,7 +402,7 @@ const FileSystem = () => {
             key={node.path}
             className={`flex items-center gap-2 py-1 hover:bg-neutral-700 cursor-pointer ${
               targetNode?.path === node.path
-                ? "bg-neutral-500"
+                ? "bg-neutral-600 border border-neutral-300"
                 : activeFile?.path === node.path
                 ? "bg-neutral-700"
                 : ""
@@ -550,16 +550,14 @@ const FileSystem = () => {
       </ContextMenu>
     );
   };
-
   if (!workspace) {
     return <NoWorkspace />;
   }
-
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div className="h-full overflow-auto bg-primary-sidebar text-neutral-300 text-sm p-2">
-          <div className="h-full w-full border border-neutral-600 rounded-xl py-4 overflow-y-hidden">
+        <div className="h-full bg-primary-sidebar text-neutral-300 text-sm p-2">
+          <div className="h-full w-full border border-neutral-600 rounded-xl py-4 overflow-hidden">
             <div className="flex items-center justify-between mb-2 px-6">
               <div className="text-p6 font-semibold">
                 {workspace.split(/[\\/]/).pop()}
@@ -608,7 +606,7 @@ const FileSystem = () => {
               </div>
             </div>
 
-            <div className="overflow-y-scroll pb-4 max-h-full scrollbar">
+            <div className="overflow-y-scroll overflow-x-hidden pb-4 max-h-full scrollbar">
               {roots === null ? (
                 <div className="text-sm text-gray-500">Loading…</div>
               ) : roots.length === 0 ? (

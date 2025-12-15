@@ -176,6 +176,7 @@ declare global {
     term: XTerm;
     fit: FitAddon;
     pty: Awaited<ReturnType<typeof spawn>>;
+    container: HTMLDivElement;
   };
   interface Window {
     chatAPI: {

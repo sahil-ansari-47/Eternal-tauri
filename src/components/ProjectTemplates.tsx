@@ -11,6 +11,7 @@ interface Framework {
   image: string;
   tags: string[];
 }
+import { message } from "@tauri-apps/plugin-dialog";
 export default function ProjectTemplates() {
   const { setWorkspace, setActiveTab } = useEditor();
   const [selectedFramework, setSelectedFramework] = useState<Framework | null>(
@@ -51,26 +52,28 @@ export default function ProjectTemplates() {
     {
       name: "Angular",
       image: "/angular.svg",
-      tags: ["css", "scss", "sass", "less", "no-git", "standlalone", "ssr"],
+      tags: [
+        "scss",
+        "inline-style",
+        "inline-template",
+        "pnpm",
+        "skip-git",
+        "routing",
+        "zoneless",
+        "standalone",
+        "ssr",
+      ],
     },
     { name: "Django", image: "/django.svg", tags: [] },
     {
       name: "Expo",
       image: "/expo.svg",
-      tags: [
-        "pnpm",
-        "no-git",
-        "expo-router",
-        "typescript",
-        "nativewind",
-        "nativewindui",
-        "zustand",
-      ],
+      tags: ["pnpm", "no-git", "expo-router", "nativewind", "zustand"],
     },
     {
       name: "Nuxt.js",
       image: "/nuxt.svg",
-      tags: ["NuxtUI", "Nuxt 4", "Content-Driven", "Nuxt Module"],
+      tags: ["NuxtUI", "Content-Driven", "Nuxt Module"],
     },
   ];
 
@@ -89,48 +92,114 @@ export default function ProjectTemplates() {
     if (selectedFramework)
       updateCommand(selectedFramework.name, updated, projectName);
   };
-
   const updateCommand = (framework: string, tags: string[], name: string) => {
+    const projectName =
+      name?.trim() ||
+      {
+        React: "my-app",
+        "Next.js": "my-next-app",
+        Vue: "my-vue-app",
+        Svelte: "my-svelte-app",
+        Angular: "my-angular-app",
+        Django: "myproject",
+        Expo: "my-expo-app",
+        "Nuxt.js": "my-nuxt-app",
+      }[framework];
     let cmd = "";
     switch (framework) {
       case "React":
-        cmd = `${tags.includes("pnpm") ? "pnpm" : "npm"} create vite@latest ${
-          name || "my-app"
-        } ${tags.includes("pnpm") ? "" : "--"} --template react${
-          tags.includes("swc") ? "-swc" : ""
-        }${tags.includes("typescript") ? "-ts" : ""}`;
+        cmd = [
+          tags.includes("pnpm") ? "pnpm" : "npm",
+          "create",
+          "vite@latest",
+          projectName,
+          tags.includes("pnpm") ? "" : "--",
+          `--template react${tags.includes("swc") ? "-swc" : ""}${
+            tags.includes("typescript") ? "-ts" : ""
+          }`,
+        ]
+          .filter(Boolean)
+          .join(" ");
         break;
       case "Next.js":
-        cmd = `npx create-next-app@latest ${name || "my-next-app"} ${tags.includes("pnpm") ? "--use-pnpm" : ""} ${tags.includes("typescript") ? "--ts" : ""} ${tags.includes("tailwind") ? "--tailwind" : ""} ${tags.includes("eslint") ? "--eslint" : "--no-linter"} ${tags.includes("app router") ? "--app" : ""} ${tags.includes("src") ? "--src-dir" : ""} ${tags.includes("turbopack") ? "--turbopack" : "--webpack"} ${tags.includes("no-git") ? "--no-git" : ""} --skip-install`;
+        cmd = [
+          "npx create-next-app@latest",
+          projectName,
+          tags.includes("pnpm") ? "--use-pnpm" : "",
+          tags.includes("typescript") ? "--ts" : "",
+          tags.includes("tailwind") ? "--tailwind" : "",
+          tags.includes("eslint") ? "--eslint" : "--no-eslint",
+          tags.includes("app router") ? "--app" : "",
+          tags.includes("src") ? "--src-dir" : "",
+          tags.includes("turbopack") ? "--turbopack" : "--webpack",
+          tags.includes("no-git") ? "--no-git" : "",
+          "--skip-install",
+        ]
+          .filter(Boolean)
+          .join(" ");
         break;
       case "Vue":
-        cmd = `${tags.includes("pnpm") ? "pnpm" : "npm"} create vite@latest ${
-          name || "my-vue-app"
-        } ${tags.includes("pnpm") ? "" : "--"} --template vue${
-          tags.includes("typescript") ? "-ts" : ""
-        }`;
+        cmd = [
+          tags.includes("pnpm") ? "pnpm" : "npm",
+          "create",
+          "vite@latest",
+          projectName,
+          tags.includes("pnpm") ? "" : "--",
+          `--template vue${tags.includes("typescript") ? "-ts" : ""}`,
+        ]
+          .filter(Boolean)
+          .join(" ");
         break;
       case "Svelte":
-        cmd = `npm create vite@latest ${
-          name || "my-svelte-app"
-        } --template svelte${tags.includes("typescript") ? "-ts" : ""}`;
+        cmd = [
+          "npm create vite@latest",
+          projectName,
+          `--template svelte${tags.includes("typescript") ? "-ts" : ""}`,
+        ].join(" ");
         break;
       case "Angular":
-        cmd = `ng new ${name || "my-angular-app"} ${tags
-          .map((t) => `--${t}`)
-          .join(" ")}`;
+        cmd = [
+          "ng new",
+          projectName,
+          tags.includes("pnpm") ? "--packageManager=pnpm" : "",
+          tags.includes("scss") ? "--style=scss" : "",
+          tags.includes("inline-style") ? "--inline-style" : "",
+          tags.includes("inline-template") ? "--inline-template" : "",
+          tags.includes("routing") ? "--routing" : "",
+          tags.includes("standalone") ? "--standalone" : "",
+          tags.includes("ssr") ? "--ssr" : "",
+          tags.includes("skip-git") ? "--skip-git" : "",
+          tags.includes("zoneless") ? "--experimental-zoneless" : "",
+          "--skip-install",
+          "--defaults",
+        ]
+          .filter(Boolean)
+          .join(" ");
         break;
       case "Django":
-        cmd = `django-admin startproject ${name || "myproject"}`;
+        cmd = `django-admin startproject ${projectName}`;
         break;
       case "Expo":
-        cmd = `npx create-expo-app ${name || "my-expo-app"} ${tags
-          .map((t) => `--${t}`)
-          .join(" ")}`;
+        cmd = [
+          "npx --yes create-expo-stack",
+          projectName,
+          ...tags.map((t) => `--${t}`),
+          "--no-install",
+        ].join(" ");
         break;
       case "Nuxt.js":
-        cmd = `npx nuxi init ${name || "my-nuxt-app"}`;
+        cmd = `npm create nuxt@latest ${projectName} ${
+          tags.includes("NuxtUI")
+            ? "-- -t ui"
+            : tags.includes("Content-Driven")
+            ? "-- -t content"
+            : tags.includes("Nuxt Module")
+            ? "-- -t module"
+            : ""
+        } --gitInit --no-install`;
         break;
+      default:
+        cmd = "";
     }
     setFinalCommand(cmd.trim());
   };
@@ -139,21 +208,27 @@ export default function ProjectTemplates() {
     if (!selectedFramework) return;
     const workspace = await open({ directory: true });
     if (!workspace) return;
-    setShowCreateModal(false);
-    setActiveTab("Loading");
-    await invoke("generate_project", {
-      finalCommand,
-      workspace,
-    });
-    const normalpath = await normalize(`${workspace}/${projectName}`);
-    setActiveTab("Splash");
-    setWorkspace(normalpath);
-    localStorage.setItem("workspacePath", normalpath);
-    setLeftOpen(true);
-    setLeftContent("files");
-    setSelectedTags([]);
-    setProjectName("");
-    setFinalCommand("");
+    try {
+      setShowCreateModal(false);
+      setActiveTab("Loading");
+      await invoke("generate_project", {
+        finalCommand,
+        workspace,
+      });
+      const normalpath = await normalize(`${workspace}/${projectName}`);
+      setActiveTab("Splash");
+      setWorkspace(normalpath);
+      localStorage.setItem("workspacePath", normalpath);
+      setLeftOpen(true);
+      setLeftContent("files");
+      setSelectedTags([]);
+      setProjectName("");
+      setFinalCommand("");
+    } catch (e: any) {
+      setActiveTab("Home");
+      await message(e.message, { title: "Error", kind: "error" });
+      console.log(e);
+    }
   };
 
   const copyCommand = () => navigator.clipboard.writeText(finalCommand);

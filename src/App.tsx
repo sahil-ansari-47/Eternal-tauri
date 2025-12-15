@@ -273,7 +273,7 @@ const App = () => {
               <>
                 <Panel
                   defaultSize={20}
-                  minSize={15}
+                  minSize={20}
                   order={1}
                   className="h-[calc(100vh-52px)] z-10"
                 >
