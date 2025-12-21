@@ -16,6 +16,8 @@ interface MessageContextType {
   remoteVideo: React.RefObject<HTMLVideoElement | null>;
   inCall: boolean;
   setInCall: React.Dispatch<React.SetStateAction<boolean>>;
+  callType: "video" | "audio";
+  setCallType: React.Dispatch<React.SetStateAction<"video" | "audio">>;
   toggleVideo: boolean;
   setToggleVideo: React.Dispatch<React.SetStateAction<boolean>>;
   toggleAudio: boolean;
@@ -45,6 +47,7 @@ export const MessageProvider = ({
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const lsRef = useRef<MediaStream | null>(null);
   const [inCall, setInCall] = useState(false);
+  const [callType, setCallType] = useState<"video" | "audio">("video");
   const [toggleVideo, setToggleVideo] = useState(true);
   const [toggleAudio, setToggleAudio] = useState(true);
   const localVideo = useRef<HTMLVideoElement | null>(null);
@@ -57,7 +60,7 @@ export const MessageProvider = ({
       .forEach((track) => (track.enabled = enabled));
   }
   function createPeerConnection(target: string) {
-    const pc =  new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
     pc.onicecandidate = (evt) => {
       if (evt.candidate) {
@@ -86,7 +89,6 @@ export const MessageProvider = ({
         audio: true,
       });
       lsRef.current = ls;
-      if (localVideo.current) localVideo.current.srcObject = ls;
     }
     return lsRef.current;
   }
@@ -107,6 +109,8 @@ export const MessageProvider = ({
         lsRef,
         inCall,
         setInCall,
+        callType,
+        setCallType,
         toggleVideo,
         setToggleVideo,
         toggleAudio,

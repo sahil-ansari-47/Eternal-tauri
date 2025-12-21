@@ -51,7 +51,10 @@ const App = () => {
     lsRef,
     setInCall,
     setToggleVideo,
+    callType,
+    setCallType,
     localVideo,
+    remoteVideo,
     toggleVideo,
     toggleLocalVideo,
     createPeerConnection,
@@ -70,8 +73,7 @@ const App = () => {
     handleClone,
     setRecents,
   } = useEditor();
-  const { leftOpen, rightOpen, downOpen, setDownOpen } =
-    useLayout();
+  const { leftOpen, rightOpen, downOpen, setDownOpen } = useLayout();
   const bufferedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   useEffect(() => {
     const recents = JSON.parse(localStorage.getItem("recents") || "[]");
@@ -137,6 +139,7 @@ const App = () => {
       setPendingOffer(offer);
       setAcceptDialog(true);
       setToggleVideo(callType);
+      setCallType(callType ? "video" : "audio");
       if (document.hidden) {
         window.chatAPI.callNotification(from, callType);
       }
@@ -259,6 +262,19 @@ const App = () => {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [downOpen]);
+
+  useEffect(() => {
+    if (!localVideo.current?.srcObject && !remoteVideo.current?.srcObject) {
+      setCallType("audio");
+    } else {
+      setCallType("video");
+    }
+  }, [localVideo.current, remoteVideo.current]);
+
+  useEffect(() => {
+    if (localVideo.current) localVideo.current.srcObject = lsRef.current;
+  }, [callType]);
+
   return (
     <>
       <div className="divide-y divide-neutral-700">
