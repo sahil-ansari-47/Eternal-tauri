@@ -70,7 +70,7 @@ export default function SearchPanel() {
       acc.push(part);
       if (i < arr.length - 1) {
         acc.push(
-          <span key={i} className="bg-neutral-200 text-black px-1 rounded-xs">
+          <span key={i} className="bg-neutral-200 text-black rounded-xs">
             {text.match(regex)?.[0] ?? query}
           </span>
         );
