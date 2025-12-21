@@ -1,6 +1,7 @@
 import { createContext, useContext, useRef } from "react";
 import { useState } from "react";
 import { useUser } from "./UserContext";
+import { confirm } from "@tauri-apps/plugin-dialog";
 interface MessageContextType {
   targetUser: string;
   setTargetUser: React.Dispatch<React.SetStateAction<string>>;
@@ -24,7 +25,9 @@ interface MessageContextType {
   setToggleAudio: React.Dispatch<React.SetStateAction<boolean>>;
   toggleLocalVideo: (enabled: boolean) => void;
   createPeerConnection: (target: string) => RTCPeerConnection;
-  ensureLocalStream: () => Promise<MediaStream | null>;
+  ensureLocalStream: () => Promise<MediaStream | null | "audio-only">;
+  localStream: MediaStream | null;
+  setLocalStream: React.Dispatch<React.SetStateAction<MediaStream | null>>;
 }
 export const MessageContext = createContext<MessageContextType | undefined>(
   undefined
@@ -46,6 +49,7 @@ export const MessageProvider = ({
   const [targetUser, setTargetUser] = useState("");
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const lsRef = useRef<MediaStream | null>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [inCall, setInCall] = useState(false);
   const [callType, setCallType] = useState<"video" | "audio">("video");
   const [toggleVideo, setToggleVideo] = useState(true);
@@ -83,14 +87,25 @@ export const MessageProvider = ({
     return pc;
   }
   async function ensureLocalStream() {
-    if (!lsRef.current) {
-      const ls = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-      lsRef.current = ls;
+    try {
+      if (!lsRef.current) {
+        const ls = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+        lsRef.current = ls;
+      }
+      return lsRef.current;
+    } catch (e) {
+      const confirmed = await confirm(
+        "Cannot access media devices. Continue with voice call?",
+        { title: "Access denied" }
+      );
+      if (confirmed) {
+        return "audio-only";
+      }
+      return null;
     }
-    return lsRef.current;
   }
   return (
     <MessageContext.Provider
@@ -116,6 +131,8 @@ export const MessageProvider = ({
         toggleAudio,
         setToggleAudio,
         toggleLocalVideo,
+        localStream,
+        setLocalStream,
         createPeerConnection,
         ensureLocalStream,
       }}

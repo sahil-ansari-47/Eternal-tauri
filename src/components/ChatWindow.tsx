@@ -98,7 +98,7 @@ const ChatWindow: React.FC<ChatProps> = ({
                 }`}
               >
                 <div
-                  className={`px-3 py-2 rounded-2xl max-w-[70%] whitespace-pre-wrap break-words ${
+                  className={`px-3 py-2 rounded-2xl max-w-[70%] whitespace-pre-wrap ${
                     msg.from === userData?.username
                       ? "bg-neutral-700 text-p6 rounded-br-none"
                       : msg.from === "system"

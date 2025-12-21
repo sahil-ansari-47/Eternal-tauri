@@ -55,6 +55,8 @@ const Messaging = () => {
     toggleLocalVideo,
     createPeerConnection,
     ensureLocalStream,
+    setLocalStream,
+    localVideo,
   } = useMessage();
   const { getToken } = useAuth();
   const [input, setInput] = useState("");
@@ -252,29 +254,31 @@ const Messaging = () => {
     fetchUser();
   };
   const handleCall = async (to: string, video: boolean) => {
-    if (!userData) {
-      console.log("User not found");
+    if (!userData || !to) return;
+    const streamResult = await ensureLocalStream();
+    if (!streamResult) {
+      console.log("Call aborted by user");
       return;
     }
-    if (!to) {
-      console.log("No user selected");
-      return;
+    if (streamResult === "audio-only") {
+      setCallType("audio");
+      video = false;
+    }
+    pcRef.current = createPeerConnection(to);
+    if (streamResult instanceof MediaStream) {
+      setLocalStream(streamResult);
+      if (localVideo.current) {
+        console.log("Local stream tracks:", streamResult.getTracks());
+        localVideo.current.srcObject = streamResult;
+      }
+      for (const track of streamResult.getTracks()) {
+        pcRef.current.addTrack(track, streamResult);
+      }
+      setCallType("video");
     }
     setInCall(true);
-    pcRef.current = createPeerConnection(to);
-    const stream = await ensureLocalStream();
-    if (stream) {
-      for (const track of stream.getTracks()) {
-        pcRef.current.addTrack(track, stream);
-      }
-    }
-    let offer;
-    if (pcRef.current) {
-      offer = await pcRef.current.createOffer();
-    }
-    if (offer) {
-      await pcRef.current.setLocalDescription(offer);
-    }
+    const offer = await pcRef.current.createOffer();
+    await pcRef.current.setLocalDescription(offer);
     socket.emit("offer", {
       to,
       from: userData.username,
@@ -282,7 +286,6 @@ const Messaging = () => {
       callType: video,
     });
     console.log("Call type:", video);
-    setCallType(video ? "video" : "audio");
   };
   return (
     <div className="h-full w-full p-2 bg-p5">

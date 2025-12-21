@@ -51,10 +51,8 @@ const App = () => {
     lsRef,
     setInCall,
     setToggleVideo,
-    callType,
     setCallType,
     localVideo,
-    remoteVideo,
     toggleVideo,
     toggleLocalVideo,
     createPeerConnection,
@@ -220,7 +218,7 @@ const App = () => {
       setTargetUser(incomingFrom);
       await pc.setRemoteDescription(pendingOffer);
       const stream = await ensureLocalStream();
-      if (stream) {
+      if (stream instanceof MediaStream) {
         for (const track of stream.getTracks()) {
           pc.addTrack(track, stream);
         }
@@ -263,17 +261,13 @@ const App = () => {
     return () => window.removeEventListener("keydown", handler);
   }, [downOpen]);
 
-  useEffect(() => {
-    if (!localVideo.current?.srcObject && !remoteVideo.current?.srcObject) {
-      setCallType("audio");
-    } else {
-      setCallType("video");
-    }
-  }, [localVideo.current, remoteVideo.current]);
-
-  useEffect(() => {
-    if (localVideo.current) localVideo.current.srcObject = lsRef.current;
-  }, [callType]);
+  // useEffect(() => {
+  //   if (!localVideo.current?.srcObject && !remoteVideo.current?.srcObject) {
+  //     setCallType("audio");
+  //   } else {
+  //     setCallType("video");
+  //   }
+  // }, [localVideo.current, remoteVideo.current]);
 
   return (
     <>
@@ -282,7 +276,7 @@ const App = () => {
         <div className="w-screen overflow-hidden h-[calc(100vh-52px)]">
           <PanelGroup
             direction="horizontal"
-            className="flex divide-x-[1px] divide-neutral-700"
+            className="flex divide-x divide-neutral-700"
           >
             <Sidebar />
             {leftOpen && (
@@ -421,7 +415,7 @@ const App = () => {
                 )
               ) : (
                 <div className="flex flex-col items-center gap-2 cursor-pointer">
-                  <div className="bg-p5 border-1 border-neutral-500 w-fit text-p6 p-2 rounded-lg hover:bg-neutral-700">
+                  <div className="bg-p5 border border-neutral-500 w-fit text-p6 p-2 rounded-lg hover:bg-neutral-700">
                     <SignInButton mode="modal" />
                   </div>
                 </div>
@@ -458,7 +452,7 @@ const App = () => {
               Cancel
             </Button>
             <Button
-              className="cursor-pointer border-1 border-neutral-500"
+              className="cursor-pointer border border-neutral-500"
               onClick={() => handleClone(repoUrl)}
               disabled={!repoUrl}
             >

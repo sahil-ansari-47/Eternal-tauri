@@ -7,7 +7,7 @@ import {
   Headphones,
   PhoneOff,
   Settings,
-  UserPlus,
+  // UserPlus,
   Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,49 +25,24 @@ interface Participant {
 export default function VoiceCall() {
   const [isMuted, setIsMuted] = useState(false);
   const [isDeafened, setIsDeafened] = useState(false);
-  const [participants, setParticipants] = useState<Participant[]>([
+  const participants: Participant[] = [
     {
       id: "1",
-      name: "Alex Morgan",
-      avatar: "/diverse-person-portrait.png",
+      name: "John Doe",
+      avatar: "/placeholder.svg",
       isMuted: false,
       isDeafened: false,
-      isSpeaking: true,
+      isSpeaking: false,
     },
     {
       id: "2",
-      name: "Jordan Lee",
-      avatar: "/diverse-group-conversation.png",
-      isMuted: true,
-      isDeafened: false,
-      isSpeaking: false,
-    },
-    {
-      id: "3",
-      name: "Taylor Swift",
-      avatar: "/diverse-group-meeting.png",
+      name: "Jane Doe",
+      avatar: "/placeholder.svg",
       isMuted: false,
       isDeafened: false,
       isSpeaking: false,
     },
-    {
-      id: "4",
-      name: "Casey Williams",
-      avatar: "/diverse-group-meeting.png",
-      isMuted: false,
-      isDeafened: false,
-      isSpeaking: false,
-    },
-    {
-      id: "5",
-      name: "Morgan Blake",
-      avatar: "/diverse-group-five.png",
-      isMuted: false,
-      isDeafened: true,
-      isSpeaking: false,
-    },
-  ]);
-
+  ];
   const handleEndCall = () => {
     console.log("Call ended");
   };
