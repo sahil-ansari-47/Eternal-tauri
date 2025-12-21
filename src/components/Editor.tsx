@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { EditorState } from "@codemirror/state";
 import { basicSetup } from "codemirror";
 import { EditorView } from "@codemirror/view";
-import { barf } from "thememirror";
 import { exists } from "@tauri-apps/plugin-fs";
 import { message } from "@tauri-apps/plugin-dialog";
 import getLanguageExtension from "../utils/edfunc";
@@ -63,18 +62,42 @@ export default function Editor() {
       }
     });
     let state;
+    const scrollbarTheme = EditorView.theme({
+      ".cm-scroller": {
+        overflow: "auto",
+      },
+      ".cm-scroller::-webkit-scrollbar": {
+        width: "5px",
+      },
+      /* Vertical scrollbar */
+      ".cm-scroller::-webkit-scrollbar:vertical": {
+        width: "5px",
+      },
+      /* Horizontal scrollbar */
+      ".cm-scroller::-webkit-scrollbar:horizontal": {
+        height: "5px",
+      },
+      ".cm-scroller::-webkit-scrollbar-track": {
+        background: "transparent",
+      },
+      ".cm-scroller::-webkit-scrollbar-thumb": {
+        backgroundColor: "dimgray",
+        borderRadius: "9999px",
+      },
+      ".cm-scroller::-webkit-scrollbar-thumb:hover": {
+        backgroundColor: "rgba(160, 160, 160, 0.7)",
+      },
+    });
     if (!file.content) file.content = "";
-    // if (file.content) {
     state = EditorState.create({
       doc: file.content.toString(),
       extensions: [
         basicSetup,
-        barf,
         getLanguageExtension(file.path),
         updateListener,
+        scrollbarTheme,
       ],
     });
-    // }
     viewRefs.current[node.path] = new EditorView({ state, parent: el });
   };
   const onClose = (filePath: string) => {
@@ -216,7 +239,7 @@ export default function Editor() {
         ))}
       </div>
       {/* Editors */}
-      <div className="flex-1 relative overflow-y-auto bg-p5 scrollbar">
+      <div className="flex-1 relative overflow-y-auto bg-p5">
         {openFiles.map((file) => (
           <div
             key={file.path}
