@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { EditorState } from "@codemirror/state";
-import { basicSetup } from "codemirror";
 import { EditorView } from "@codemirror/view";
 import { exists } from "@tauri-apps/plugin-fs";
+import { barf } from "thememirror";
 import { message } from "@tauri-apps/plugin-dialog";
 import getLanguageExtension from "../utils/edfunc";
 import { useEditor } from "./contexts/EditorContext";
@@ -92,7 +92,7 @@ export default function Editor() {
     state = EditorState.create({
       doc: file.content.toString(),
       extensions: [
-        basicSetup,
+        barf,
         getLanguageExtension(file.path),
         updateListener,
         scrollbarTheme,
@@ -210,8 +210,8 @@ export default function Editor() {
                       ? "text-yellow-500"
                       : file.status === "A"
                       ? "text-green-500"
-                      : "text-red-500" // This now correctly handles the remaining literal "D"
-                  }`}
+                      : "text-red-500"
+                  } ${file.status === "I" && "hidden"}`}
                 >
                   {file.status}
                 </span>
