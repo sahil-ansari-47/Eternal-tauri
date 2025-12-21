@@ -50,6 +50,7 @@ const Messaging = () => {
     pendingMessages,
     setPendingMessages,
     setInCall,
+    setCallType,
     pcRef,
     toggleLocalVideo,
     createPeerConnection,
@@ -250,7 +251,7 @@ const Messaging = () => {
     setGroupName("");
     fetchUser();
   };
-  const handleVideoCall = async (to: string) => {
+  const handleCall = async (to: string, video: boolean) => {
     if (!userData) {
       console.log("User not found");
       return;
@@ -274,12 +275,14 @@ const Messaging = () => {
     if (offer) {
       await pcRef.current.setLocalDescription(offer);
     }
-    // socket.emit("offer", {
-    //   to,
-    //   from: userData.username,
-    //   offer,
-    //   callType: video,
-    // });
+    socket.emit("offer", {
+      to,
+      from: userData.username,
+      offer,
+      callType: video,
+    });
+    console.log("Call type:", video);
+    setCallType(video ? "video" : "audio");
   };
   return (
     <div className="h-full w-full p-2 bg-p5">
@@ -752,13 +755,13 @@ const Messaging = () => {
                 <div className="flex items-center gap-2">
                   <Phone
                     onClick={async () => {
-                      await handleVideoCall(targetUser);
+                      await handleCall(targetUser, false);
                       toggleLocalVideo(false);
                     }}
                     className="cursor-pointer size-7 p-1 text-p6"
                   />
                   <Video
-                    onClick={() => handleVideoCall(targetUser)}
+                    onClick={() => handleCall(targetUser, true)}
                     className="cursor-pointer size-8 p-1 text-p6"
                   />
                 </div>

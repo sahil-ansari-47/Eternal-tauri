@@ -2,6 +2,7 @@ import { Video, VideoOff, MicOff, Mic, Phone } from "lucide-react";
 import { useMessage } from "./contexts/MessageContext";
 import { useUser } from "./contexts/UserContext";
 import VideoStream from "./ui/video-stream";
+import VoiceCall from "./ui/voice-call";
 const Call = () => {
   const { socket } = useUser();
   const {
@@ -15,6 +16,7 @@ const Call = () => {
     pcRef,
     lsRef,
     setInCall,
+    callType,
   } = useMessage();
   const handleHangup = () => {
     setInCall(false);
@@ -39,36 +41,45 @@ const Call = () => {
   return (
     <div className="relative flex flex-col h-full w-full px-30 py-10 gap-4 bg-p5">
       <h1 className="text-xl text-p6 font-semibold">Call with {targetUser}</h1>
-      {/* Primary Video Stream */}
-      <VideoStream
-        participantName={targetUser}
-        videoref={remoteVideo as React.RefObject<HTMLVideoElement>}
-      />
-      <div className="absolute right-10 bottom-10 h-50 w-80">
-        <VideoStream
-          participantName={"You"}
-          isMuted={toggleAudio}
-          isVideoOn={toggleVideo}
-          videoref={localVideo as React.RefObject<HTMLVideoElement>}
-        />
-      </div>
+      {callType === "audio" ? (
+        <VoiceCall />
+      ) : (
+        <>
+          {/* Primary Video Stream */}
+          <VideoStream
+            participantName={targetUser}
+            videoref={remoteVideo as React.RefObject<HTMLVideoElement>}
+          />
+
+          <div className="absolute right-10 bottom-10 h-50 w-80">
+            <VideoStream
+              participantName="You"
+              isMuted={toggleAudio}
+              isVideoOn={toggleVideo}
+              videoref={localVideo as React.RefObject<HTMLVideoElement>}
+            />
+          </div>
+        </>
+      )}
       <div className="w-full h flex justify-center gap-4">
         <button onClick={() => toggleLocalAudio(!toggleAudio)}>
           {toggleAudio ? (
-            <Mic className="size-10 p-2 rounded-full bg-neutral-200 hover:bg-neutral-400 text-primary-sidebar cursor-pointer shadow-md" />
+            <Mic className="size-10 p-2 rounded-full bg-neutral-200 hover:bg-neutral-400 text-primary-sidebar shadow-md" />
           ) : (
-            <MicOff className="size-10 p-2 rounded-full border-1 bg-red-500 text-white border-neutral-300 cursor-pointer shadow-md" />
+            <MicOff className="size-10 p-2 rounded-full bg-red-500 text-white shadow-md" />
           )}
         </button>
+
         <button onClick={() => toggleLocalVideo(!toggleVideo)}>
           {toggleVideo ? (
-            <Video className="size-10 p-2 rounded-full bg-neutral-200 hover:bg-neutral-400 text-primary-sidebar cursor-pointer shadow-md" />
+            <Video className="size-10 p-2 rounded-full bg-neutral-200 hover:bg-neutral-400 text-primary-sidebar shadow-md" />
           ) : (
-            <VideoOff className="size-10 p-2 rounded-full border-1 bg-red-500 text-white border-neutral-300 cursor-pointer shadow-md" />
+            <VideoOff className="size-10 p-2 rounded-full bg-red-500 text-white shadow-md" />
           )}
         </button>
+
         <button onClick={handleHangup}>
-          <Phone className="bg-red-500 hover:bg-red-900 text-white size-10 p-2 rounded-full cursor-pointer shadow-md rotate-[135deg]" />
+          <Phone className="bg-red-500 hover:bg-red-900 text-white size-10 p-2 rounded-full shadow-md rotate-[135deg]" />
         </button>
       </div>
     </div>
