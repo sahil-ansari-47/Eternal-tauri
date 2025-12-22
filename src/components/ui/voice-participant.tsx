@@ -31,7 +31,7 @@ export default function VoiceParticipant({
         )}
 
         {/* Avatar */}
-        <Avatar className="h-20 w-20 border-4 border-discord-dark">
+        <Avatar className="size-30 border-4 border-discord-dark">
           <AvatarImage
             src={participant.avatar || "/placeholder.svg"}
             alt={participant.name}

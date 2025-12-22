@@ -247,7 +247,10 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
           private: priv,
         }),
       });
-      const remoteUrl = `https://github.com/${user?.username}/${name}.git`;
+      const remoteUrl = `https://github.com/${user?.username}/${name
+        .trim()
+        .split(" ")
+        .join("-")}.git`;
       await handleSetRemote(remoteUrl);
       await fetchSyncStatus();
       setRemoteBranchExists(true);
