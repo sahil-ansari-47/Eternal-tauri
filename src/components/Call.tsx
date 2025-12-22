@@ -16,7 +16,8 @@ const Call = () => {
   const {
     targetUser,
     remoteVideo,
-    localVideo,
+    localVideoRef,
+    localVideoElRef,
     toggleAudio,
     setToggleAudio,
     toggleVideo,
@@ -35,7 +36,7 @@ const Call = () => {
     if (lsRef.current) {
       for (const track of lsRef.current.getTracks()) track.stop();
       lsRef.current = null;
-      if (localVideo.current) localVideo.current.srcObject = null;
+      if (localVideoElRef.current) localVideoElRef.current.srcObject = null;
     }
     socket.emit("hangup", { to: targetUser });
   };
@@ -69,17 +70,17 @@ const Call = () => {
       ) : (
         <>
           {/* Primary Video Stream */}
-          <VideoStream
+          {/* <VideoStream
             participantName={targetUser}
-            videoref={remoteVideo as React.RefObject<HTMLVideoElement>}
-          />
+            videoElRef={remoteVideo as React.RefObject<HTMLVideoElement>}
+          /> */}
 
           <div className="absolute right-10 bottom-10 h-50 w-80">
             <VideoStream
               participantName="You"
               isMuted={toggleAudio}
               isVideoOn={toggleVideo}
-              videoref={localVideo as React.RefObject<HTMLVideoElement>}
+              videoElRef={localVideoRef}
             />
           </div>
         </>

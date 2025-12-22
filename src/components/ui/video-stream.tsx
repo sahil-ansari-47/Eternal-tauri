@@ -1,30 +1,28 @@
 import { MicOff, VideoOff } from "lucide-react";
 import clsx from "clsx";
-import { useEffect } from "react";
-import { useMessage } from "../contexts/MessageContext";
+// import { useEffect } from "react";
+// import { useMessage } from "../contexts/MessageContext";
 interface VideoStreamProps {
   participantName: string;
   isMuted?: boolean;
   isVideoOn?: boolean;
-  videoref: React.RefObject<HTMLVideoElement>;
+  videoElRef: (node: HTMLVideoElement | null) => void;
 }
 
 export default function VideoStream({
   participantName,
   isMuted,
   isVideoOn,
-  videoref,
+  videoElRef,
 }: VideoStreamProps) {
-  console.log(videoref, isMuted, isVideoOn);
-  const { localStream, localVideo } = useMessage();
-  useEffect(() => {
-    console.log("localStream", localStream);
-    console.log("localVideo", localVideo.current);
-    if (localVideo.current && localStream) {
-      console.log("Attaching local stream to video");
-      localVideo.current.srcObject = localStream;
-    }
-  }, [localStream]);
+  // const { localStream, localVideoElRef } = useMessage();
+  console.log(videoElRef, isMuted, isVideoOn);
+  // useEffect(() => {
+  //   if (localVideoElRef.current && localStream) {
+  //     localVideoElRef.current.srcObject = localStream;
+  //   }
+  // }, [localStream]);
+
   return (
     <div
       className={clsx(
@@ -44,7 +42,7 @@ export default function VideoStream({
           autoPlay
           playsInline
           muted
-          ref={videoref}
+          ref={videoElRef}
           className="absolute inset-0 w-full h-full object-cover"
         />
       )}

@@ -1,7 +1,7 @@
-import { createContext, useContext, useRef } from "react";
+import { createContext, useCallback, useContext, useRef } from "react";
 import { useState } from "react";
 import { useUser } from "./UserContext";
-import { confirm } from "@tauri-apps/plugin-dialog";
+import { confirm, message } from "@tauri-apps/plugin-dialog";
 interface MessageContextType {
   targetUser: string;
   setTargetUser: React.Dispatch<React.SetStateAction<string>>;
@@ -13,7 +13,6 @@ interface MessageContextType {
   setPendingMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   pcRef: React.RefObject<RTCPeerConnection | null>;
   lsRef: React.RefObject<MediaStream | null>;
-  localVideo: React.RefObject<HTMLVideoElement | null>;
   remoteVideo: React.RefObject<HTMLVideoElement | null>;
   inCall: boolean;
   setInCall: React.Dispatch<React.SetStateAction<boolean>>;
@@ -24,8 +23,13 @@ interface MessageContextType {
   toggleAudio: boolean;
   setToggleAudio: React.Dispatch<React.SetStateAction<boolean>>;
   toggleLocalVideo: (enabled: boolean) => void;
+  localVideoRef: (node: HTMLVideoElement | null) => void;
+  localVideoElRef: React.RefObject<HTMLVideoElement | null>;
   createPeerConnection: (target: string) => RTCPeerConnection;
-  ensureLocalStream: () => Promise<MediaStream | null | "audio-only">;
+  ensureLocalStream: (
+    sender: boolean,
+    video: boolean
+  ) => Promise<MediaStream | null | "audio-only">;
   localStream: MediaStream | null;
   setLocalStream: React.Dispatch<React.SetStateAction<MediaStream | null>>;
 }
@@ -54,7 +58,16 @@ export const MessageProvider = ({
   const [callType, setCallType] = useState<"video" | "audio">("video");
   const [toggleVideo, setToggleVideo] = useState(true);
   const [toggleAudio, setToggleAudio] = useState(true);
-  const localVideo = useRef<HTMLVideoElement | null>(null);
+  const localVideoElRef = useRef<HTMLVideoElement | null>(null);
+  const localVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    localVideoElRef.current = node;
+    console.log("Local video ref callback:", node);
+    console.log("Local stream in callback:", lsRef.current);
+    if (node && lsRef.current) {
+      console.log("Attaching local stream (authoritative)");
+      node.srcObject = lsRef.current;
+    }
+  }, []);
   const remoteVideo = useRef<HTMLVideoElement>(null);
   function toggleLocalVideo(enabled: boolean) {
     setToggleVideo(enabled);
@@ -68,7 +81,7 @@ export const MessageProvider = ({
 
     pc.onicecandidate = (evt) => {
       if (evt.candidate) {
-        console.log("target user:", target);
+        // console.log("received candidate:", evt.candidate);
         socket.emit("ice-candidate", {
           to: target,
           candidate: evt.candidate,
@@ -86,25 +99,41 @@ export const MessageProvider = ({
     };
     return pc;
   }
-  async function ensureLocalStream() {
+  async function ensureLocalStream(sender: boolean, video: boolean) {
     try {
+      console.log("Ensuring local stream with video:", video);
       if (!lsRef.current) {
         const ls = await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video,
           audio: true,
         });
         lsRef.current = ls;
       }
+      console.log("Local stream obtained:", lsRef.current);
       return lsRef.current;
     } catch (e) {
-      const confirmed = await confirm(
-        "Cannot access media devices. Continue with voice call?",
-        { title: "Access denied" }
-      );
-      if (confirmed) {
-        return "audio-only";
+      if (sender) {
+        const confirmed = await confirm(
+          "Cannot access media devices. Continue with voice call?",
+          { title: "Access denied" }
+        );
+        if (confirmed) {
+          return "audio-only";
+        }
+        return null;
+      } else {
+        await message("Cannot access media devices", {
+          title: "Access denied",
+        });
+        if (!lsRef.current) {
+          const ls = await navigator.mediaDevices.getUserMedia({
+            video: false,
+            audio: true,
+          });
+          lsRef.current = ls;
+        }
+        return lsRef.current;
       }
-      return null;
     }
   }
   return (
@@ -119,7 +148,8 @@ export const MessageProvider = ({
         pendingMessages,
         setPendingMessages,
         pcRef,
-        localVideo,
+        localVideoRef,
+        localVideoElRef,
         remoteVideo,
         lsRef,
         inCall,

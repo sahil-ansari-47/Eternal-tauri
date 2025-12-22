@@ -50,11 +50,11 @@ const App = () => {
     pcRef,
     lsRef,
     setInCall,
-    setToggleVideo,
+    callType,
     setCallType,
-    localVideo,
-    toggleVideo,
+    localVideoElRef,
     toggleLocalVideo,
+    setLocalStream,
     createPeerConnection,
     ensureLocalStream,
   } = useMessage();
@@ -73,6 +73,7 @@ const App = () => {
   } = useEditor();
   const { leftOpen, rightOpen, downOpen, setDownOpen } = useLayout();
   const bufferedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const remoteDescriptionSetRef = useRef(false);
   useEffect(() => {
     const recents = JSON.parse(localStorage.getItem("recents") || "[]");
     setRecents(recents);
@@ -106,10 +107,10 @@ const App = () => {
         msg.timestamp = new Date(msg.timestamp);
         setMessages((prev) => [...prev, msg]);
         // window.chatAPI.logMessage(msg);
-        const chatKey = `chat:${[userData?.username, targetUser]
-          .sort()
-          .join(":")}`;
-        if (chatKey !== msg.chatKey) window.chatAPI.messageNotification(msg);
+        // const chatKey = `chat:${[userData?.username, targetUser]
+        //   .sort()
+        //   .join(":")}`;
+        // if (chatKey !== msg.chatKey) window.chatAPI.messageNotification(msg);
       }
     );
     socket.on("pendingMessage", (msg: Message) => {
@@ -128,31 +129,30 @@ const App = () => {
       }) => {
         msg.timestamp = new Date(msg.timestamp);
         setMessages((prev) => [...prev, msg]);
-        const chatKey = `${room?.room}:${room?.roomId}`;
-        if (chatKey !== msg.chatKey) window.chatAPI.messageNotification(msg);
+        // const chatKey = `${room?.room}:${room?.roomId}`;
+        // if (chatKey !== msg.chatKey) window.chatAPI.messageNotification(msg);
       }
     );
     socket.on("offer", async ({ from, offer, callType }) => {
+      remoteDescriptionSetRef.current = false;
+      bufferedCandidatesRef.current = [];
       setIncomingFrom(from);
       setPendingOffer(offer);
-      setAcceptDialog(true);
-      setToggleVideo(callType);
       setCallType(callType ? "video" : "audio");
-      if (document.hidden) {
-        window.chatAPI.callNotification(from, callType);
-      }
+      setAcceptDialog(true);
+      // if (document.hidden) {
+      //   window.chatAPI.callNotification(from, callType);
+      // }
     });
     socket.on("answer", async ({ answer }) => {
-      console.log("answer", answer);
       if (!pcRef.current) {
         console.log("No RTCPeerConnection for answer");
         return;
       }
       await pcRef.current.setRemoteDescription(answer);
-      console.log("pc", pcRef.current.remoteDescription);
     });
     socket.on("ice-candidate", async ({ candidate }) => {
-      if (!pcRef.current) {
+      if (!pcRef.current || !remoteDescriptionSetRef.current) {
         console.log("Buffering ICE candidate");
         bufferedCandidatesRef.current.push(candidate);
         return;
@@ -173,7 +173,7 @@ const App = () => {
       if (lsRef.current) {
         for (const track of lsRef.current.getTracks()) track.stop();
         lsRef.current = null;
-        if (localVideo.current) localVideo.current.srcObject = null;
+        if (localVideoElRef.current) localVideoElRef.current.srcObject = null;
       }
     });
     socket.on("hangup", () => {
@@ -186,7 +186,7 @@ const App = () => {
       if (lsRef.current) {
         for (const track of lsRef.current.getTracks()) track.stop();
         lsRef.current = null;
-        if (localVideo.current) localVideo.current.srcObject = null;
+        if (localVideoElRef.current) localVideoElRef.current.srcObject = null;
       }
     });
     return () => {
@@ -210,17 +210,42 @@ const App = () => {
   }, [isSignedIn]);
   const handleAccept = async () => {
     if (!incomingFrom || !pendingOffer) return;
-    const pc = createPeerConnection(incomingFrom);
-    pcRef.current = pc;
+    console.log("Accepting call from", incomingFrom);
+    setAcceptDialog(false);
+    setInCall(true);
+    setTargetUser(incomingFrom);
     try {
-      setAcceptDialog(false);
-      setInCall(true);
-      setTargetUser(incomingFrom);
+      const pc = createPeerConnection(incomingFrom);
+      pcRef.current = pc;
+      console.log("PC signaling state before SRD:", pc.signalingState);
       await pc.setRemoteDescription(pendingOffer);
-      const stream = await ensureLocalStream();
-      if (stream instanceof MediaStream) {
-        for (const track of stream.getTracks()) {
-          pc.addTrack(track, stream);
+      remoteDescriptionSetRef.current = true;
+      console.log("remote description set");
+      pc.addTransceiver("audio", { direction: "sendrecv" });
+      pc.addTransceiver("video", { direction: "sendrecv" });
+      const wantsVideo = callType === "video" ? true : false;
+      const streamResult = await ensureLocalStream(false, wantsVideo);
+      console.log("ensureLocalStream result:", streamResult);
+      if (!streamResult) {
+        console.log("Call acceptance cancelled by user");
+        setInCall(false);
+        setTargetUser("");
+        handleReject();
+        return;
+      }
+      if (streamResult instanceof MediaStream) {
+        console.log("Setting local stream");
+        setLocalStream(streamResult);
+        lsRef.current = streamResult;
+        if (localVideoElRef.current) {
+          console.log("Attaching stream after ensureLocalStream");
+          localVideoElRef.current.srcObject = streamResult;
+        }
+        for (const track of streamResult.getTracks()) {
+          pcRef.current?.addTrack(track, streamResult);
+        }
+        if (streamResult.getVideoTracks().length === 0) {
+          toggleLocalVideo(false);
         }
       }
       const answer = await pc.createAnswer();
@@ -230,7 +255,6 @@ const App = () => {
         await pc.addIceCandidate(candidate);
       }
       bufferedCandidatesRef.current = [];
-      toggleLocalVideo(toggleVideo);
       setIncomingFrom(null);
       setPendingOffer(null);
     } catch (error) {
@@ -243,8 +267,8 @@ const App = () => {
       setTargetUser("");
     }
   };
-
   const handleReject = () => {
+    bufferedCandidatesRef.current = [];
     setAcceptDialog(false);
     socket.emit("call-rejected", { from: incomingFrom });
     setIncomingFrom(null);

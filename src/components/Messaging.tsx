@@ -50,13 +50,13 @@ const Messaging = () => {
     pendingMessages,
     setPendingMessages,
     setInCall,
+    callType,
     setCallType,
     pcRef,
     toggleLocalVideo,
     createPeerConnection,
     ensureLocalStream,
     setLocalStream,
-    localVideo,
   } = useMessage();
   const { getToken } = useAuth();
   const [input, setInput] = useState("");
@@ -255,7 +255,8 @@ const Messaging = () => {
   };
   const handleCall = async (to: string, video: boolean) => {
     if (!userData || !to) return;
-    const streamResult = await ensureLocalStream();
+    const wantsVideo = callType === "video" ? true : false;
+    const streamResult = await ensureLocalStream(true, wantsVideo);
     if (!streamResult) {
       console.log("Call aborted by user");
       return;
@@ -267,10 +268,10 @@ const Messaging = () => {
     pcRef.current = createPeerConnection(to);
     if (streamResult instanceof MediaStream) {
       setLocalStream(streamResult);
-      if (localVideo.current) {
-        console.log("Local stream tracks:", streamResult.getTracks());
-        localVideo.current.srcObject = streamResult;
-      }
+      // if (localVideo.current) {
+      //   console.log("Local stream tracks:", streamResult.getTracks());
+      //   localVideo.current.srcObject = streamResult;
+      // }
       for (const track of streamResult.getTracks()) {
         pcRef.current.addTrack(track, streamResult);
       }
