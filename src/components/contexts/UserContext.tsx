@@ -9,8 +9,8 @@ interface UserContextType {
   socket: Socket;
   acceptDialog: boolean;
   setAcceptDialog: React.Dispatch<React.SetStateAction<boolean>>;
-  incomingFrom: string | null;
-  setIncomingFrom: React.Dispatch<React.SetStateAction<string | null>>;
+  inCallwith: string | null;
+  setinCallwith: React.Dispatch<React.SetStateAction<string | null>>;
   pendingOffer: any;
   setPendingOffer: React.Dispatch<React.SetStateAction<any>>;
 }
@@ -19,7 +19,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const { getToken, isSignedIn } = useAuth();
   const [acceptDialog, setAcceptDialog] = useState(false);
-  const [incomingFrom, setIncomingFrom] = useState<string | null>(null);
+  const [inCallwith, setinCallwith] = useState<string | null>(null);
   const [pendingOffer, setPendingOffer] = useState<any>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const backendUrl = "https://eternalv2.onrender.com";
@@ -41,7 +41,19 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <UserContext.Provider value={{ socket, fetchUser, userData, acceptDialog, setAcceptDialog, incomingFrom, setIncomingFrom, pendingOffer, setPendingOffer }}>
+    <UserContext.Provider
+      value={{
+        socket,
+        fetchUser,
+        userData,
+        acceptDialog,
+        setAcceptDialog,
+        inCallwith,
+        setinCallwith,
+        pendingOffer,
+        setPendingOffer,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );

@@ -39,7 +39,7 @@ import ChatWindow from "./ChatWindow";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 type ChatMode = "private" | "group" | "friends";
 const Messaging = () => {
-  const { userData, fetchUser, socket } = useUser();
+  const { userData, fetchUser, socket, setinCallwith } = useUser();
   const {
     targetUser,
     setTargetUser,
@@ -53,6 +53,7 @@ const Messaging = () => {
     setCallType,
     pcRef,
     toggleLocalVideo,
+    toggleLocalAudio,
     createPeerConnection,
     ensureLocalStream,
   } = useMessage();
@@ -261,6 +262,7 @@ const Messaging = () => {
       return;
     }
     setInCall(true);
+    setinCallwith(to);
     pcRef.current = createPeerConnection(to);
     const stream = await ensureLocalStream();
     if (stream) {
@@ -757,11 +759,16 @@ const Messaging = () => {
                     onClick={async () => {
                       await handleCall(targetUser, false);
                       toggleLocalVideo(false);
+                      toggleLocalAudio(true);
                     }}
                     className="cursor-pointer size-7 p-1 text-p6"
                   />
                   <Video
-                    onClick={() => handleCall(targetUser, true)}
+                    onClick={async () => {
+                      await handleCall(targetUser, true);
+                      toggleLocalVideo(true);
+                      toggleLocalAudio(true);
+                    }}
                     className="cursor-pointer size-8 p-1 text-p6"
                   />
                 </div>

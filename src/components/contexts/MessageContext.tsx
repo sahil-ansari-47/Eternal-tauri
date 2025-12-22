@@ -4,6 +4,8 @@ import { useUser } from "./UserContext";
 interface MessageContextType {
   targetUser: string;
   setTargetUser: React.Dispatch<React.SetStateAction<string>>;
+  participants: Participant[];
+  setParticipants: React.Dispatch<React.SetStateAction<Participant[]>>;
   room: Group | null;
   setRoom: React.Dispatch<React.SetStateAction<Group | null>>;
   messages: Message[];
@@ -18,11 +20,13 @@ interface MessageContextType {
   setInCall: React.Dispatch<React.SetStateAction<boolean>>;
   callType: "video" | "audio";
   setCallType: React.Dispatch<React.SetStateAction<"video" | "audio">>;
-  toggleVideo: boolean;
-  setToggleVideo: React.Dispatch<React.SetStateAction<boolean>>;
-  toggleAudio: boolean;
-  setToggleAudio: React.Dispatch<React.SetStateAction<boolean>>;
+  isVideoOn: boolean;
+  setisVideoOn: React.Dispatch<React.SetStateAction<boolean>>;
+  isAudioOn: boolean;
+  setisAudioOn: React.Dispatch<React.SetStateAction<boolean>>;
+  toggleLocalAudio: (enabled: boolean) => void;
   toggleLocalVideo: (enabled: boolean) => void;
+  handleHangup: () => void;
   createPeerConnection: (target: string) => RTCPeerConnection;
   ensureLocalStream: () => Promise<MediaStream | null>;
 }
@@ -40,7 +44,7 @@ export const MessageProvider = ({
     },
   ];
   const [room, setRoom] = useState<Group | null>(null);
-  const { socket } = useUser();
+  const { socket, setinCallwith } = useUser();
   const [messages, setMessages] = useState<Message[]>([]);
   const [pendingMessages, setPendingMessages] = useState<Message[]>([]);
   const [targetUser, setTargetUser] = useState("");
@@ -48,13 +52,24 @@ export const MessageProvider = ({
   const lsRef = useRef<MediaStream | null>(null);
   const [inCall, setInCall] = useState(false);
   const [callType, setCallType] = useState<"video" | "audio">("video");
-  const [toggleVideo, setToggleVideo] = useState(true);
-  const [toggleAudio, setToggleAudio] = useState(true);
+  const [isVideoOn, setisVideoOn] = useState(true);
+  const [isAudioOn, setisAudioOn] = useState(true);
   const localVideo = useRef<HTMLVideoElement | null>(null);
   const remoteVideo = useRef<HTMLVideoElement>(null);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+
+  function toggleLocalAudio(enabled: boolean) {
+    console.log("toggling audio", enabled);
+    setisAudioOn(enabled);
+    if (!lsRef.current || lsRef.current?.getTracks().length === 0) return;
+    lsRef.current
+      .getAudioTracks()
+      .forEach((track) => (track.enabled = enabled));
+  }
+
   function toggleLocalVideo(enabled: boolean) {
-    setToggleVideo(enabled);
-    if (!lsRef.current) return;
+    setisVideoOn(enabled);
+    if (!lsRef.current || lsRef.current?.getTracks().length === 0) return;
     lsRef.current
       .getVideoTracks()
       .forEach((track) => (track.enabled = enabled));
@@ -92,11 +107,28 @@ export const MessageProvider = ({
     }
     return lsRef.current;
   }
+
+  const handleHangup = () => {
+    setInCall(false);
+    setinCallwith(null);
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    if (lsRef.current) {
+      for (const track of lsRef.current.getTracks()) track.stop();
+      lsRef.current = null;
+      if (localVideo.current) localVideo.current.srcObject = null;
+    }
+    socket.emit("hangup", { to: targetUser });
+  };
   return (
     <MessageContext.Provider
       value={{
         targetUser,
         setTargetUser,
+        participants,
+        setParticipants,
         room,
         setRoom,
         messages,
@@ -111,11 +143,13 @@ export const MessageProvider = ({
         setInCall,
         callType,
         setCallType,
-        toggleVideo,
-        setToggleVideo,
-        toggleAudio,
-        setToggleAudio,
+        isVideoOn,
+        setisVideoOn,
+        isAudioOn,
+        setisAudioOn,
+        toggleLocalAudio,
         toggleLocalVideo,
+        handleHangup,
         createPeerConnection,
         ensureLocalStream,
       }}

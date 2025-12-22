@@ -34,8 +34,8 @@ const App = () => {
   const {
     userData,
     fetchUser,
-    incomingFrom,
-    setIncomingFrom,
+    inCallwith,
+    setinCallwith,
     pendingOffer,
     setPendingOffer,
     acceptDialog,
@@ -50,12 +50,12 @@ const App = () => {
     pcRef,
     lsRef,
     setInCall,
-    setToggleVideo,
+    setisVideoOn,
     callType,
     setCallType,
     localVideo,
     remoteVideo,
-    toggleVideo,
+    isVideoOn,
     toggleLocalVideo,
     createPeerConnection,
     ensureLocalStream,
@@ -135,10 +135,10 @@ const App = () => {
       }
     );
     socket.on("offer", async ({ from, offer, callType }) => {
-      setIncomingFrom(from);
+      setinCallwith(from);
       setPendingOffer(offer);
       setAcceptDialog(true);
-      setToggleVideo(callType);
+      setisVideoOn(callType);
       setCallType(callType ? "video" : "audio");
       if (document.hidden) {
         window.chatAPI.callNotification(from, callType);
@@ -181,6 +181,7 @@ const App = () => {
     socket.on("hangup", () => {
       console.log("hangup hit");
       setInCall(false);
+      setinCallwith(null);
       if (pcRef.current) {
         pcRef.current.close();
         pcRef.current = null;
@@ -211,13 +212,13 @@ const App = () => {
     fetchUser().catch((err) => console.error("Failed to sync user:", err));
   }, [isSignedIn]);
   const handleAccept = async () => {
-    if (!incomingFrom || !pendingOffer) return;
-    const pc = createPeerConnection(incomingFrom);
+    if (!inCallwith || !pendingOffer) return;
+    const pc = createPeerConnection(inCallwith);
     pcRef.current = pc;
     try {
       setAcceptDialog(false);
       setInCall(true);
-      setTargetUser(incomingFrom);
+      setTargetUser(inCallwith);
       await pc.setRemoteDescription(pendingOffer);
       const stream = await ensureLocalStream();
       if (stream) {
@@ -227,13 +228,13 @@ const App = () => {
       }
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      socket.emit("answer", { to: incomingFrom, answer });
+      socket.emit("answer", { to: inCallwith, answer });
       for (const candidate of bufferedCandidatesRef.current) {
         await pc.addIceCandidate(candidate);
       }
       bufferedCandidatesRef.current = [];
-      toggleLocalVideo(toggleVideo);
-      setIncomingFrom(null);
+      toggleLocalVideo(isVideoOn);
+      // setinCallwith(null);
       setPendingOffer(null);
     } catch (error) {
       console.error("Error during call acceptance:", error);
@@ -248,8 +249,8 @@ const App = () => {
 
   const handleReject = () => {
     setAcceptDialog(false);
-    socket.emit("call-rejected", { from: incomingFrom });
-    setIncomingFrom(null);
+    socket.emit("call-rejected", { from: inCallwith });
+    setinCallwith(null);
     setPendingOffer(null);
   };
   useEffect(() => {
@@ -343,9 +344,7 @@ const App = () => {
           <DialogHeader>
             <DialogTitle>Incoming Call</DialogTitle>
             <DialogDescription>
-              {incomingFrom
-                ? `${incomingFrom} is calling you`
-                : "Incoming call..."}
+              {inCallwith ? `${inCallwith} is calling you` : "Incoming call..."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 justify-end">
