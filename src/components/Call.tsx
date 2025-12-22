@@ -7,46 +7,25 @@ import {
   Video,
 } from "lucide-react";
 import { useMessage } from "./contexts/MessageContext";
-import { useUser } from "./contexts/UserContext";
 import VideoStream from "./ui/video-stream";
 import VoiceCall from "./ui/voice-call";
 import { Button } from "./ui/button";
+
 const Call = () => {
-  const { socket } = useUser();
   const {
     targetUser,
-    remoteVideo,
+    setParticipants,
+    remoteVideo,  
+    isAudioOn,
+    isVideoOn,
+    toggleLocalAudio,
     localVideoRef,
     localVideoElRef,
-    toggleAudio,
-    setToggleAudio,
-    toggleVideo,
     toggleLocalVideo,
-    pcRef,
-    lsRef,
-    setInCall,
+    handleHangup,
     callType,
   } = useMessage();
-  const handleHangup = () => {
-    setInCall(false);
-    if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
-    }
-    if (lsRef.current) {
-      for (const track of lsRef.current.getTracks()) track.stop();
-      lsRef.current = null;
-      if (localVideoElRef.current) localVideoElRef.current.srcObject = null;
-    }
-    socket.emit("hangup", { to: targetUser });
-  };
-  function toggleLocalAudio(enabled: boolean) {
-    setToggleAudio(enabled);
-    if (!lsRef.current) return;
-    lsRef.current
-      .getAudioTracks()
-      .forEach((track) => (track.enabled = enabled));
-  }
+
   return (
     <div className="relative flex flex-col h-full w-full bg-p5">
       <div className="flex items-center justify-between border-b border-discord-darker px-6 py-4 bg-discord-dark">
@@ -78,9 +57,9 @@ const Call = () => {
           <div className="absolute right-10 bottom-10 h-50 w-80">
             <VideoStream
               participantName="You"
-              isMuted={toggleAudio}
-              isVideoOn={toggleVideo}
-              videoElRef={localVideoRef}
+              isMuted={isAudioOn}
+              isVideoOn={isVideoOn}
+              videoref={localVideoRef}
             />
           </div>
         </>
@@ -88,27 +67,34 @@ const Call = () => {
       <div className="border-t border-discord-darker bg-discord-darker/50 px-4 py-3">
         <div className="mx-auto flex max-w-md items-center justify-center gap-3">
           <Button
-            variant={toggleAudio ? "destructive" : "secondary"}
+            variant={isAudioOn ? "destructive" : "secondary"}
             size="lg"
             className={
-              toggleAudio
-                ? "h-12 w-12 rounded-full bg-red-500 p-0 hover:bg-red-600"
-                : "h-12 w-12 rounded-full bg-discord-gray p-0 hover:bg-discord-gray-hover"
+              isAudioOn
+                ? "h-12 w-12 rounded-full bg-discord-gray p-0 hover:bg-discord-gray-hover"
+                : "h-12 w-12 rounded-full bg-red-500 p-0 hover:bg-red-600"
             }
-            onClick={() => toggleLocalAudio(!toggleAudio)}
+            onClick={() => {
+              setParticipants((prev) =>
+                prev.map((p) =>
+                  p.name === "You" ? { ...p, isMuted: isAudioOn } : p
+                )
+              );
+              toggleLocalAudio(!isAudioOn);
+            }}
           >
-            {toggleAudio ? (
-              <MicOff className="h-5 w-5 text-white" />
-            ) : (
+            {isAudioOn ? (
               <Mic className="h-5 w-5 text-white" />
+            ) : (
+              <MicOff className="h-5 w-5 text-white" />
             )}
           </Button>
           {callType === "video" && (
             <Button
-              variant={toggleVideo ? "destructive" : "secondary"}
-              onClick={() => toggleLocalVideo(!toggleVideo)}
+              variant={isVideoOn ? "destructive" : "secondary"}
+              onClick={() => toggleLocalVideo(!isVideoOn)}
             >
-              {toggleVideo ? (
+              {isVideoOn ? (
                 <LucideVideo className="size-10 p-2 rounded-full text-primary-sidebar shadow-md" />
               ) : (
                 <LucideVideoOff className="size-10 p-2 rounded-full bg-red-500 text-white shadow-md" />
