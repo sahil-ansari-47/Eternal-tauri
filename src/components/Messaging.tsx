@@ -36,7 +36,7 @@ import {
 import { useUser } from "./contexts/UserContext";
 import { useMessage } from "./contexts/MessageContext";
 import ChatWindow from "./ChatWindow";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
+// import { getCurrentWebview } from "@tauri-apps/api/webview";
 type ChatMode = "private" | "group" | "friends";
 const Messaging = () => {
   const { userData, fetchUser, socket, setinCallwith } = useUser();
@@ -50,7 +50,6 @@ const Messaging = () => {
     pendingMessages,
     setPendingMessages,
     setInCall,
-    callType,
     setCallType,
     pcRef,
     toggleLocalVideo,
@@ -76,11 +75,11 @@ const Messaging = () => {
   const [CreateGroup, setCreateGroup] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [groupName, setGroupName] = useState("");
-  const webview = getCurrentWebview();
+  // const webview = getCurrentWebview();
   const { signOut, openSignIn } = useClerk();
   const handleSwitch = async () => {
     await signOut();
-    await webview.clearAllBrowsingData();
+    // await webview.clearAllBrowsingData();
     openSignIn();
   }; //TODO: fix switch
   useEffect(() => {
@@ -256,15 +255,11 @@ const Messaging = () => {
   };
   const handleCall = async (to: string, video: boolean) => {
     if (!userData || !to) return;
-    const wantsVideo = callType === "video" ? true : false;
+    const wantsVideo = video ? true : false;
     const streamResult = await ensureLocalStream(true, wantsVideo);
     if (!streamResult) {
       console.log("Call aborted by user");
       return;
-    }
-    if (streamResult === "audio-only") {
-      setCallType("audio");
-      video = false;
     }
     setInCall(true);
     setinCallwith(to);
@@ -278,7 +273,9 @@ const Messaging = () => {
       for (const track of streamResult.getTracks()) {
         pcRef.current.addTrack(track, streamResult);
       }
-      setCallType("video");
+      if (streamResult.getVideoTracks().length === 0) {
+        video = false;
+      }
     }
     setInCall(true);
     const offer = await pcRef.current.createOffer();
@@ -290,6 +287,7 @@ const Messaging = () => {
       callType: video,
     });
     console.log("Call type:", video);
+    setCallType(video ? "video" : "audio");
   };
   return (
     <div className="h-full w-full p-2 bg-p5">

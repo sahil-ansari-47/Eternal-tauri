@@ -66,12 +66,15 @@ const FileSystem = () => {
     setActiveTab,
     targetNode,
     setTargetNode,
+    dragNodeRef,
+    dragOverNodeRef,
   } = useEditor();
   const { status, refreshStatus } = useGit();
   const rootsRef = useRef<FsNode[] | null>(null);
   const nodeMapRef = useRef(new Map<string, FsNode>());
   const statusDebounceRef = useRef<any>(null);
   const skipNextStatusRefreshRef = useRef(false);
+  let expandTimer: any;
   const [value, setValue] = useState("");
   const [ignoredFiles, setIgnoredFiles] = useState(new Set<string>());
   const [ignoredDirs, setIgnoredDirs] = useState<string[]>([]);
@@ -379,70 +382,167 @@ const FileSystem = () => {
       prev.find((f) => f.path === node.path) ? prev : [...prev, node]
     );
   };
-  const toggleExpand = (nodePath: string) => {
-    const node = nodeMapRef.current.get(nodePath);
+  const toggleExpand = (node: FsNode) => {
+    // const node = nodeMapRef.current.get(nodePath);
     if (!node || !node.isDirectory) return;
     node.expanded = !node.expanded;
     setRoots((prev: FsNode[] | null) => (prev ? [...prev] : prev));
+    console.log("Toggling expand for:", node);
     if (node.children || !node.expanded) return;
-    loadChildren(nodePath).then((children) => {
+    loadChildren(node.path).then((children) => {
       node.children = sortNodes(children);
       setRoots((prev: FsNode[] | null) => (prev ? [...prev] : prev));
     });
   };
+  async function handleMove(source: FsNode, target: FsNode) {
+    let destinationDir: string;
+    // Drop on file → use its parent
+    if (!target.isDirectory) {
+      destinationDir = target.path.substring(0, target.path.lastIndexOf("\\"));
+    } else {
+      destinationDir = target.path;
+    }
+    // Prevent moving folder into itself or its children
+    if (source.isDirectory && destinationDir.startsWith(source.path)) {
+      console.warn("Invalid move: folder into itself");
+      return;
+    }
+    const newPath = await join(destinationDir, source.name);
+    await rename(source.path, newPath);
+    // Update open files
+    setOpenFiles((prev) =>
+      prev.map((f) => (f.path === source.path ? { ...f, path: newPath } : f))
+    );
+  }
   const TreeItem: React.FC<{ node: FsNode; level?: number }> = ({
     node,
     level = 0,
   }) => {
     if (!workspace) return;
     return (
-      <ContextMenu>
-        <ContextMenuTrigger asChild>
-          <div
-            key={node.path}
-            className={`flex items-center gap-2 py-1 hover:bg-neutral-700 cursor-pointer ${
-              targetNode?.path === node.path
-                ? "bg-neutral-600 border border-neutral-300"
-                : activeFile?.path === node.path
-                ? "bg-neutral-700"
-                : ""
-            } select-none `}
-            style={{ paddingLeft: `${level * 12}px` }}
-            onClick={() => {
-              if (node.isDirectory) {
-                toggleExpand(node.path);
-                setTargetNode(node);
-              } else {
-                handleFileClick(node);
-              }
-            }}
-            title={node.path}
-          >
-            {node.isDirectory &&
-              (node.expanded ? (
-                <ChevronDown className="w-4 h-4 ml-2" />
-              ) : (
-                <ChevronRight className="w-4 h-4 ml-2" />
-              ))}
-            {node.isDirectory ? (
-              node.loading ? (
-                <span className="w-4">⏳</span>
-              ) : node.expanded ? (
-                <FolderOpen className="w-4 h-4 text-yellow-500" />
-              ) : (
-                <Folder className="w-4 h-4 text-yellow-500" />
-              )
+      // <ContextMenu>
+      //   <ContextMenuTrigger asChild>
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = "move";
+          if (!dragNodeRef.current) return;
+          console.log("Drag over:", node.path);
+          dragOverNodeRef.current = node;
+          if (!node.isDirectory || node.expanded) return;
+          clearTimeout(expandTimer);
+          expandTimer = setTimeout(() => {
+            toggleExpand(node);
+          }, 600);
+        }}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = "move";
+        }}
+        onDrop={async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log("Drop on:", node.path);
+          const source = dragNodeRef.current;
+          const target = node;
+          if (!source || !workspace) return;
+          if (source.path === target.path) return;
+          await handleMove(source, target);
+          // const files = Array.from(e.dataTransfer.files);
+          // if (!files.length || !node.isDirectory) return;
+          // for (const file of files) {
+          //   const dest = await join(node.path, file.name);
+          //   await invoke("copy_file", {
+          //     from: file.path,
+          //     to: dest,
+          //   });
+          // }
+        }}
+      >
+        <div
+          draggable
+          onDragStart={(e) => {
+            dragNodeRef.current = node;
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", node.path);
+            console.log("Drag started:", node.path);
+            // e.dataTransfer.setDragImage(e.currentTarget, 8, 8);
+          }}
+          onDragEnd={() => {
+            dragNodeRef.current = null;
+            dragOverNodeRef.current = null;
+          }}
+          className={`flex items-center gap-2 py-1 hover:bg-neutral-700 cursor-pointer ${
+            targetNode?.path === node.path
+              ? "bg-neutral-600 border border-neutral-300"
+              : activeFile?.path === node.path
+              ? "bg-neutral-700"
+              : ""
+          }`}
+          style={{ paddingLeft: `${level * 12}px` }}
+          onClick={() => {
+            if (node.isDirectory) {
+              toggleExpand(node);
+              setTargetNode(node);
+            } else {
+              handleFileClick(node);
+            }
+          }}
+          title={node.path}
+        >
+          {node.isDirectory &&
+            (node.expanded ? (
+              <ChevronDown className="w-4 h-4 ml-2" />
             ) : (
-              <File className="w-4 h-4 ml-8" />
-            )}
-            <div className="flex w-full justify-between items-center">
+              <ChevronRight className="w-4 h-4 ml-2" />
+            ))}
+          {node.isDirectory ? (
+            node.loading ? (
+              <span className="w-4">⏳</span>
+            ) : node.expanded ? (
+              <FolderOpen className="w-4 h-4 text-yellow-500" />
+            ) : (
+              <Folder className="w-4 h-4 text-yellow-500" />
+            )
+          ) : (
+            <File className="w-4 h-4 ml-8" />
+          )}
+          <div className="flex w-full justify-between items-center">
+            <div
+              className={`
+                    truncate
+                    ${
+                      node.isDirectory && node.status === "M"
+                        ? "text-yellow-200/70"
+                        : node.status === "M"
+                        ? "text-yellow-500"
+                        : node.status === "A"
+                        ? "text-green-500"
+                        : node.status === "D"
+                        ? "text-red-500"
+                        : node.status === "U"
+                        ? "text-orange-500"
+                        : isIgnoredPath(node.path.slice(workspace.length + 1))
+                        ? "text-neutral-500"
+                        : ""
+                    }
+                  `}
+            >
+              {node.name}
+            </div>
+            {node.isDirectory ? (
               <div
-                className={`
-                truncate
-                ${
-                  node.isDirectory && node.status === "M"
-                    ? "text-yellow-200/70"
-                    : node.status === "M"
+                className={`${
+                  node.status === "M" &&
+                  "bg-yellow-200/50 size-2 mr-4 rounded-full"
+                }`}
+              />
+            ) : (
+              <div
+                className={`${node.status === "M" ? "mr-3.5" : "mr-4"} ${
+                  node.status === "M"
                     ? "text-yellow-500"
                     : node.status === "A"
                     ? "text-green-500"
@@ -450,96 +550,69 @@ const FileSystem = () => {
                     ? "text-red-500"
                     : node.status === "U"
                     ? "text-orange-500"
-                    : isIgnoredPath(node.path.slice(workspace.length + 1))
-                    ? "text-neutral-500"
                     : ""
-                }
-              `}
+                }`}
               >
-                {node.name}
+                {node.status !== "I" && node.status !== "" && node.status}
               </div>
-
-              {node.isDirectory ? (
-                <div
-                  className={`${
-                    node.status === "M" &&
-                    "bg-yellow-200/50 size-2 mr-4 rounded-full"
-                  }`}
-                />
-              ) : (
-                <div
-                  className={`${node.status === "M" ? "mr-3.5" : "mr-4"} ${
-                    node.status === "M"
-                      ? "text-yellow-500"
-                      : node.status === "A"
-                      ? "text-green-500"
-                      : node.status === "D"
-                      ? "text-red-500"
-                      : node.status === "U"
-                      ? "text-orange-500"
-                      : ""
-                  }`}
-                >
-                  {node.status !== "I" && node.status !== "" && node.status}
-                </div>
-              )}
-            </div>
+            )}
           </div>
-        </ContextMenuTrigger>
-        <ContextMenuContent className="w-40 text-neutral-300 bg-primary-sidebar">
-          {node.isDirectory && (
-            <>
-              <ContextMenuItem
-                onClick={() => {
-                  setTargetNode(node);
-                  setAction("newFile");
-                  setDialogOpen(true);
-                }}
-              >
-                New File
-              </ContextMenuItem>
-              <ContextMenuItem
-                onClick={() => {
-                  setTargetNode(node);
-                  setAction("newFolder");
-                  setDialogOpen(true);
-                }}
-              >
-                New Folder
-              </ContextMenuItem>
-              <ContextMenuItem
-                onClick={async () => {
-                  const newSpace = await normalize(`${workspace}/${node.name}`);
-                  setWorkspace(newSpace);
-                  localStorage.setItem("workspacePath", newSpace);
-                }}
-              >
-                Change Worksspace
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-            </>
-          )}
-          <ContextMenuItem
-            onClick={() => {
-              setTargetNode(node);
-              setAction("rename");
-              setValue(node.name);
-              setDialogOpen(true);
-            }}
-          >
-            Rename
-          </ContextMenuItem>
-          <ContextMenuItem
-            className="text-red-500"
-            onClick={() => {
-              setTargetNode(node);
-              setAction("delete");
-              setDialogOpen(true);
-            }}
-          >
-            Delete
-          </ContextMenuItem>
-        </ContextMenuContent>
+        </div>
+        {/* //   </ContextMenuTrigger>
+      //   <ContextMenuContent className="w-40 text-neutral-300 bg-primary-sidebar">
+      //     {node.isDirectory && (
+      //       <>
+      //         <ContextMenuItem
+      //           onClick={() => {
+      //             setTargetNode(node);
+      //             setAction("newFile");
+      //             setDialogOpen(true);
+      //           }}
+      //         >
+      //           New File
+      //         </ContextMenuItem>
+      //         <ContextMenuItem
+      //           onClick={() => {
+      //             setTargetNode(node);
+      //             setAction("newFolder");
+      //             setDialogOpen(true);
+      //           }}
+      //         >
+      //           New Folder
+      //         </ContextMenuItem>
+      //         <ContextMenuItem
+      //           onClick={async () => {
+      //             const newSpace = await normalize(`${workspace}/${node.name}`);
+      //             setWorkspace(newSpace);
+      //             localStorage.setItem("workspacePath", newSpace);
+      //           }}
+      //         >
+      //           Change Worksspace
+      //         </ContextMenuItem>
+      //         <ContextMenuSeparator />
+      //       </>
+      //     )}
+      //     <ContextMenuItem
+      //       onClick={() => {
+      //         setTargetNode(node);
+      //         setAction("rename");
+      //         setValue(node.name);
+      //         setDialogOpen(true);
+      //       }}
+      //     >
+      //       Rename
+      //     </ContextMenuItem>
+      //     <ContextMenuItem
+      //       className="text-red-500"
+      //       onClick={() => {
+      //         setTargetNode(node);
+      //         setAction("delete");
+      //         setDialogOpen(true);
+      //       }}
+      //     >
+      //       Delete
+      //     </ContextMenuItem>
+      //   </ContextMenuContent> */}
         {node.isDirectory && node.expanded && node.children && (
           <div>
             {node.children.map((c) => (
@@ -547,112 +620,114 @@ const FileSystem = () => {
             ))}
           </div>
         )}
-      </ContextMenu>
+      </div>
+      // </ContextMenu>
     );
   };
   if (!workspace) {
     return <NoWorkspace />;
   }
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div className="h-full bg-primary-sidebar text-neutral-300 text-sm p-2">
-          <div className="h-full w-full border border-neutral-600 rounded-xl py-4 overflow-hidden">
-            <div className="flex items-center justify-between mb-2 px-6">
-              <div className="text-p6 font-semibold">
-                {workspace.split(/[\\/]/).pop()}
-              </div>
-              <div className="flex gap-3">
-                <button
-                  className="cursor-pointer"
-                  onClick={() => {
-                    setAction("newFile");
-                    setDialogOpen(true);
-                  }}
-                  title="New File"
-                >
-                  <FilePlus2 className="size-4.5" />
-                </button>
-                <button
-                  className="cursor-pointer"
-                  onClick={() => {
-                    setAction("newFolder");
-                    setDialogOpen(true);
-                  }}
-                  title="New Folder"
-                >
-                  <FolderPlus className="size-5" />
-                </button>
-                <button
-                  className="text-xs text-neutral-300 hover:underline cursor-pointer"
-                  onClick={() => {
-                    localStorage.removeItem("workspacePath");
-                    setActiveTab("Home");
-                    setWorkspace(null);
-                    setRoots(null);
-                    setErrorMessage(null);
-                  }}
-                  title="Close Folder"
-                >
-                  <FolderMinus className="size-5" />
-                </button>
-                <button
-                  className="cursor-pointer"
-                  onClick={reloadWorkspace}
-                  title="Reload"
-                >
-                  <FolderSync className="size-5" />
-                </button>
-              </div>
+    <>
+      {/* // <ContextMenu>
+    //   <ContextMenuTrigger asChild> */}
+      <div className="h-full bg-primary-sidebar text-neutral-300 text-sm p-2">
+        <div className="h-full w-full border border-neutral-600 rounded-xl py-4 overflow-hidden">
+          <div className="flex items-center justify-between mb-2 px-6">
+            <div className="text-p6 font-semibold">
+              {workspace.split(/[\\/]/).pop()}
             </div>
-
-            <div className="overflow-y-scroll overflow-x-hidden pb-4 max-h-full scrollbar">
-              {roots === null ? (
-                <div className="text-sm text-gray-500">Loading…</div>
-              ) : roots.length === 0 ? (
-                <div className="text-sm text-center text-gray-500 px-16 mt-5">
-                  The folder you have selected is currently empty.
-                </div>
-              ) : (
-                roots
-                  .filter((r) => r.name !== ".git")
-                  .map((r) => <TreeItem key={r.path} node={r} />)
-              )}
+            <div className="flex gap-3">
+              <button
+                className="cursor-pointer"
+                onClick={() => {
+                  setAction("newFile");
+                  setDialogOpen(true);
+                }}
+                title="New File"
+              >
+                <FilePlus2 className="size-4.5" />
+              </button>
+              <button
+                className="cursor-pointer"
+                onClick={() => {
+                  setAction("newFolder");
+                  setDialogOpen(true);
+                }}
+                title="New Folder"
+              >
+                <FolderPlus className="size-5" />
+              </button>
+              <button
+                className="text-xs text-neutral-300 hover:underline cursor-pointer"
+                onClick={() => {
+                  localStorage.removeItem("workspacePath");
+                  setActiveTab("Home");
+                  setWorkspace(null);
+                  setRoots(null);
+                  setErrorMessage(null);
+                }}
+                title="Close Folder"
+              >
+                <FolderMinus className="size-5" />
+              </button>
+              <button
+                className="cursor-pointer"
+                onClick={reloadWorkspace}
+                title="Reload"
+              >
+                <FolderSync className="size-5" />
+              </button>
             </div>
-            {error && <div className="text-sm text-red-500 mt-2">{error}</div>}
           </div>
-        </div>
-      </ContextMenuTrigger>
 
-      <ContextMenuContent className="w-40 text-neutral-300 bg-primary-sidebar">
-        <ContextMenuItem
-          onClick={() => {
-            setAction("newFile");
-            setDialogOpen(true);
-          }}
-        >
-          New File
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={() => {
-            setAction("newFolder");
-            setDialogOpen(true);
-          }}
-        >
-          New Folder
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          onClick={() => {
-            localStorage.removeItem("workspacePath");
-            setActiveTab("Home");
-            setWorkspace(null);
-            setRoots(null);
-          }}
-        >
-          Close Workspace
-        </ContextMenuItem>
-      </ContextMenuContent>
+          <div className="overflow-y-scroll overflow-x-hidden pb-4 max-h-full scrollbar">
+            {roots === null ? (
+              <div className="text-sm text-gray-500">Loading…</div>
+            ) : roots.length === 0 ? (
+              <div className="text-sm text-center text-gray-500 px-16 mt-5">
+                The folder you have selected is currently empty.
+              </div>
+            ) : (
+              roots
+                .filter((r) => r.name !== ".git")
+                .map((r) => <TreeItem key={r.path} node={r} />)
+            )}
+          </div>
+          {error && <div className="text-sm text-red-500 mt-2">{error}</div>}
+        </div>
+      </div>
+      {/* // </ContextMenuTrigger> */}
+
+      {/* // <ContextMenuContent className="w-40 text-neutral-300 bg-primary-sidebar">
+      //   <ContextMenuItem
+      //     onClick={() => {
+      //       setAction("newFile");
+      //       setDialogOpen(true);
+      //     }}
+      //   >
+      //     New File
+      //   </ContextMenuItem>
+      //   <ContextMenuItem
+      //     onClick={() => {
+      //       setAction("newFolder");
+      //       setDialogOpen(true);
+      //     }}
+      //   >
+      //     New Folder
+      //   </ContextMenuItem>
+      //   <ContextMenuSeparator />
+      //   <ContextMenuItem
+      //     onClick={() => {
+      //       localStorage.removeItem("workspacePath");
+      //       setActiveTab("Home");
+      //       setWorkspace(null);
+      //       setRoots(null);
+      //     }}
+      //   >
+      //     Close Workspace
+      //   </ContextMenuItem>
+      // </ContextMenuContent> */}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="text-neutral-300">
@@ -699,7 +774,7 @@ const FileSystem = () => {
             </Button>
             <Button
               onClick={handleConfirm}
-              className="border-1 border-neutral-500 cursor-pointer disabled:opacity:50"
+              className="border border-neutral-500 cursor-pointer disabled:opacity:50"
               disabled={action === "delete" ? false : value === ""}
             >
               {action === "delete" ? "Delete" : "OK"}
@@ -707,7 +782,8 @@ const FileSystem = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </ContextMenu>
+    </>
+    // </ContextMenu>
   );
 };
 

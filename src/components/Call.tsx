@@ -15,12 +15,11 @@ const Call = () => {
   const {
     targetUser,
     setParticipants,
-    remoteVideo,  
+    remoteVideoRef,
     isAudioOn,
     isVideoOn,
     toggleLocalAudio,
     localVideoRef,
-    localVideoElRef,
     toggleLocalVideo,
     handleHangup,
     callType,
@@ -49,17 +48,17 @@ const Call = () => {
       ) : (
         <>
           {/* Primary Video Stream */}
-          {/* <VideoStream
+          <VideoStream
             participantName={targetUser}
-            videoElRef={remoteVideo as React.RefObject<HTMLVideoElement>}
-          /> */}
+            videoElRef={remoteVideoRef}
+          />
 
           <div className="absolute right-10 bottom-10 h-50 w-80">
             <VideoStream
               participantName="You"
               isMuted={isAudioOn}
               isVideoOn={isVideoOn}
-              videoref={localVideoRef}
+              videoElRef={localVideoRef}
             />
           </div>
         </>

@@ -187,11 +187,4 @@ declare global {
     pty: Awaited<ReturnType<typeof spawn>>;
     container: HTMLDivElement;
   };
-  interface Window {
-    chatAPI: {
-      logMessage: (message: Message) => void;
-      messageNotification: (message: Message) => void;
-      callNotification: (target: string, video: boolean) => boolean;
-    };
-  }
 }

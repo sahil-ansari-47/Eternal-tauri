@@ -2,19 +2,19 @@
 export function getRelativeTime(input: Date): string {
   const now = Date.now();
   const then = new Date(input).getTime();
-  
+
   let seconds = Math.floor((now - then) / 1000);
 
   // Future dates or invalid -> treat as just now
   if (seconds < 60) return "just now";
 
   const units = [
-    { abbr: "y", seconds: 365 * 24 * 60 * 60 },   // year
-    { abbr: "mo", seconds: 30 * 24 * 60 * 60 },   // month (approx)
-    { abbr: "w", seconds: 7 * 24 * 60 * 60 },     // week
-    { abbr: "d", seconds: 24 * 60 * 60 },         // day
-    { abbr: "h", seconds: 60 * 60 },              // hour
-    { abbr: "m", seconds: 60 },                   // minute
+    { abbr: "y", seconds: 365 * 24 * 60 * 60 }, // year
+    { abbr: "mo", seconds: 30 * 24 * 60 * 60 }, // month (approx)
+    { abbr: "w", seconds: 7 * 24 * 60 * 60 }, // week
+    { abbr: "d", seconds: 24 * 60 * 60 }, // day
+    { abbr: "h", seconds: 60 * 60 }, // hour
+    { abbr: "m", seconds: 60 }, // minute
   ];
 
   for (const u of units) {
@@ -24,5 +24,36 @@ export function getRelativeTime(input: Date): string {
     }
   }
 
-  return "just now"; // fallback (shouldn't reach here)
+  return "just now";
+}
+
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification,
+} from "@tauri-apps/plugin-notification";
+
+export async function showNotification(title: string, body: string) {
+  console.log("showNotification");
+  let permissionGranted = await isPermissionGranted();
+  console.log("Permission granted:", permissionGranted);
+  if (!permissionGranted) {
+    console.log("Requesting permission...");
+    const permission = await requestPermission();
+    permissionGranted = permission === "granted";
+  }
+  if (permissionGranted) {
+    console.log("Sending notification...");
+    sendNotification({
+      title,
+      body,
+      attachments: [
+        {
+          id: "icon",
+          url: "asset://../../public/logo.png",
+        },
+      ],
+    });
+    console.log("Notification sent.");
+  }
 }

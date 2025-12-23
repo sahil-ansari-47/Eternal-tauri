@@ -15,7 +15,7 @@ interface MessageContextType {
   setPendingMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   pcRef: React.RefObject<RTCPeerConnection | null>;
   lsRef: React.RefObject<MediaStream | null>;
-  remoteVideo: React.RefObject<HTMLVideoElement | null>;
+  remoteVideoElRef: React.RefObject<HTMLVideoElement | null>;
   inCall: boolean;
   setInCall: React.Dispatch<React.SetStateAction<boolean>>;
   callType: "video" | "audio";
@@ -29,12 +29,15 @@ interface MessageContextType {
   handleHangup: () => void;
   localVideoRef: (node: HTMLVideoElement | null) => void;
   localVideoElRef: React.RefObject<HTMLVideoElement | null>;
+  remoteVideoRef: (node: HTMLVideoElement | null) => void;
   createPeerConnection: (target: string) => RTCPeerConnection;
   ensureLocalStream: (
     sender: boolean,
     video: boolean
   ) => Promise<MediaStream | null | "audio-only">;
   localStream: MediaStream | null;
+  canSendIceRef: React.RefObject<boolean>;
+  bufferedCandidatesRef: React.RefObject<RTCIceCandidateInit[]>;
   setLocalStream: React.Dispatch<React.SetStateAction<MediaStream | null>>;
 }
 export const MessageContext = createContext<MessageContextType | undefined>(
@@ -63,6 +66,7 @@ export const MessageProvider = ({
   const [isVideoOn, setisVideoOn] = useState(true);
   const [isAudioOn, setisAudioOn] = useState(true);
   const localVideoElRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoElRef = useRef<HTMLVideoElement>(null);
   const localVideoRef = useCallback((node: HTMLVideoElement | null) => {
     localVideoElRef.current = node;
     console.log("Local video ref callback:", node);
@@ -72,7 +76,11 @@ export const MessageProvider = ({
       node.srcObject = lsRef.current;
     }
   }, []);
-  const remoteVideo = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    remoteVideoElRef.current = node;
+  }, []);
+  const canSendIceRef = useRef(false);
+  const bufferedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
 
   function toggleLocalAudio(enabled: boolean) {
@@ -92,27 +100,36 @@ export const MessageProvider = ({
       .forEach((track) => (track.enabled = enabled));
   }
   function createPeerConnection(target: string) {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-
-    pc.onicecandidate = (evt) => {
-      if (evt.candidate) {
-        // console.log("received candidate:", evt.candidate);
+    try {
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      pc.onicecandidate = (evt) => {
+        if (!evt.candidate) {
+          console.log("no candidate found");
+          return;
+        }
+        // if (!canSendIceRef.current) {
+        //   bufferedCandidatesRef.current.push(evt.candidate);
+        //   return;
+        // }
+        console.log("received candidate");
         socket.emit("ice-candidate", {
           to: target,
           candidate: evt.candidate,
         });
-      } else {
         console.log("done gathering candidates");
-      }
-    };
-    pc.ontrack = (evt) => {
-      if (remoteVideo.current && !remoteVideo.current.srcObject) {
-        console.log("Remote stream tracks:", evt.streams[0].getTracks());
-        remoteVideo.current.srcObject = evt.streams[0];
-        console.log("Remote video src:", remoteVideo.current.srcObject);
-      }
-    };
-    return pc;
+      };
+      pc.ontrack = (evt) => {
+        if (remoteVideoElRef.current && !remoteVideoElRef.current.srcObject) {
+          console.log("Remote stream tracks:", evt.streams[0].getTracks());
+          remoteVideoElRef.current.srcObject = evt.streams[0];
+          console.log("Remote video src:", remoteVideoElRef.current.srcObject);
+        }
+      };
+      return pc;
+    } catch (e) {
+      console.error("Error creating PeerConnection:", e);
+      throw e;
+    }
   }
   async function ensureLocalStream(sender: boolean, video: boolean) {
     try {
@@ -133,7 +150,14 @@ export const MessageProvider = ({
           { title: "Access denied" }
         );
         if (confirmed) {
-          return "audio-only";
+          if (!lsRef.current) {
+            const ls = await navigator.mediaDevices.getUserMedia({
+              video: false,
+              audio: true,
+            });
+            lsRef.current = ls;
+          }
+          return lsRef.current;
         }
         return null;
       } else {
@@ -151,7 +175,6 @@ export const MessageProvider = ({
       }
     }
   }
-
   const handleHangup = () => {
     setInCall(false);
     setinCallwith(null);
@@ -182,7 +205,8 @@ export const MessageProvider = ({
         pcRef,
         localVideoRef,
         localVideoElRef,
-        remoteVideo,
+        remoteVideoRef,
+        remoteVideoElRef,
         lsRef,
         inCall,
         setInCall,
@@ -199,6 +223,8 @@ export const MessageProvider = ({
         setLocalStream,
         createPeerConnection,
         ensureLocalStream,
+        canSendIceRef,
+        bufferedCandidatesRef,
       }}
     >
       {children}

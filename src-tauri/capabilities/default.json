@@ -2,7 +2,10 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main", "win-*"],
+  "windows": [
+    "main",
+    "win-*"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-minimize",
@@ -28,6 +31,7 @@
     "pty:allow-spawn",
     "pty:allow-write",
     "core:webview:allow-clear-all-browsing-data",
-    "shell:allow-open"
+    "shell:allow-open",
+    "notification:default"
   ]
 }

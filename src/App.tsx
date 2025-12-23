@@ -24,11 +24,11 @@ import {
   RightPanel,
   BottomPanel,
   Main,
-  MenuBar,
+  // MenuBar,
   StatusBar,
 } from "./components/ComponentIndex";
 import { useLayout } from "./components/contexts/LayoutContext";
-
+import { showNotification } from "./utils/msfunc";
 const App = () => {
   const { isSignedIn } = useAuth();
   const {
@@ -53,13 +53,15 @@ const App = () => {
     setisVideoOn,
     callType,
     setCallType,
-    remoteVideo,
+    remoteVideoElRef,
     isVideoOn,
     localVideoElRef,
     toggleLocalVideo,
     setLocalStream,
     createPeerConnection,
     ensureLocalStream,
+    bufferedCandidatesRef,
+    // canSendIceRef,
   } = useMessage();
   const {
     cloneDialogOpen,
@@ -75,7 +77,6 @@ const App = () => {
     setRecents,
   } = useEditor();
   const { leftOpen, rightOpen, downOpen, setDownOpen } = useLayout();
-  const bufferedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const remoteDescriptionSetRef = useRef(false);
   useEffect(() => {
     const recents = JSON.parse(localStorage.getItem("recents") || "[]");
@@ -109,11 +110,9 @@ const App = () => {
       }) => {
         msg.timestamp = new Date(msg.timestamp);
         setMessages((prev) => [...prev, msg]);
-        // window.chatAPI.logMessage(msg);
-        // const chatKey = `chat:${[userData?.username, targetUser]
-        //   .sort()
-        //   .join(":")}`;
-        // if (chatKey !== msg.chatKey) window.chatAPI.messageNotification(msg);
+        console.log("sending");
+        showNotification(`New message from ${msg.from}`, msg.text);
+        console.log("sent");
       }
     );
     socket.on("pendingMessage", (msg: Message) => {
@@ -132,32 +131,41 @@ const App = () => {
       }) => {
         msg.timestamp = new Date(msg.timestamp);
         setMessages((prev) => [...prev, msg]);
-        // const chatKey = `${room?.room}:${room?.roomId}`;
-        // if (chatKey !== msg.chatKey) window.chatAPI.messageNotification(msg);
+        showNotification(
+          `New message in ${msg.room} from ${msg.from}`,
+          msg.text
+        );
       }
     );
     socket.on("offer", async ({ from, offer, callType }) => {
       remoteDescriptionSetRef.current = false;
-      bufferedCandidatesRef.current = [];
       setinCallwith(from);
       setPendingOffer(offer);
       setAcceptDialog(true);
       setisVideoOn(callType);
       setCallType(callType ? "video" : "audio");
       setAcceptDialog(true);
-      // if (document.hidden) {
-      //   window.chatAPI.callNotification(from, callType);
-      // }
+      showNotification(
+        `Incoming ${callType ? "video" : "audio"} call from ${from}`,
+        "Click to respond"
+      );
     });
     socket.on("answer", async ({ answer }) => {
+      console.log("Received answer");
       if (!pcRef.current) {
         console.log("No RTCPeerConnection for answer");
         return;
       }
       await pcRef.current.setRemoteDescription(answer);
+      remoteDescriptionSetRef.current = true;
+      // canSendIceRef.current = true;
+      for (const c of bufferedCandidatesRef.current) {
+        await pcRef.current.addIceCandidate(c);
+      }
+      bufferedCandidatesRef.current = [];
     });
     socket.on("ice-candidate", async ({ candidate }) => {
-      if (!pcRef.current || !remoteDescriptionSetRef.current) {
+      if (!pcRef.current?.remoteDescription) {
         console.log("Buffering ICE candidate");
         bufferedCandidatesRef.current.push(candidate);
         return;
@@ -224,11 +232,10 @@ const App = () => {
       const pc = createPeerConnection(inCallwith);
       pcRef.current = pc;
       console.log("PC signaling state before SRD:", pc.signalingState);
+      // console.log("pending offer:", pendingOffer);
       await pc.setRemoteDescription(pendingOffer);
       remoteDescriptionSetRef.current = true;
       console.log("remote description set");
-      pc.addTransceiver("audio", { direction: "sendrecv" });
-      pc.addTransceiver("video", { direction: "sendrecv" });
       const wantsVideo = callType === "video" ? true : false;
       const streamResult = await ensureLocalStream(false, wantsVideo);
       console.log("ensureLocalStream result:", streamResult);
@@ -292,18 +299,10 @@ const App = () => {
     return () => window.removeEventListener("keydown", handler);
   }, [downOpen]);
 
-  // useEffect(() => {
-  //   if (!localVideo.current?.srcObject && !remoteVideo.current?.srcObject) {
-  //     setCallType("audio");
-  //   } else {
-  //     setCallType("video");
-  //   }
-  // }, [localVideo.current, remoteVideo.current]);
-
   return (
     <>
       <div className="divide-y divide-neutral-700">
-        <MenuBar />
+        {/* <MenuBar /> */}
         <div className="w-screen overflow-hidden h-[calc(100vh-52px)]">
           <PanelGroup
             direction="horizontal"
@@ -320,7 +319,7 @@ const App = () => {
                 >
                   <LeftPanel />
                 </Panel>
-                <PanelResizeHandle />{" "}
+                <PanelResizeHandle className="w-0.5 hover:scale-x-400 bg-neutral-700 hover:bg-neutral-400" />
               </>
             )}
             <Panel
@@ -338,7 +337,7 @@ const App = () => {
                 </Panel>
                 {downOpen && (
                   <>
-                    <PanelResizeHandle />
+                    <PanelResizeHandle className="h-0.5 hover:scale-y-400 bg-neutral-700 hover:bg-neutral-400" />
                     <Panel defaultSize={35} order={2} className="z-10">
                       <BottomPanel />
                     </Panel>
@@ -348,7 +347,7 @@ const App = () => {
             </Panel>
             {rightOpen && (
               <>
-                <PanelResizeHandle />
+                <PanelResizeHandle className="w-0.5 hover:scale-x-400 bg-neutral-700 hover:bg-neutral-400" />
                 <Panel
                   defaultSize={25}
                   minSize={15}

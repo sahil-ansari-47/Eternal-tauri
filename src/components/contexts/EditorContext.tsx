@@ -65,9 +65,10 @@ interface EditorContextType {
   setRecents: React.Dispatch<React.SetStateAction<Recents[]>>;
   targetNode: FsNode | null;
   setTargetNode: React.Dispatch<React.SetStateAction<FsNode | null>>;
+  dragNodeRef: React.RefObject<FsNode | null>;
+  dragOverNodeRef: React.RefObject<FsNode | null>;
 }
 const EditorContext = createContext<EditorContextType | undefined>(undefined);
-
 export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const { isSignedIn, getToken } = useAuth();
   const { leftContent } = useLayout();
@@ -77,6 +78,8 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.getItem("workspacePath")
   );
   const { refreshStatus } = useGit();
+  const dragNodeRef = useRef<FsNode | null>(null);
+  const dragOverNodeRef = useRef<FsNode | null>(null);
   const viewRefs = useRef<Record<string, EditorView>>({});
   const [cloneMethod, setCloneMethod] = useState<"github" | "link">("link");
   const [openFiles, setOpenFiles] = useState<FsNode[]>([]);
@@ -359,6 +362,8 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         setRecents,
         targetNode,
         setTargetNode,
+        dragNodeRef,
+        dragOverNodeRef,
       }}
     >
       {children}
