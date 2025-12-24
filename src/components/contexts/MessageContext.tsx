@@ -43,7 +43,6 @@ interface MessageContextType {
     video: boolean
   ) => Promise<MediaStream | null | "audio-only">;
   localStream: MediaStream | null;
-  canSendIceRef: React.RefObject<boolean>;
   bufferedCandidatesRef: React.RefObject<RTCIceCandidateInit[]>;
   setLocalStream: React.Dispatch<React.SetStateAction<MediaStream | null>>;
 }
@@ -143,7 +142,6 @@ export const MessageProvider = ({
   const remoteVideoRef = useCallback((node: HTMLVideoElement | null) => {
     remoteVideoElRef.current = node;
   }, []);
-  const canSendIceRef = useRef(false);
   const bufferedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   function toggleLocalAudio(enabled: boolean) {
@@ -169,10 +167,6 @@ export const MessageProvider = ({
           console.log("no candidate found");
           return;
         }
-        // if (!canSendIceRef.current) {
-        //   bufferedCandidatesRef.current.push(evt.candidate);
-        //   return;
-        // }
         console.log("received candidate");
         socket.emit("ice-candidate", {
           to: target,
@@ -385,7 +379,6 @@ export const MessageProvider = ({
         setLocalStream,
         createPeerConnection,
         ensureLocalStream,
-        canSendIceRef,
         bufferedCandidatesRef,
       }}
     >

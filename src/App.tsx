@@ -63,7 +63,6 @@ const App = () => {
     bufferedCandidatesRef,
     pendingMessages,
     fetchUserMessages,
-    // canSendIceRef,
   } = useMessage();
   const {
     cloneDialogOpen,
@@ -120,8 +119,8 @@ const App = () => {
             "pendingMessages",
             JSON.stringify([...pendingMessages, msg])
           );
-          showNotification(`New message from ${msg.from}`, msg.text).catch(err => 
-            console.warn("Notification error:", err)
+          showNotification(`New message from ${msg.from}`, msg.text).catch(
+            (err) => console.warn("Notification error:", err)
           );
         }
       }
@@ -149,7 +148,7 @@ const App = () => {
         showNotification(
           `New message in ${msg.room} from ${msg.from}`,
           msg.text
-        ).catch(err => console.warn("Notification error:", err));
+        ).catch((err) => console.warn("Notification error:", err));
       }
     );
     socket.on("offer", async ({ from, offer, callType }) => {
@@ -164,7 +163,7 @@ const App = () => {
       showNotification(
         `Incoming ${callType ? "video" : "audio"} call from ${from}`,
         "Click to respond"
-      ).catch(err => console.warn("Notification error:", err));
+      ).catch((err) => console.warn("Notification error:", err));
     });
     socket.on("answer", async ({ answer }) => {
       console.log("Received answer");
@@ -174,7 +173,6 @@ const App = () => {
       }
       await pcRef.current.setRemoteDescription(answer);
       remoteDescriptionSetRef.current = true;
-      // canSendIceRef.current = true;
       for (const c of bufferedCandidatesRef.current) {
         await pcRef.current.addIceCandidate(c);
       }
@@ -246,7 +244,7 @@ const App = () => {
     }
     // Close the accept dialog immediately for better UX
     setAcceptDialog(false);
-    
+
     // CRITICAL FIX: Clean up any existing peer connection first
     // This ensures we start with a fresh peer connection on each call attempt
     // Prevents issues from reusing a closed or invalid peer connection
@@ -258,12 +256,12 @@ const App = () => {
       }
       pcRef.current = null;
     }
-    
+
     try {
       // Create a new peer connection for this call
       const pc = createPeerConnection(inCallwith);
       pcRef.current = pc;
-      
+
       // CRITICAL FIX: Get local stream FIRST, then add tracks before setting remote description
       // This order is crucial because:
       // 1. We need the media tracks available before WebRTC negotiation
@@ -271,7 +269,7 @@ const App = () => {
       // 3. This prevents the receiver's video from not appearing on the first call
       const wantsVideo = callType === "video";
       const streamResult = await ensureLocalStream(false, wantsVideo);
-      
+
       // If user denied media access or cancelled, reject the call
       if (!streamResult) {
         setInCall(false);
@@ -279,7 +277,7 @@ const App = () => {
         handleReject();
         return;
       }
-      
+
       // Add all media tracks (video and audio) to the peer connection
       // This must happen BEFORE setRemoteDescription to ensure tracks are included in the answer
       if (streamResult instanceof MediaStream) {
@@ -287,43 +285,43 @@ const App = () => {
           pc.addTrack(track, streamResult);
         }
       }
-      
+
       // Validate the incoming offer before using it
       if (!pendingOffer || !pendingOffer.type || !pendingOffer.sdp) {
         throw new Error("Invalid offer: missing type or sdp");
       }
-      
+
       // Convert the offer to the proper format for setRemoteDescription
       const offerToSet: RTCSessionDescriptionInit = {
         type: pendingOffer.type as RTCSdpType,
         sdp: pendingOffer.sdp,
       };
-      
+
       // Set the remote description (the caller's offer)
       // This must happen after tracks are added to ensure proper negotiation
       await pc.setRemoteDescription(offerToSet);
       remoteDescriptionSetRef.current = true;
-      
+
       // Set local stream state and attach to video element if available
       if (streamResult instanceof MediaStream) {
         // Store stream in ref for direct access
         lsRef.current = streamResult;
         // Update state to trigger UI updates and useEffect hooks
         setLocalStream(streamResult);
-        
+
         // If video element is already mounted, attach stream immediately
         // This handles the case where the element exists before the stream is ready
         if (localVideoElRef.current) {
           localVideoElRef.current.srcObject = streamResult;
           localVideoElRef.current.play().catch(() => {});
         }
-        
+
         // If no video tracks, disable video toggle
         if (streamResult.getVideoTracks().length === 0) {
           toggleLocalVideo(false);
         }
       }
-      
+
       // CRITICAL FIX: Set targetUser and inCall AFTER everything is ready
       // Previously, setting targetUser early triggered the useEffect to re-run,
       // which could interfere with the peer connection setup
@@ -334,32 +332,35 @@ const App = () => {
       // 4. Only then does the Call component mount and useEffect can safely run
       setTargetUser(inCallwith);
       setInCall(true);
-      
+
       // Create and set the answer to the caller's offer
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       socket.emit("answer", { to: inCallwith, answer });
-      
+
       // Add any buffered ICE candidates that arrived before remote description was set
       for (const candidate of bufferedCandidatesRef.current) {
         await pc.addIceCandidate(candidate);
       }
       bufferedCandidatesRef.current = [];
-      
+
       // Apply the initial video state
       toggleLocalVideo(isVideoOn);
       setPendingOffer(null);
     } catch (error: any) {
       // Error handling: Show user-friendly error message
       console.error("Error during call acceptance:", error);
-      const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+      const isTauri =
+        typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
       if (isTauri) {
         message("Error accepting call. Please try again.", {
           title: "Call Error",
           kind: "error",
         }).catch(() => {});
       } else {
-        alert(`Error accepting call: ${error?.message || error}. Please try again.`);
+        alert(
+          `Error accepting call: ${error?.message || error}. Please try again.`
+        );
       }
       // Cleanup on error
       if (pcRef.current) {
