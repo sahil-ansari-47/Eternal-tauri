@@ -53,7 +53,7 @@ export default function Welcome() {
   return (
     <div className="h-full text-p6 flex max-h-[calc(100vh-52px)]">
       {/* Sidebar */}
-      <aside className="w-64 from-primary-sidebar to-transparent flex flex-col z-10 bg-gradient-to-r">
+      <aside className="w-64 from-primary-sidebar to-transparent flex flex-col z-10 bg-linear-to-r">
         <div className="p-6 flex items-center gap-3">
           <div className="w-8 h-8 relative">
             <img
@@ -105,7 +105,7 @@ export default function Welcome() {
             {/* Hero Section */}
             <div className="space-y-6">
               <div className="flex items-center gap-6">
-                <div className="w-24 h-24 relative flex-shrink-0">
+                <div className="w-24 h-24 relative shrink-0">
                   <img
                     src="/logo.png"
                     alt="IDE Logo"
@@ -203,7 +203,7 @@ export default function Welcome() {
                           key={idx}
                           className="p-4 rounded-lg hover:border-primary transition-colors flex items-start gap-3"
                         >
-                          <Icon className="w-5 h-5 text-p6 mt-1 flex-shrink-0" />
+                          <Icon className="w-5 h-5 text-p6 mt-1 shrink-0" />
                           <div>
                             <p className="font-medium">
                               {
@@ -316,7 +316,7 @@ export default function Welcome() {
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-4 flex-1">
-                        <Icon className="w-6 h-6 mt-1 flex-shrink-0" />
+                        <Icon className="w-6 h-6 mt-1 shrink-0" />
                         <div>
                           <h3 className="font-semibold text-lg">
                             {guide.title}
@@ -346,7 +346,7 @@ export default function Welcome() {
                     className="group p-6 rounded-lg w-lg hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 border border-p6/50 bg-primary-sidebar/70"
                   >
                     <div className="flex items-center gap-4">
-                      <Code2 className="w-5 h-5 flex-shrink-0" />
+                      <Code2 className="w-5 h-5 shrink-0" />
                       <div>
                         <p className="font-semibold text-lg">{project.name}</p>
                         <p className="text-neutral-400 group-hover:text-p5 mt-1">

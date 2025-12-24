@@ -40,7 +40,6 @@ interface GitContextType {
   handlePush: () => Promise<void>;
   commitMsg: string;
   setCommitMsg: React.Dispatch<React.SetStateAction<string>>;
-
   handleInit: () => Promise<void>;
   fetchGraph: () => Promise<void>;
   branches: string[];
