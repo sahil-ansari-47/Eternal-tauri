@@ -37,6 +37,7 @@ import { open as openLink } from "@tauri-apps/plugin-shell";
 import NoWorkspace from "./NoWorkspace";
 import { readTextFile, remove } from "@tauri-apps/plugin-fs";
 import { message, ask } from "@tauri-apps/plugin-dialog";
+import { sync } from "framer-motion";
 export default function GitPanel() {
   const {
     workspace,
@@ -94,6 +95,7 @@ export default function GitPanel() {
         .map((b) => b.replace(/^\* /, ""));
       setBranches(branchList);
     } catch (e) {
+      message("Failed to load branches", { title: "Git Error", kind: "error" });
       console.error("Failed to load branches:", e);
     } finally {
       setLoading(false);
@@ -110,6 +112,7 @@ export default function GitPanel() {
       await refreshStatus();
       await loadBranches();
     } catch (e) {
+      message("Failed to create branch", { title: "Git Error", kind: "error" });
       console.error("Failed to create branch:", e);
     } finally {
       setLoading(false);
@@ -136,6 +139,7 @@ export default function GitPanel() {
         await reloadFileContent({ path: file.path } as Gitfile);
       }
     } catch (e) {
+      message("Failed to switch branch", { title: "Git Error", kind: "error" });
       console.error("Failed to switch branch:", e);
     } finally {
       setLoading(false);
@@ -221,6 +225,10 @@ export default function GitPanel() {
       );
       await refreshStatus();
     } catch (e: any) {
+      message(`Failed to stage files ${e.message}`, {
+        title: "Git Error",
+        kind: "error",
+      });
       console.error(e);
       setError(e);
     } finally {
@@ -285,7 +293,7 @@ export default function GitPanel() {
         await reloadFileContent({ path: file.path } as Gitfile);
       }
     } catch (e: any) {
-      setError(e);
+      // setError(e);
     } finally {
       setLoading(false);
     }
@@ -405,7 +413,7 @@ export default function GitPanel() {
             <div className="border-b border-white bg-primary-sidebar px-4 py-3 space-y-2">
               {/* Branch Info */}
               <div className="flex items-center gap-2">
-                <GitBranch className="w-4 h-4 flex-shrink-0" />
+                <GitBranch className="w-4 h-4 shrink-0" />
                 <span className="text-sm font-medium text-p6/80 tracking-wide">
                   Branch
                 </span>
@@ -420,7 +428,7 @@ export default function GitPanel() {
                       <ChevronDown className="w-3 h-3 ml-1" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="min-w-[180px]">
+                  <DropdownMenuContent align="start" className="min-w-45">
                     {loading && (
                       <DropdownMenuItem disabled>
                         Loading branches...
@@ -452,7 +460,7 @@ export default function GitPanel() {
               </div>
               {/* Remote Info */}
               <div className="flex items-center gap-2">
-                <Link className="w-4 h-4 text-git-remote flex-shrink-0" />
+                <Link className="w-4 h-4 text-git-remote shrink-0" />
                 <span className="text-sm font-medium text-p6/80 tracking-wide">
                   Remote
                 </span>
@@ -465,6 +473,10 @@ export default function GitPanel() {
                           // console.log("Opening link:", url);
                           await openLink(url);
                         } catch (err) {
+                          message("Failed to open link", {
+                            title: "Error",
+                            kind: "error",
+                          });
                           console.error("Failed to open link:", err);
                         }
                       }}
@@ -524,7 +536,7 @@ export default function GitPanel() {
                     disabled={
                       loading || status.staged.length === 0 || commitMsg === ""
                     }
-                    className="hover:bg-primary-sidebar text-git-success-fg text-xs px-3 py-1.5 h-auto font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border-1 border-neutral-500 cursor-pointer rounded-xl"
+                    className="hover:bg-primary-sidebar text-git-success-fg text-xs px-3 py-1.5 h-auto font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-neutral-500 cursor-pointer rounded-xl"
                   >
                     Commit
                   </Button>
@@ -571,12 +583,22 @@ export default function GitPanel() {
                     }`}
                   >
                     <span
-                      className={`flex items-center gap-0.5 text-xs ml-1 px-1.5 py-1 rounded`}
+                      className={`flex items-center gap-1 text-xs ml-1 px-1.5 py-1 rounded`}
                     >
                       <RefreshCcw
-                        className={`w-3 h-3 ${loading ? "animate-spin" : ""}`}
+                        className={`w-3 h-3 ${loading ? "animate-spin" : ""} ${
+                          syncStatus.ahead > 0 || syncStatus.behind > 0
+                            ? ""
+                            : "text-white"
+                        }`}
                       />
-                      <span className="mr-1">
+                      <span
+                        className={`mr-1 ${
+                          syncStatus.ahead > 0 || syncStatus.behind > 0
+                            ? ""
+                            : "text-white"
+                        }`}
+                      >
                         {syncStatus.ahead === 0 && syncStatus.behind === 0
                           ? "Synced"
                           : "Sync"}
@@ -696,7 +718,7 @@ export default function GitPanel() {
                                     >
                                       {f.path}
                                     </span>
-                                    <div className="flex gap-1 flex-shrink-0">
+                                    <div className="flex gap-1 shrink-0">
                                       <Button
                                         size="sm"
                                         variant="ghost"
@@ -754,7 +776,7 @@ export default function GitPanel() {
                                     >
                                       {f.path}
                                     </span>
-                                    <div className="flex gap-1 flex-shrink-0">
+                                    <div className="flex gap-1 shrink-0">
                                       <Button
                                         size="sm"
                                         variant="ghost"
@@ -832,7 +854,7 @@ export default function GitPanel() {
                                     <span className="truncate text-orange-500/50">
                                       {f.path}
                                     </span>
-                                    <div className="flex gap-1 flex-shrink-0">
+                                    <div className="flex gap-1 shrink-0">
                                       <Button
                                         size="sm"
                                         variant="ghost"
@@ -975,7 +997,7 @@ export default function GitPanel() {
                     Cancel
                   </Button>
                   <Button
-                    className="font-medium disabled:opacity-50 text-p6 cursor-pointer border-1 border-neutral-500"
+                    className="font-medium disabled:opacity-50 text-p6 cursor-pointer border border-neutral-500"
                     onClick={handleSubmit}
                     disabled={loading || !url}
                   >
@@ -1023,7 +1045,7 @@ export default function GitPanel() {
                     Cancel
                   </Button>
                   <Button
-                    className="font-medium disabled:opacity-50 text-p6 cursor-pointer border-1 border-neutral-500"
+                    className="font-medium disabled:opacity-50 text-p6 cursor-pointer border border-neutral-500"
                     onClick={handleCreateBranch}
                     disabled={loading || !newbranch}
                   >
@@ -1053,7 +1075,7 @@ export default function GitPanel() {
                     Cancel
                   </Button>
                   <Button
-                    className="font-medium disabled:opacity-50 text-p6 cursor-pointer border-1 border-neutral-500"
+                    className="font-medium disabled:opacity-50 text-p6 cursor-pointer border border-neutral-500"
                     onClick={() => {
                       setRemoveOriginDialogOpen(false);
                       handleRemoveOrigin();

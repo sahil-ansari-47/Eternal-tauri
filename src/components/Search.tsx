@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
+import { message } from "@tauri-apps/plugin-dialog";
 export default function SearchPanel() {
   const {
     workspace,
@@ -54,7 +55,13 @@ export default function SearchPanel() {
             Object.fromEntries(res.map((r) => [r.filePath, true]))
           );
         })
-        .catch((err) => console.error("Search failed:", err));
+        .catch((err: any) => {
+          message(`Search failed: ${err.message}`, {
+            title: "Error",
+            kind: "error",
+          });
+          console.error("Search failed:", err);
+        });
     }, 400);
 
     return () => clearTimeout(handler);
@@ -132,7 +139,11 @@ export default function SearchPanel() {
       });
       //TODO: change open file editor state
       setResults(results.slice(1));
-    } catch (err) {
+    } catch (err: any) {
+      message(`Replace next failed: ${err.message}`, {
+        title: "Error",
+        kind: "error",
+      });
       console.error("Replace next failed:", err);
     }
   };
@@ -153,7 +164,11 @@ export default function SearchPanel() {
       console.log("Replaced count:", res.replaced);
       setResults([]);
       setQuery("");
-    } catch (err) {
+    } catch (err: any) {
+      message(`Replace all failed: ${err.message}`, {
+        title: "Error",
+        kind: "error",
+      });
       console.error("Replace all failed:", err);
     }
   };

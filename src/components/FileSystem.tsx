@@ -420,98 +420,98 @@ const FileSystem = () => {
   }) => {
     if (!workspace) return;
     return (
-      // <ContextMenu>
-      //   <ContextMenuTrigger asChild>
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          e.dataTransfer.dropEffect = "move";
-          if (!dragNodeRef.current) return;
-          console.log("Drag over:", node.path);
-          dragOverNodeRef.current = node;
-          if (!node.isDirectory || node.expanded) return;
-          clearTimeout(expandTimer);
-          expandTimer = setTimeout(() => {
-            toggleExpand(node);
-          }, 600);
-        }}
-        onDragEnter={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          e.dataTransfer.dropEffect = "move";
-        }}
-        onDrop={async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          console.log("Drop on:", node.path);
-          const source = dragNodeRef.current;
-          const target = node;
-          if (!source || !workspace) return;
-          if (source.path === target.path) return;
-          await handleMove(source, target);
-          // const files = Array.from(e.dataTransfer.files);
-          // if (!files.length || !node.isDirectory) return;
-          // for (const file of files) {
-          //   const dest = await join(node.path, file.name);
-          //   await invoke("copy_file", {
-          //     from: file.path,
-          //     to: dest,
-          //   });
-          // }
-        }}
-      >
-        <div
-          draggable
-          onDragStart={(e) => {
-            dragNodeRef.current = node;
-            e.dataTransfer.effectAllowed = "move";
-            e.dataTransfer.setData("text/plain", node.path);
-            console.log("Drag started:", node.path);
-            // e.dataTransfer.setDragImage(e.currentTarget, 8, 8);
-          }}
-          onDragEnd={() => {
-            dragNodeRef.current = null;
-            dragOverNodeRef.current = null;
-          }}
-          className={`flex items-center gap-2 py-1 hover:bg-neutral-700 cursor-pointer ${
-            targetNode?.path === node.path
-              ? "bg-neutral-600 border border-neutral-300"
-              : activeFile?.path === node.path
-              ? "bg-neutral-700"
-              : ""
-          }`}
-          style={{ paddingLeft: `${level * 12}px` }}
-          onClick={() => {
-            if (node.isDirectory) {
-              toggleExpand(node);
-              setTargetNode(node);
-            } else {
-              handleFileClick(node);
-            }
-          }}
-          title={node.path}
-        >
-          {node.isDirectory &&
-            (node.expanded ? (
-              <ChevronDown className="w-4 h-4 ml-2" />
-            ) : (
-              <ChevronRight className="w-4 h-4 ml-2" />
-            ))}
-          {node.isDirectory ? (
-            node.loading ? (
-              <span className="w-4">⏳</span>
-            ) : node.expanded ? (
-              <FolderOpen className="w-4 h-4 text-yellow-500" />
-            ) : (
-              <Folder className="w-4 h-4 text-yellow-500" />
-            )
-          ) : (
-            <File className="w-4 h-4 ml-8" />
-          )}
-          <div className="flex w-full justify-between items-center">
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              e.dataTransfer.dropEffect = "move";
+              if (!dragNodeRef.current) return;
+              console.log("Drag over:", node.path);
+              dragOverNodeRef.current = node;
+              if (!node.isDirectory || node.expanded) return;
+              clearTimeout(expandTimer);
+              expandTimer = setTimeout(() => {
+                toggleExpand(node);
+              }, 600);
+            }}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              e.dataTransfer.dropEffect = "move";
+            }}
+            onDrop={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log("Drop on:", node.path);
+              const source = dragNodeRef.current;
+              const target = node;
+              if (!source || !workspace) return;
+              if (source.path === target.path) return;
+              await handleMove(source, target);
+              // const files = Array.from(e.dataTransfer.files);
+              // if (!files.length || !node.isDirectory) return;
+              // for (const file of files) {
+              //   const dest = await join(node.path, file.name);
+              //   await invoke("copy_file", {
+              //     from: file.path,
+              //     to: dest,
+              //   });
+              // }
+            }}
+          >
             <div
-              className={`
+              draggable
+              onDragStart={(e) => {
+                dragNodeRef.current = node;
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", node.path);
+                console.log("Drag started:", node.path);
+                // e.dataTransfer.setDragImage(e.currentTarget, 8, 8);
+              }}
+              onDragEnd={() => {
+                dragNodeRef.current = null;
+                dragOverNodeRef.current = null;
+              }}
+              className={`flex items-center gap-2 py-1 hover:bg-neutral-700 cursor-pointer ${
+                targetNode?.path === node.path
+                  ? "bg-neutral-600 border border-neutral-300"
+                  : activeFile?.path === node.path
+                  ? "bg-neutral-700"
+                  : ""
+              }`}
+              style={{ paddingLeft: `${level * 12}px` }}
+              onClick={() => {
+                if (node.isDirectory) {
+                  toggleExpand(node);
+                  setTargetNode(node);
+                } else {
+                  handleFileClick(node);
+                }
+              }}
+              title={node.path}
+            >
+              {node.isDirectory &&
+                (node.expanded ? (
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 ml-2" />
+                ))}
+              {node.isDirectory ? (
+                node.loading ? (
+                  <span className="w-4">⏳</span>
+                ) : node.expanded ? (
+                  <FolderOpen className="w-4 h-4 text-yellow-500" />
+                ) : (
+                  <Folder className="w-4 h-4 text-yellow-500" />
+                )
+              ) : (
+                <File className="w-4 h-4 ml-8" />
+              )}
+              <div className="flex w-full justify-between items-center">
+                <div
+                  className={`
                     truncate
                     ${
                       node.isDirectory && node.status === "M"
@@ -529,99 +529,101 @@ const FileSystem = () => {
                         : ""
                     }
                   `}
-            >
-              {node.name}
-            </div>
-            {node.isDirectory ? (
-              <div
-                className={`${
-                  node.status === "M" &&
-                  "bg-yellow-200/50 size-2 mr-4 rounded-full"
-                }`}
-              />
-            ) : (
-              <div
-                className={`${node.status === "M" ? "mr-3.5" : "mr-4"} ${
-                  node.status === "M"
-                    ? "text-yellow-500"
-                    : node.status === "A"
-                    ? "text-green-500"
-                    : node.status === "D"
-                    ? "text-red-500"
-                    : node.status === "U"
-                    ? "text-orange-500"
-                    : ""
-                }`}
-              >
-                {node.status !== "I" && node.status !== "" && node.status}
+                >
+                  {node.name}
+                </div>
+                {node.isDirectory ? (
+                  <div
+                    className={`${
+                      node.status === "M" &&
+                      "bg-yellow-200/50 size-2 mr-4 rounded-full"
+                    }`}
+                  />
+                ) : (
+                  <div
+                    className={`${node.status === "M" ? "mr-3.5" : "mr-4"} ${
+                      node.status === "M"
+                        ? "text-yellow-500"
+                        : node.status === "A"
+                        ? "text-green-500"
+                        : node.status === "D"
+                        ? "text-red-500"
+                        : node.status === "U"
+                        ? "text-orange-500"
+                        : ""
+                    }`}
+                  >
+                    {node.status !== "I" && node.status !== "" && node.status}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-40 text-neutral-300 bg-primary-sidebar">
+          {node.isDirectory && (
+            <>
+              <ContextMenuItem
+                onClick={() => {
+                  setTargetNode(node);
+                  setAction("newFile");
+                  setDialogOpen(true);
+                }}
+              >
+                New File
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => {
+                  setTargetNode(node);
+                  setAction("newFolder");
+                  setDialogOpen(true);
+                }}
+              >
+                New Folder
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={async () => {
+                  const newSpace = await normalize(`${workspace}/${node.name}`);
+                  setWorkspace(newSpace);
+                  localStorage.setItem("workspacePath", newSpace);
+                }}
+              >
+                Change Worksspace
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+            </>
+          )}
+          <ContextMenuItem
+            onClick={() => {
+              setTargetNode(node);
+              setAction("rename");
+              setValue(node.name);
+              setDialogOpen(true);
+            }}
+          >
+            Rename
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="text-red-500"
+            onClick={() => {
+              setTargetNode(node);
+              setAction("delete");
+              setDialogOpen(true);
+            }}
+          >
+            Delete
+          </ContextMenuItem>
+        </ContextMenuContent>
+        <div>
+          {node.isDirectory && node.expanded && node.children && (
+            <div>
+              {node.children.map((c) => (
+                <TreeItem key={c.path} node={c} level={level + 1} />
+              ))}
+            </div>
+          )}
         </div>
-        {/* //   </ContextMenuTrigger>
-      //   <ContextMenuContent className="w-40 text-neutral-300 bg-primary-sidebar">
-      //     {node.isDirectory && (
-      //       <>
-      //         <ContextMenuItem
-      //           onClick={() => {
-      //             setTargetNode(node);
-      //             setAction("newFile");
-      //             setDialogOpen(true);
-      //           }}
-      //         >
-      //           New File
-      //         </ContextMenuItem>
-      //         <ContextMenuItem
-      //           onClick={() => {
-      //             setTargetNode(node);
-      //             setAction("newFolder");
-      //             setDialogOpen(true);
-      //           }}
-      //         >
-      //           New Folder
-      //         </ContextMenuItem>
-      //         <ContextMenuItem
-      //           onClick={async () => {
-      //             const newSpace = await normalize(`${workspace}/${node.name}`);
-      //             setWorkspace(newSpace);
-      //             localStorage.setItem("workspacePath", newSpace);
-      //           }}
-      //         >
-      //           Change Worksspace
-      //         </ContextMenuItem>
-      //         <ContextMenuSeparator />
-      //       </>
-      //     )}
-      //     <ContextMenuItem
-      //       onClick={() => {
-      //         setTargetNode(node);
-      //         setAction("rename");
-      //         setValue(node.name);
-      //         setDialogOpen(true);
-      //       }}
-      //     >
-      //       Rename
-      //     </ContextMenuItem>
-      //     <ContextMenuItem
-      //       className="text-red-500"
-      //       onClick={() => {
-      //         setTargetNode(node);
-      //         setAction("delete");
-      //         setDialogOpen(true);
-      //       }}
-      //     >
-      //       Delete
-      //     </ContextMenuItem>
-      //   </ContextMenuContent> */}
-        {node.isDirectory && node.expanded && node.children && (
-          <div>
-            {node.children.map((c) => (
-              <TreeItem key={c.path} node={c} level={level + 1} />
-            ))}
-          </div>
-        )}
-      </div>
-      // </ContextMenu>
+      </ContextMenu>
     );
   };
   if (!workspace) {
@@ -629,161 +631,163 @@ const FileSystem = () => {
   }
   return (
     <>
-      {/* // <ContextMenu>
-    //   <ContextMenuTrigger asChild> */}
-      <div className="h-full bg-primary-sidebar text-neutral-300 text-sm p-2">
-        <div className="h-full w-full border border-neutral-600 rounded-xl py-4 overflow-hidden">
-          <div className="flex items-center justify-between mb-2 px-6">
-            <div className="text-p6 font-semibold">
-              {workspace.split(/[\\/]/).pop()}
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div className="h-full bg-primary-sidebar text-neutral-300 text-sm p-2">
+            <div className="h-full w-full border border-neutral-600 rounded-xl py-4 overflow-hidden">
+              <div className="flex items-center justify-between mb-2 px-6">
+                <div className="text-p6 font-semibold">
+                  {workspace.split(/[\\/]/).pop()}
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    className="cursor-pointer"
+                    onClick={() => {
+                      setAction("newFile");
+                      setDialogOpen(true);
+                    }}
+                    title="New File"
+                  >
+                    <FilePlus2 className="size-4.5" />
+                  </button>
+                  <button
+                    className="cursor-pointer"
+                    onClick={() => {
+                      setAction("newFolder");
+                      setDialogOpen(true);
+                    }}
+                    title="New Folder"
+                  >
+                    <FolderPlus className="size-5" />
+                  </button>
+                  <button
+                    className="text-xs text-neutral-300 hover:underline cursor-pointer"
+                    onClick={() => {
+                      localStorage.removeItem("workspacePath");
+                      setActiveTab("Home");
+                      setWorkspace(null);
+                      setRoots(null);
+                      setErrorMessage(null);
+                    }}
+                    title="Close Folder"
+                  >
+                    <FolderMinus className="size-5" />
+                  </button>
+                  <button
+                    className="cursor-pointer"
+                    onClick={reloadWorkspace}
+                    title="Reload"
+                  >
+                    <FolderSync className="size-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-y-scroll overflow-x-hidden pb-4 max-h-full scrollbar">
+                {roots === null ? (
+                  <div className="text-sm text-gray-500">Loading…</div>
+                ) : roots.length === 0 ? (
+                  <div className="text-sm text-center text-gray-500 px-16 mt-5">
+                    The folder you have selected is currently empty.
+                  </div>
+                ) : (
+                  roots
+                    .filter((r) => r.name !== ".git")
+                    .map((r) => <TreeItem key={r.path} node={r} />)
+                )}
+              </div>
+              {error && (
+                <div className="text-sm text-red-500 mt-2">{error}</div>
+              )}
             </div>
-            <div className="flex gap-3">
-              <button
-                className="cursor-pointer"
-                onClick={() => {
-                  setAction("newFile");
-                  setDialogOpen(true);
-                }}
-                title="New File"
-              >
-                <FilePlus2 className="size-4.5" />
-              </button>
-              <button
-                className="cursor-pointer"
-                onClick={() => {
-                  setAction("newFolder");
-                  setDialogOpen(true);
-                }}
-                title="New Folder"
-              >
-                <FolderPlus className="size-5" />
-              </button>
-              <button
-                className="text-xs text-neutral-300 hover:underline cursor-pointer"
-                onClick={() => {
-                  localStorage.removeItem("workspacePath");
-                  setActiveTab("Home");
-                  setWorkspace(null);
-                  setRoots(null);
+          </div>
+        </ContextMenuTrigger>
+
+        <ContextMenuContent className="w-40 text-neutral-300 bg-primary-sidebar">
+          <ContextMenuItem
+            onClick={() => {
+              setAction("newFile");
+              setDialogOpen(true);
+            }}
+          >
+            New File
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => {
+              setAction("newFolder");
+              setDialogOpen(true);
+            }}
+          >
+            New Folder
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onClick={() => {
+              localStorage.removeItem("workspacePath");
+              setActiveTab("Home");
+              setWorkspace(null);
+              setRoots(null);
+            }}
+          >
+            Close Workspace
+          </ContextMenuItem>
+        </ContextMenuContent>
+
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="text-neutral-300">
+            <DialogHeader>
+              <DialogTitle>
+                {action === "newFile" && "New File"}
+                {action === "newFolder" && "New Folder"}
+                {action === "rename" &&
+                  `Rename ${targetNode?.isDirectory ? "Folder" : "File"}`}
+                {action === "delete" &&
+                  `Delete ${targetNode?.isDirectory ? "Folder" : "File"}`}
+              </DialogTitle>
+            </DialogHeader>
+            {action !== "delete" && (
+              <Input
+                value={value}
+                onChange={(e) => {
+                  setValue(e.target.value);
                   setErrorMessage(null);
                 }}
-                title="Close Folder"
-              >
-                <FolderMinus className="size-5" />
-              </button>
-              <button
-                className="cursor-pointer"
-                onClick={reloadWorkspace}
-                title="Reload"
-              >
-                <FolderSync className="size-5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="overflow-y-scroll overflow-x-hidden pb-4 max-h-full scrollbar">
-            {roots === null ? (
-              <div className="text-sm text-gray-500">Loading…</div>
-            ) : roots.length === 0 ? (
-              <div className="text-sm text-center text-gray-500 px-16 mt-5">
-                The folder you have selected is currently empty.
-              </div>
-            ) : (
-              roots
-                .filter((r) => r.name !== ".git")
-                .map((r) => <TreeItem key={r.path} node={r} />)
+                placeholder="Enter name"
+                autoFocus
+              />
             )}
-          </div>
-          {error && <div className="text-sm text-red-500 mt-2">{error}</div>}
-        </div>
-      </div>
-      {/* // </ContextMenuTrigger> */}
-
-      {/* // <ContextMenuContent className="w-40 text-neutral-300 bg-primary-sidebar">
-      //   <ContextMenuItem
-      //     onClick={() => {
-      //       setAction("newFile");
-      //       setDialogOpen(true);
-      //     }}
-      //   >
-      //     New File
-      //   </ContextMenuItem>
-      //   <ContextMenuItem
-      //     onClick={() => {
-      //       setAction("newFolder");
-      //       setDialogOpen(true);
-      //     }}
-      //   >
-      //     New Folder
-      //   </ContextMenuItem>
-      //   <ContextMenuSeparator />
-      //   <ContextMenuItem
-      //     onClick={() => {
-      //       localStorage.removeItem("workspacePath");
-      //       setActiveTab("Home");
-      //       setWorkspace(null);
-      //       setRoots(null);
-      //     }}
-      //   >
-      //     Close Workspace
-      //   </ContextMenuItem>
-      // </ContextMenuContent> */}
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="text-neutral-300">
-          <DialogHeader>
-            <DialogTitle>
-              {action === "newFile" && "New File"}
-              {action === "newFolder" && "New Folder"}
-              {action === "rename" &&
-                `Rename ${targetNode?.isDirectory ? "Folder" : "File"}`}
-              {action === "delete" &&
-                `Delete ${targetNode?.isDirectory ? "Folder" : "File"}`}
-            </DialogTitle>
-          </DialogHeader>
-          {action !== "delete" && (
-            <Input
-              value={value}
-              onChange={(e) => {
-                setValue(e.target.value);
-                setErrorMessage(null);
-              }}
-              placeholder="Enter name"
-              autoFocus
-            />
-          )}
-          {errorMessage && (
-            <p className="text-sm text-red-500 mt-1">{errorMessage}</p>
-          )}
-          {action === "delete" && (
-            <p>
-              Are you sure you want to delete{" "}
-              <span className="font-semibold">{targetNode?.name}</span>?
-            </p>
-          )}
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              className="cursor-pointer"
-              onClick={() => {
-                setDialogOpen(false);
-                setValue("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConfirm}
-              className="border border-neutral-500 cursor-pointer disabled:opacity:50"
-              disabled={action === "delete" ? false : value === ""}
-            >
-              {action === "delete" ? "Delete" : "OK"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            {errorMessage && (
+              <p className="text-sm text-red-500 mt-1">{errorMessage}</p>
+            )}
+            {action === "delete" && (
+              <p>
+                Are you sure you want to delete{" "}
+                <span className="font-semibold">{targetNode?.name}</span>?
+              </p>
+            )}
+            <DialogFooter>
+              <Button
+                className="cursor-pointer"
+                onClick={() => {
+                  setDialogOpen(false);
+                  setValue("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant={action === "delete" ? "destructive" : "secondary"}
+                onClick={handleConfirm}
+                className="border border-neutral-500 cursor-pointer disabled:opacity:50"
+                disabled={action === "delete" ? false : value === ""}
+              >
+                {action === "delete" ? "Delete" : "OK"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </ContextMenu>
     </>
-    // </ContextMenu>
   );
 };
 

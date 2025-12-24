@@ -1,4 +1,4 @@
-// export {default as MenuBar} from "./MenuBar";
+export {default as MenuBar} from "./MenuBar";
 export {default as Sidebar} from "./Sidebar";
 export {default as LeftPanel} from "./LeftPanel";
 export {default as RightPanel} from "./RightPanel";

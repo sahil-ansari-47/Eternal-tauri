@@ -2,7 +2,9 @@ import { useEffect } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { exists } from "@tauri-apps/plugin-fs";
-import { barf } from "thememirror";
+import { tags as t } from "@lezer/highlight";
+import { basicSetup } from "codemirror";
+import { createTheme } from "thememirror";
 import { message } from "@tauri-apps/plugin-dialog";
 import getLanguageExtension from "../utils/edfunc";
 import { useEditor } from "./contexts/EditorContext";
@@ -62,6 +64,76 @@ export default function Editor() {
       }
     });
     let state;
+    const myBeautifulDarkTwistedTheme = createTheme({
+      variant: "dark",
+      settings: {
+        background: "#18181b",
+        foreground: "#fafafa",
+        caret: "#72d582",
+        selection: "#3d3d3d",
+        lineHighlight: "#292929",
+        gutterBackground: "#18181b",
+        gutterForeground: "#999999",
+      },
+      styles: [
+        {
+          tag: t.comment,
+          color: "#707070",
+        },
+        {
+          tag: t.variableName,
+          color: "#7bd26a",
+        },
+        {
+          tag: [t.string, t.special(t.brace)],
+          color: "#f20785",
+        },
+        {
+          tag: t.number,
+          color: "#1685f3",
+        },
+        {
+          tag: t.bool,
+          color: "#90a1f3",
+        },
+        {
+          tag: t.null,
+          color: "#e4f797",
+        },
+        {
+          tag: t.keyword,
+          color: "#f3b27c",
+        },
+        {
+          tag: t.operator,
+          color: "#eae8ed",
+        },
+        {
+          tag: t.className,
+          color: "#c3c6e9",
+        },
+        {
+          tag: t.definition(t.typeName),
+          color: "#57eb4c",
+        },
+        {
+          tag: t.typeName,
+          color: "#58f3da",
+        },
+        {
+          tag: t.angleBracket,
+          color: "#ffffff",
+        },
+        {
+          tag: t.tagName,
+          color: "#73ff00",
+        },
+        {
+          tag: t.attributeName,
+          color: "#b4f9bc",
+        },
+      ],
+    });
     const scrollbarTheme = EditorView.theme({
       ".cm-scroller": {
         overflow: "auto",
@@ -88,11 +160,28 @@ export default function Editor() {
         backgroundColor: "rgba(160, 160, 160, 0.7)",
       },
     });
+    const editorVisualFixes = EditorView.theme({
+      ".cm-activeLine": {
+        backgroundColor: "#292929",
+      },
+      ".cm-selectionBackground": {
+        backgroundColor: "#3d3d3d !important",
+      },
+      ".cm-activeLine .cm-selectionBackground": {
+        backgroundColor: "#3d3d3d !important",
+      },
+      ".cm-content ::selection": {
+        backgroundColor: "#3d3d3d",
+      },
+    });
+
     if (!file.content) file.content = "";
     state = EditorState.create({
       doc: file.content.toString(),
       extensions: [
-        barf,
+        basicSetup,
+        myBeautifulDarkTwistedTheme,
+        editorVisualFixes,
         getLanguageExtension(file.path),
         updateListener,
         scrollbarTheme,

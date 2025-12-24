@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useRef } from "react";
 import { useState } from "react";
 import { useUser } from "./UserContext";
 import { confirm, message } from "@tauri-apps/plugin-dialog";
+import { useAuth } from "@clerk/clerk-react";
 interface MessageContextType {
   targetUser: string;
   setTargetUser: React.Dispatch<React.SetStateAction<string>>;
@@ -11,8 +12,14 @@ interface MessageContextType {
   setRoom: React.Dispatch<React.SetStateAction<Group | null>>;
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  fetchUserMessages: () => Promise<void>;
+  fetchChat: (chatKey: string, pageToFetch: number) => Promise<void>;
   pendingMessages: Message[];
   setPendingMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  page: number;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
+  hasMore: boolean;
+  setHasMore: React.Dispatch<React.SetStateAction<boolean>>;
   pcRef: React.RefObject<RTCPeerConnection | null>;
   lsRef: React.RefObject<MediaStream | null>;
   remoteVideoElRef: React.RefObject<HTMLVideoElement | null>;
@@ -54,7 +61,10 @@ export const MessageProvider = ({
     },
   ];
   const [room, setRoom] = useState<Group | null>(null);
-  const { socket, setinCallwith } = useUser();
+  const { socket, setinCallwith, userData } = useUser();
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const { getToken } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [pendingMessages, setPendingMessages] = useState<Message[]>([]);
   const [targetUser, setTargetUser] = useState("");
@@ -82,7 +92,6 @@ export const MessageProvider = ({
   const canSendIceRef = useRef(false);
   const bufferedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
-
   function toggleLocalAudio(enabled: boolean) {
     console.log("toggling audio", enabled);
     setisAudioOn(enabled);
@@ -91,7 +100,6 @@ export const MessageProvider = ({
       .getAudioTracks()
       .forEach((track) => (track.enabled = enabled));
   }
-
   function toggleLocalVideo(enabled: boolean) {
     setisVideoOn(enabled);
     if (!lsRef.current || lsRef.current?.getTracks().length === 0) return;
@@ -189,6 +197,62 @@ export const MessageProvider = ({
     }
     socket.emit("hangup", { to: targetUser });
   };
+  const fetchUserMessages = async () => {
+    const token = await getToken();
+    const res = await fetch(
+      `${import.meta.env.VITE_BACKEND_URL}/api/usermessages?username=${
+        userData?.username
+      }`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    const data = await res.json();
+    const msgs = data.messages.map((msg: Message) => ({
+      ...msg,
+      timestamp: new Date(msg.timestamp),
+    }));
+    setMessages((prev) => {
+      const combined = [...prev, ...msgs];
+      const uniqueMessages = Array.from(
+        new Map(combined.map((msg) => [msg.id, msg])).values()
+      );
+      return uniqueMessages;
+    });
+  };
+  const fetchChat = async (chatKey: string, pageToFetch = 1) => {
+    if (!hasMore && pageToFetch !== 1) return;
+
+    const token = await getToken();
+    const res = await fetch(
+      `${
+        import.meta.env.VITE_BACKEND_URL
+      }/api/messages/${chatKey}?page=${pageToFetch}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    const data = await res.json();
+
+    const msgs: Message[] = data.messages.map((msg: Message) => ({
+      ...msg,
+      timestamp: new Date(msg.timestamp),
+    }));
+
+    setHasMore(data.hasMore);
+    setPage(pageToFetch);
+
+    setMessages((prev) => {
+      // 👇 prepend older messages, dedupe by id
+      const combined = pageToFetch === 1 ? msgs : [...msgs, ...prev];
+
+      return Array.from(new Map(combined.map((m) => [m.id, m])).values());
+    });
+  };
   return (
     <MessageContext.Provider
       value={{
@@ -200,6 +264,12 @@ export const MessageProvider = ({
         setRoom,
         messages,
         setMessages,
+        fetchUserMessages,
+        fetchChat,
+        hasMore,
+        page,
+        setPage,
+        setHasMore,
         pendingMessages,
         setPendingMessages,
         pcRef,

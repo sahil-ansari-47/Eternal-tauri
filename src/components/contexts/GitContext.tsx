@@ -92,6 +92,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
       setError(e);
     } finally {
       setLoading(false);
+      setError(null);
     }
   }
   function normalizeGitPayloadPaths(status: GitStatus): GitStatus {
@@ -208,7 +209,6 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
         "Cannot Push: You are not authorised to push changes to this repository. Ask the repository owner for access.",
         { title: "Push Error", kind: "error" }
       );
-      setError(e);
     } finally {
       setLoading(false);
     }

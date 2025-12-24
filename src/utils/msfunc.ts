@@ -34,26 +34,16 @@ import {
 } from "@tauri-apps/plugin-notification";
 
 export async function showNotification(title: string, body: string) {
-  console.log("showNotification");
   let permissionGranted = await isPermissionGranted();
   console.log("Permission granted:", permissionGranted);
   if (!permissionGranted) {
-    console.log("Requesting permission...");
     const permission = await requestPermission();
     permissionGranted = permission === "granted";
   }
   if (permissionGranted) {
-    console.log("Sending notification...");
     sendNotification({
       title,
       body,
-      attachments: [
-        {
-          id: "icon",
-          url: "asset://../../public/logo.png",
-        },
-      ],
     });
-    console.log("Notification sent.");
   }
 }

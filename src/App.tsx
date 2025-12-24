@@ -24,11 +24,12 @@ import {
   RightPanel,
   BottomPanel,
   Main,
-  // MenuBar,
+  MenuBar,
   StatusBar,
 } from "./components/ComponentIndex";
 import { useLayout } from "./components/contexts/LayoutContext";
 import { showNotification } from "./utils/msfunc";
+import { message } from "@tauri-apps/plugin-dialog";
 const App = () => {
   const { isSignedIn } = useAuth();
   const {
@@ -53,7 +54,6 @@ const App = () => {
     setisVideoOn,
     callType,
     setCallType,
-    remoteVideoElRef,
     isVideoOn,
     localVideoElRef,
     toggleLocalVideo,
@@ -61,6 +61,8 @@ const App = () => {
     createPeerConnection,
     ensureLocalStream,
     bufferedCandidatesRef,
+    pendingMessages,
+    fetchUserMessages,
     // canSendIceRef,
   } = useMessage();
   const {
@@ -84,6 +86,8 @@ const App = () => {
     if (!isSignedIn || !userData?.username) {
       if (socket.connected) socket.disconnect();
       return;
+    } else {
+      fetchUserMessages();
     }
     if (!socket.connected) {
       socket.connect();
@@ -110,14 +114,23 @@ const App = () => {
       }) => {
         msg.timestamp = new Date(msg.timestamp);
         setMessages((prev) => [...prev, msg]);
-        console.log("sending");
-        showNotification(`New message from ${msg.from}`, msg.text);
-        console.log("sent");
+        if (targetUser !== msg.from) {
+          setPendingMessages((prev) => [...prev, msg]);
+          localStorage.setItem(
+            "pendingMessages",
+            JSON.stringify([...pendingMessages, msg])
+          );
+          showNotification(`New message from ${msg.from}`, msg.text);
+        }
       }
     );
     socket.on("pendingMessage", (msg: Message) => {
       msg.timestamp = new Date(msg.timestamp);
-      setPendingMessages((prev) => [...prev, msg]);
+      const existing =
+        JSON.parse(localStorage.getItem("pendingMessages") || "[]") || [];
+      existing.push(msg);
+      setPendingMessages(existing);
+      localStorage.setItem("pendingMessages", JSON.stringify(existing));
     });
     socket.on(
       "roomMessage",
@@ -273,6 +286,10 @@ const App = () => {
       setPendingOffer(null);
     } catch (error) {
       console.error("Error during call acceptance:", error);
+      message("Error accepting call. Please try again.", {
+        title: "Call Error",
+        kind: "error",
+      });
       if (pcRef.current) {
         pcRef.current.close();
         pcRef.current = null;
@@ -298,11 +315,16 @@ const App = () => {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [downOpen]);
-
+  useEffect(() => {
+    console.log("Loading pending messages from localStorage", pendingMessages);
+    setPendingMessages(
+      JSON.parse(localStorage.getItem("pendingMessages") || "[]")
+    );
+  }, []);
   return (
     <>
       <div className="divide-y divide-neutral-700">
-        {/* <MenuBar /> */}
+        <MenuBar />
         <div className="w-screen overflow-hidden h-[calc(100vh-52px)]">
           <PanelGroup
             direction="horizontal"
@@ -371,10 +393,10 @@ const App = () => {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 justify-end">
-            <Button variant="secondary" onClick={handleReject}>
-              Reject
+            <Button onClick={handleReject}>Reject</Button>
+            <Button variant="secondary" onClick={handleAccept}>
+              Accept
             </Button>
-            <Button onClick={handleAccept}>Accept</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -471,7 +493,6 @@ const App = () => {
           <DialogFooter>
             <Button
               className="cursor-pointer"
-              variant="secondary"
               onClick={() => {
                 setCloneDialogOpen(false);
                 setRepoUrl("");
@@ -480,6 +501,7 @@ const App = () => {
               Cancel
             </Button>
             <Button
+              variant="secondary"
               className="cursor-pointer border border-neutral-500"
               onClick={() => handleClone(repoUrl)}
               disabled={!repoUrl}

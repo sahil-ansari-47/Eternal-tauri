@@ -3,7 +3,7 @@ import Editor from "./Editor";
 import Welcome from "./Welcome";
 import Call from "./Call";
 import AddTask from "./AddTask";
-import { DottedGlowBackground } from "./ui/dotted-glow-background";
+// import { DottedGlowBackground } from "./ui/dotted-glow-background";
 import { useEditor } from "./contexts/EditorContext";
 import { useMessage } from "./contexts/MessageContext";
 import { Tabs, TabsContent } from "./ui/tabs";
@@ -33,7 +33,7 @@ const Main = () => {
 
   return (
     <div className="w-full h-full overflow-hidden">
-      {(activeTab === "Home" ||
+      {/* {(activeTab === "Home" ||
         activeTab === "Splash" ||
         activeTab === "Loading") && (
         <DottedGlowBackground
@@ -50,7 +50,7 @@ const Main = () => {
           speedMax={1.6}
           speedScale={1}
         />
-      )}
+      )} */}
       <Tabs value={activeTab} className="bg-primary-sidebar w-full h-full">
         <div className="flex w-full items-center justify-center">
           {/* <TabsList className="my-2 bg-transparent z-10">

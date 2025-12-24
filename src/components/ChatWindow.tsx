@@ -3,20 +3,23 @@ import { useEffect, useRef } from "react";
 interface ChatProps {
   messages: Message[];
   userData: UserData | null;
-  room?: Group | null;
-  targetUser?: string;
-  fetchOlder: () => Promise<void>;
+  chatKey: string;
+  fetchChat: (chatKey: string, page: number) => Promise<void>;
+  page: number;
+  hasMore: boolean;
 }
 
 const ChatWindow: React.FC<ChatProps> = ({
   messages,
   userData,
-  room,
-  targetUser,
-  fetchOlder,
+  chatKey,
+  fetchChat,
+  page,
+  hasMore,
 }) => {
   const chatRef = useRef<HTMLDivElement>(null);
-  const loadingMoreRef = useRef<boolean>(false);
+  const loadingRef = useRef(false);
+
   function formatToIST(date: Date): string {
     return new Intl.DateTimeFormat("en-GB", {
       hour: "2-digit",
@@ -27,100 +30,75 @@ const ChatWindow: React.FC<ChatProps> = ({
   }
 
   const handleScroll = async () => {
-    if (!chatRef.current || loadingMoreRef.current) return;
+    if (!chatRef.current || loadingRef.current || !hasMore) return;
+
     if (chatRef.current.scrollTop <= 0) {
-      loadingMoreRef.current = true;
+      loadingRef.current = true;
+
       const prevHeight = chatRef.current.scrollHeight;
-      await fetchOlder();
-      setTimeout(() => {
+
+      await fetchChat(chatKey, page + 1);
+
+      requestAnimationFrame(() => {
         if (!chatRef.current) return;
-        const newScrollHeight = chatRef.current.scrollHeight;
-        chatRef.current.scrollTo({
-          top: newScrollHeight - prevHeight - 100,
-          behavior: "instant",
-        });
-        loadingMoreRef.current = false;
-      }, 100);
+
+        const newHeight = chatRef.current.scrollHeight;
+        chatRef.current.scrollTop = newHeight - prevHeight;
+        loadingRef.current = false;
+      });
     }
   };
-  // Initial scroll to bottom
+  // Scroll to bottom on initial load
   useEffect(() => {
-    if (chatRef.current) {
+    if (chatRef.current && page === 1) {
       chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
-  }, []);
-
-  // Scroll to bottom on new messages only if user is at bottom
-  useEffect(() => {
-    if (loadingMoreRef.current || !chatRef.current) return;
-    chatRef.current.scrollTo({
-      top: chatRef.current.scrollHeight,
-      behavior: "instant",
-    });
-  }, [messages]);
-
-  // Filter messages for this chat
+  }, [messages, page]);
   const filteredMessages = messages.filter(
-    (msg) =>
-      msg.chatKey === `${room?.room}:${room?.roomId}` ||
-      msg.chatKey ===
-        `chat:${[userData?.username, targetUser].sort().join(":")}`
+    (msg: Message) => msg.chatKey === chatKey
   );
 
   return (
     <div
       ref={chatRef}
       onScroll={handleScroll}
-      className="h-10/12 pb-1 rounded-md overflow-y-scroll overflow-x-hidden scrollbar"
+      className="h-10/12 py-2 rounded-md overflow-y-scroll scrollbar"
     >
-      <div className="flex flex-col gap-2 pr-2">
+      <div className="flex flex-col gap-1 pr-2">
         {filteredMessages.length === 0 ? (
           <div className="text-center text-gray-400 mt-5">
             No messages. Start a conversation.
           </div>
         ) : (
-          filteredMessages
-            .filter(
-              (msg) =>
-                msg.chatKey === `${room?.room}:${room?.roomId}` ||
-                msg.chatKey ===
-                  `chat:${[userData?.username, targetUser].sort().join(":")}`
-            )
-            .map((msg) => (
+          filteredMessages.map((msg: Message) => (
+            <div
+              key={msg.id}
+              className={`flex pl-4 ${
+                msg.from === userData?.username
+                  ? "justify-end"
+                  : msg.from === "system"
+                  ? "justify-center"
+                  : "justify-start"
+              }`}
+            >
               <div
-                key={msg.id}
-                className={`flex px-4 ${
+                className={`px-3 py-2 rounded-2xl max-w-[70%] whitespace-pre-wrap ${
                   msg.from === userData?.username
-                    ? "justify-end"
+                    ? "bg-neutral-700 text-p6"
                     : msg.from === "system"
-                    ? "justify-center"
-                    : "justify-start"
+                    ? "bg-primary text-neutral-300 text-center"
+                    : "bg-p6 text-p5"
                 }`}
               >
-                <div
-                  className={`px-3 py-2 rounded-2xl max-w-[70%] whitespace-pre-wrap ${
-                    msg.from === userData?.username
-                      ? "bg-neutral-700 text-p6 rounded-br-none"
-                      : msg.from === "system"
-                      ? "bg-primary text-neutral-300 rounded text-center"
-                      : "bg-p6 text-p5 rounded-bl-none"
-                  }`}
-                >
-                  {msg.text}
-                  <span
-                    className={`block text-xs ${
-                      msg.from === "system"
-                        ? "hidden"
-                        : msg.from === userData?.username
-                        ? "text-gray-300 text-right"
-                        : "text-gray-600 text-right"
-                    }`}
-                  >
+                {msg.text}
+                {msg.from !== "system" && (
+                  <span className="block text-xs text-right text-gray-400">
                     {formatToIST(msg.timestamp)}
                   </span>
-                </div>
+                )}
               </div>
-            ))
+            </div>
+          ))
         )}
       </div>
     </div>

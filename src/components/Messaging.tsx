@@ -36,7 +36,8 @@ import {
 import { useUser } from "./contexts/UserContext";
 import { useMessage } from "./contexts/MessageContext";
 import ChatWindow from "./ChatWindow";
-// import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { message } from "@tauri-apps/plugin-dialog";
 type ChatMode = "private" | "group" | "friends";
 const Messaging = () => {
   const { userData, fetchUser, socket, setinCallwith } = useUser();
@@ -47,6 +48,11 @@ const Messaging = () => {
     setRoom,
     messages,
     setMessages,
+    fetchChat,
+    page,
+    hasMore,
+    setPage,
+    setHasMore,
     pendingMessages,
     setPendingMessages,
     setInCall,
@@ -64,75 +70,35 @@ const Messaging = () => {
   const [friendTab, setFriendTab] = useState<"friends" | "pending" | "add">(
     "friends"
   );
+  const [activeChatKey, setActiveChatKey] = useState<string | null>(null);
   const [addingFriend, setAddingFriend] = useState(false);
   const [showReceived, setShowReceived] = useState(true);
   const [showSent, setShowSent] = useState(true);
   const [friendQuery, setFriendQuery] = useState("");
   const [searchUser, setSearchUser] = useState("");
-  const [inChat, setInChat] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const chatRef = useRef<HTMLDivElement>(null);
   const [CreateGroup, setCreateGroup] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [groupName, setGroupName] = useState("");
-  // const webview = getCurrentWebview();
+  const webview = getCurrentWebview();
   const { signOut, openSignIn } = useClerk();
   const handleSwitch = async () => {
     await signOut();
-    // await webview.clearAllBrowsingData();
+    await webview.clearAllBrowsingData();
     openSignIn();
   }; //TODO: fix switch
   useEffect(() => {
     fetchUser().catch((err) => console.error("Failed to sync user:", err));
-  }, [chatMode]);
+  }, [chatMode, friendTab]);
   const backendUrl = "https://eternalv2.onrender.com";
-  const fetchMessages = async (before?: string) => {
-    let url = "";
-    if (targetUser) {
-      url = before
-        ? `${backendUrl}/api/pvtmessages/history?from=${userData?.username}&to=${targetUser}&before=${before}`
-        : `${backendUrl}/api/pvtmessages?from=${userData?.username}&to=${targetUser}`;
-    } else if (room) {
-      url = before
-        ? `${backendUrl}/api/roommessages/history?room=${room?.room}&roomId=${room?.roomId}&before=${before}`
-        : `${backendUrl}/api/roommessages?room=${room?.room}&roomId=${room?.roomId}`;
-    } else {
-      return [];
-    }
-    const res = await fetch(url);
-    const data = await res.json();
-    return data.map((msg: any) => ({
-      ...msg,
-      timestamp: new Date(msg.timestamp),
-    }));
+  useEffect(() => {}, [targetUser, room]);
+  const openChat = (chatKey: string) => {
+    setActiveChatKey(chatKey);
+    setMessages([]);
+    setPage(1);
+    setHasMore(true);
+    fetchChat(chatKey, 1);
   };
-  useEffect(() => {
-    const loadInitial = async () => {
-      const initial = await fetchMessages();
-      setMessages((prev) => {
-        const all = [...prev, ...initial];
-        const seen = new Set<string>();
-        return all.filter((msg) => {
-          if (seen.has(msg.id)) return false;
-          seen.add(msg.id);
-          return true;
-        });
-      });
-    };
-    loadInitial();
-  }, [targetUser, room]);
-  const fetchOlder = async () => {
-    if (!hasMore) return;
-    const oldest = new Date(messages[0].timestamp).toISOString();
-    const older = await fetchMessages(oldest);
-    console.log(older);
-    if (!older.length) {
-      setHasMore(false);
-      return;
-    }
-    setMessages((prev) => [...new Set([...older, ...prev])]);
-  };
-
   const sendMessage = () => {
     if (!userData) return;
     if (!input.trim()) return;
@@ -180,10 +146,20 @@ const Messaging = () => {
 
   const handleAddFriend = async (searchUser: string) => {
     if (!userData?.username) return;
-    if (searchUser === userData.username)
+    if (searchUser === userData.username) {
+      message("You can't add yourself!", {
+        title: "Error",
+        kind: "error",
+      });
       return console.log("You can't add yourself!");
-    if (userData.friends?.map((f) => f.username).includes(searchUser))
+    }
+    if (userData.friends?.map((f) => f.username).includes(searchUser)) {
+      message("You are already friends!", {
+        title: "Info",
+        kind: "info",
+      });
       return console.log("Already friends!");
+    }
     try {
       const token = await getToken();
       const res = await fetch(`${backendUrl}/api/friends/add`, {
@@ -203,7 +179,11 @@ const Messaging = () => {
       }
       const data = await res.json();
       console.log(`Friend request sent to ${data.to}`);
-    } catch (err) {
+    } catch (err: any) {
+      message(`Failed to send friend request: ${err.message}`, {
+        title: "Error",
+        kind: "error",
+      });
       console.log("Error sending friend request:", err);
     }
   };
@@ -229,7 +209,11 @@ const Messaging = () => {
       }
       const data = await res.json();
       console.log(data);
-    } catch (err) {
+    } catch (err: any) {
+      message(`Failed to handle friend request: ${err.message}`, {
+        title: "Error",
+        kind: "error",
+      });
       console.log("Error", err);
     }
   };
@@ -266,10 +250,6 @@ const Messaging = () => {
     pcRef.current = createPeerConnection(to);
     if (streamResult instanceof MediaStream) {
       setLocalStream(streamResult);
-      // if (localVideo.current) {
-      //   console.log("Local stream tracks:", streamResult.getTracks());
-      //   localVideo.current.srcObject = streamResult;
-      // }
       for (const track of streamResult.getTracks()) {
         pcRef.current.addTrack(track, streamResult);
       }
@@ -294,7 +274,7 @@ const Messaging = () => {
       <div className="h-full flex flex-col text-p6 rounded-xl border border-neutral-500 overflow-hidden">
         {/* Messages */}
         <SignedIn>
-          {!inChat && (
+          {!activeChatKey && (
             <div className="flex w-full h-full divide-x divide-neutral-500">
               <div className="h-full w-12 flex flex-col gap-6 pt-4 items-center">
                 <div
@@ -325,36 +305,47 @@ const Messaging = () => {
                     <h1 className="text-xl p-4 border-b border-neutral-500">
                       Direct Messages
                     </h1>
+                    {(userData?.friends?.length === 0 ||
+                      userData?.friends === undefined) && (
+                      <div className="text-center pt-10">
+                        You have no friends currently
+                      </div>
+                    )}
                     {userData?.friends?.map((friend) => (
                       <div
                         key={friend.username}
                         className="p-4 flex items-center gap-4 cursor-pointer border-b border-neutral-700 hover:bg-neutral-500"
                         onClick={() => {
-                          setInChat(true);
+                          const chatKey = `chat:${[
+                            userData.username,
+                            friend.username,
+                          ]
+                            .sort()
+                            .join(":")}`;
+                          openChat(chatKey);
+                          setChatMode("private");
                           setTargetUser(friend.username);
                           if (
                             pendingMessages.filter(
-                              (message) =>
-                                message.chatKey ===
-                                `chat:${[userData.username, friend]
-                                  .sort()
-                                  .join(":")}`
+                              (message) => message.chatKey === chatKey
                             ).length === 0
                           )
                             return;
                           socket.emit("removePending", {
                             username: userData.username,
-                            chatKey: `chat:${[userData.username, friend]
-                              .sort()
-                              .join(":")}`,
+                            chatKey: chatKey,
                           });
-                          setPendingMessages(
-                            pendingMessages.filter(
-                              (message) =>
-                                message.chatKey !==
-                                `chat:${[userData.username, friend]
-                                  .sort()
-                                  .join(":")}`
+                          setPendingMessages((prev) =>
+                            prev.filter(
+                              (message) => message.chatKey !== chatKey
+                            )
+                          );
+                          localStorage.setItem(
+                            "pendingMessages",
+                            JSON.stringify(
+                              pendingMessages.filter(
+                                (message) => message.chatKey !== chatKey
+                              )
                             )
                           );
                         }}
@@ -369,15 +360,15 @@ const Messaging = () => {
                           {pendingMessages.filter(
                             (message) =>
                               message.chatKey ===
-                              `chat:${[userData.username, friend]
+                              `chat:${[userData.username, friend.username]
                                 .sort()
                                 .join(":")}`
-                          ).length > 0 && (
+                          ).length > 0 ? (
                             <div className="text-p6 font-semibold">
                               {pendingMessages.filter(
                                 (message) =>
                                   message.chatKey ===
-                                  `chat:${[userData.username, friend]
+                                  `chat:${[userData.username, friend.username]
                                     .sort()
                                     .join(":")}`
                               ).length > 9
@@ -385,14 +376,107 @@ const Messaging = () => {
                                 : pendingMessages.filter(
                                     (message) =>
                                       message.chatKey ===
-                                      `chat:${[userData.username, friend]
+                                      `chat:${[
+                                        userData.username,
+                                        friend.username,
+                                      ]
                                         .sort()
                                         .join(":")}`
                                   ).length}{" "}
                               new message(s)
                             </div>
+                          ) : messages.filter(
+                              (message) =>
+                                message.chatKey ===
+                                `chat:${[userData.username, friend.username]
+                                  .sort()
+                                  .join(":")}`
+                            ).length > 0 ? (
+                            <div className="text-neutral-400 font-semibold">
+                              {
+                                messages
+                                  .filter(
+                                    (message) =>
+                                      message.chatKey ===
+                                      `chat:${[
+                                        userData.username,
+                                        friend.username,
+                                      ]
+                                        .sort()
+                                        .join(":")}`
+                                  )
+                                  .sort(
+                                    (a, b) =>
+                                      new Date(b.timestamp).getTime() -
+                                      new Date(a.timestamp).getTime()
+                                  )[0].text
+                              }
+                            </div>
+                          ) : (
+                            <div className="text-neutral-400 font-semibold">
+                              Click here to start a conversation
+                            </div>
                           )}
                         </div>
+                        {pendingMessages.filter(
+                          (msg) =>
+                            msg.chatKey ===
+                            `chat:${[userData.username, friend.username]
+                              .sort()
+                              .join(":")}`
+                        ).length > 0 ? (
+                          <div className="text-p6 text-sm font-semibold ml-auto">
+                            {getRelativeTime(
+                              new Date(
+                                pendingMessages
+                                  .filter(
+                                    (msg) =>
+                                      msg.chatKey ===
+                                      `chat:${[
+                                        userData.username,
+                                        friend.username,
+                                      ]
+                                        .sort()
+                                        .join(":")}`
+                                  )
+                                  .sort(
+                                    (a, b) =>
+                                      new Date(b.timestamp).getTime() -
+                                      new Date(a.timestamp).getTime()
+                                  )[0].timestamp
+                              )
+                            )}
+                          </div>
+                        ) : messages.filter(
+                            (msg) =>
+                              msg.chatKey ===
+                              `chat:${[userData.username, friend.username]
+                                .sort()
+                                .join(":")}`
+                          ).length > 0 ? (
+                          <div className="text-neutral-400 text-sm font-semibold ml-auto">
+                            {getRelativeTime(
+                              new Date(
+                                messages
+                                  .filter(
+                                    (msg) =>
+                                      msg.chatKey ===
+                                      `chat:${[
+                                        userData.username,
+                                        friend.username,
+                                      ]
+                                        .sort()
+                                        .join(":")}`
+                                  )
+                                  .sort(
+                                    (a, b) =>
+                                      new Date(b.timestamp).getTime() -
+                                      new Date(a.timestamp).getTime()
+                                  )[0].timestamp
+                              )
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </>
@@ -420,21 +504,21 @@ const Messaging = () => {
                           {/* Group Name Input */}
                           <input
                             type="text"
-                            placeholder="Group name"
+                            placeholder="Group name..."
                             value={groupName}
                             onChange={(e) => setGroupName(e.target.value)}
-                            className="border rounded-lg p-2 w-full"
+                            className="border rounded-lg p-2 w-full text-p6 placeholder:text-p6 placeholder:text-sm"
                           />
-                          <div className="text-neutral-700 font-semibold">
+                          <div className="text-neutral-300 font-semibold">
                             Add Your Friends
                           </div>
                           {/* Friend List with Multi Select */}
-                          <ScrollArea className="h-48 rounded border-2 p-2">
+                          <ScrollArea className="h-48 rounded-lg border-2 p-2">
                             <div className="flex flex-col gap-2">
                               {userData?.friends?.map((friend: Friend) => (
                                 <label
                                   key={friend.username}
-                                  className="flex items-center gap-2 cursor-pointer"
+                                  className="flex items-center gap-2 cursor-pointer text-p6"
                                 >
                                   <input
                                     type="checkbox"
@@ -464,7 +548,6 @@ const Messaging = () => {
                           {/* Actions */}
                           <DialogFooter className="flex justify-end gap-2">
                             <Button
-                              variant="secondary"
                               onClick={() => {
                                 setCreateGroup(false);
                                 setSelectedFriends([]);
@@ -474,6 +557,7 @@ const Messaging = () => {
                               Cancel
                             </Button>
                             <Button
+                              variant="secondary"
                               onClick={() => {
                                 handleCreateGroup();
                               }}
@@ -486,7 +570,7 @@ const Messaging = () => {
                     )}
                     {(userData?.groups?.length === 0 ||
                       userData?.groups === undefined) && (
-                      <div className="text-center">
+                      <div className="text-center pt-10">
                         You have no groups currently
                       </div>
                     )}
@@ -495,25 +579,30 @@ const Messaging = () => {
                         key={group.roomId}
                         className="p-4 cursor-pointer flex gap-4 items-center border-b border-neutral-700 hover:bg-neutral-500"
                         onClick={() => {
-                          setInChat(true);
+                          const chatKey = `${group.room}:${group.roomId}`;
+                          openChat(chatKey);
                           setRoom(group);
                           if (
                             pendingMessages.filter(
-                              (message) =>
-                                message.chatKey ===
-                                `${group.room}:${group.roomId}`
+                              (message) => message.chatKey === chatKey
                             ).length === 0
                           )
                             return;
                           socket.emit("removePending", {
                             username: userData.username,
-                            chatKey: `${group.room}:${group.roomId}`,
+                            chatKey: chatKey,
                           });
-                          setPendingMessages(
-                            pendingMessages.filter(
-                              (message) =>
-                                message.chatKey !==
-                                `${group.room}:${group.roomId}`
+                          setPendingMessages((prev) =>
+                            prev.filter(
+                              (message) => message.chatKey !== chatKey
+                            )
+                          );
+                          localStorage.setItem(
+                            "pendingMessages",
+                            JSON.stringify(
+                              pendingMessages.filter(
+                                (message) => message.chatKey !== chatKey
+                              )
                             )
                           );
                         }}
@@ -592,7 +681,11 @@ const Messaging = () => {
                             className="text-center p-2 cursor-pointer flex items-center gap-4"
                             onClick={() => {
                               setChatMode("private");
-                              setInChat(true);
+                              openChat(
+                                `chat:${[userData.username, friend.username]
+                                  .sort()
+                                  .join(":")}`
+                              );
                               setTargetUser(friend.username);
                             }}
                           >
@@ -720,7 +813,7 @@ const Messaging = () => {
                         value={searchUser}
                         onChange={(e) => setSearchUser(e.target.value)}
                         placeholder="Search for a user"
-                        className="mx-2 w-[calc(100%-16px)]"
+                        className="mx-2 py-6 w-[calc(100%-16px)]"
                       />
                       <button
                         disabled={!searchUser.trim() || addingFriend}
@@ -733,7 +826,7 @@ const Messaging = () => {
                             setAddingFriend(false);
                           }
                         }}
-                        className="p-2 mx-2 rounded self-center w-[60%] transition-colors bg-p6 text-p5 hover:bg-gray-300 disabled:bg-gray-400 disabled:text-gray-200 disabled:cursor-not-allowed disabled:hover:bg-gray-400"
+                        className="py-2 mx-2 rounded self-center w-[calc(100%-16px)] transition-colors bg-p6 text-p5 hover:bg-gray-300 disabled:bg-neutral-500 disabled:cursor-not-allowed disabled:hover:bg-neutral-400"
                       >
                         {addingFriend ? "Adding..." : "Add Friend"}
                       </button>
@@ -743,14 +836,14 @@ const Messaging = () => {
               </div>
             </div>
           )}
-          {inChat && (
+          {activeChatKey && (
             <div className="h-full">
               <div className="flex h-1/12 justify-between gap-2 border-b border-neutral-500 p-4">
                 <div className="flex items-center gap-2">
                   <ChevronLeft
                     className="translate-y-0.5 cursor-pointer"
                     onClick={() => {
-                      setInChat(false);
+                      setActiveChatKey(null);
                       setTargetUser("");
                       setRoom(null);
                     }}
@@ -779,9 +872,10 @@ const Messaging = () => {
               <ChatWindow
                 messages={messages}
                 userData={userData}
-                room={room}
-                targetUser={targetUser}
-                fetchOlder={fetchOlder}
+                chatKey={activeChatKey}
+                fetchChat={fetchChat}
+                page={page}
+                hasMore={hasMore}
               />
               {/* Input Area */}
               <div className="p-3 h-1/12 border-t border-gray-800 flex gap-2">

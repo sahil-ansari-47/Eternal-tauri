@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useRef } from "react";
-import { open, save } from "@tauri-apps/plugin-dialog";
+import { message, open, save } from "@tauri-apps/plugin-dialog";
 import { join } from "@tauri-apps/api/path";
 import { DirEntry, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
@@ -117,6 +117,10 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         })
       );
     } catch (e: any) {
+      message(`Failed to open folder: ${e.message}`, {
+        title: "Error",
+        kind: "error",
+      });
       console.error(e);
       setError(e?.message ?? String(e));
     }
@@ -152,7 +156,11 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
           language: "unknown",
         })
       );
-    } catch (err) {
+    } catch (err: any) {
+      message(`Clone failed: ${err.message}`, {
+        title: "Error",
+        kind: "error",
+      });
       console.error("Clone failed:", err);
     }
   };
@@ -221,7 +229,11 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         path: path.split("\\").slice(0, -1).join("\\"),
       } as FsNode);
       console.log(`✅ Created new file at ${path}`);
-    } catch (err) {
+    } catch (err: any) {
+      message(`Error creating new file: ${err.message}`, {
+        title: "Error",
+        kind: "error",
+      });
       console.error("Error creating new file:", err);
     }
   };
@@ -247,6 +259,10 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       console.log(r);
       setRepos(r);
     } catch (err) {
+      message(`Error getting user repos: ${err}`, {
+        title: "Fetch Error",
+        kind: "error",
+      });
       console.log(err);
     }
   };

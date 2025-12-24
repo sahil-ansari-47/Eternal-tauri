@@ -261,7 +261,7 @@ export default function ProjectTemplates() {
 
       {showCreateModal && selectedFramework && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
-          <div className="bg-p5 p-6 rounded-xl w-[420px] shadow-2xl border border-p6 relative">
+          <div className="bg-p5 p-6 rounded-xl w-105 shadow-2xl border border-p6 relative">
             <div className="flex flex-col items-center mb-4">
               <img src={selectedFramework.image} className="w-20 h-20 mb-3" />
             </div>
@@ -309,7 +309,6 @@ export default function ProjectTemplates() {
 
             <div className="flex justify-end gap-2 mt-4">
               <Button
-                variant="secondary"
                 className="cursor-pointer"
                 onClick={() => {
                   setShowCreateModal(false);
@@ -319,10 +318,11 @@ export default function ProjectTemplates() {
                 Cancel
               </Button>
               <Button
+                variant="secondary"
                 onClick={() => {
                   createProject();
                 }}
-                className="border-1 border-neutral-500 cursor-pointer disabled:opacity:50"
+                className="border border-neutral-500 cursor-pointer disabled:opacity:50"
                 disabled={projectName.trim() === ""}
               >
                 Create
