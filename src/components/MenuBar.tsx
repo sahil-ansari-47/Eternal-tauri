@@ -15,9 +15,10 @@ import { exists, remove } from "@tauri-apps/plugin-fs";
 import { useLayout } from "./contexts/LayoutContext";
 import { useGit } from "./contexts/GitContext";
 import { useMessage } from "./contexts/MessageContext";
-const appWindow = getCurrentWindow();
+
 export default function MenuBar() {
   const [isMaximized, setIsMaximized] = useState(false);
+  const [appWindow, setAppWindow] = useState<any>(null);
   const {
     setAction,
     setDialogOpen,
@@ -34,17 +35,35 @@ export default function MenuBar() {
   const { setLeftOpen, setDownOpen, setRightOpen } = useLayout();
   const { syncStatus, handleInit, handlePush, isInit, refreshStatus } =
     useGit();
+  
   useEffect(() => {
+    const initWindow = () => {
+      try {
+        const window = getCurrentWindow();
+        setAppWindow(window);
+      } catch (error) {
+        console.warn("Not in Tauri environment:", error);
+      }
+    };
+    initWindow();
+  }, []);
+
+  useEffect(() => {
+    if (!appWindow) return;
     let unlisten: (() => void) | undefined;
     const listenToWindow = async () => {
-      setIsMaximized(await appWindow.isMaximized());
-      unlisten = await appWindow.onResized(async () => {
+      try {
         setIsMaximized(await appWindow.isMaximized());
-      });
+        unlisten = await appWindow.onResized(async () => {
+          setIsMaximized(await appWindow.isMaximized());
+        });
+      } catch (error) {
+        console.warn("Window API error:", error);
+      }
     };
     listenToWindow();
     return () => unlisten?.();
-  }, []);
+  }, [appWindow]);
   function buildSaveOptions(activeFile: FsNode) {
     if (!activeFile || !activeFile.name) return {};
     const parts = activeFile.name.split(".");
@@ -169,7 +188,7 @@ export default function MenuBar() {
             >
               Save All
             </MenubarItem>
-            <MenubarItem onClick={() => appWindow.close()}>Exit</MenubarItem>
+            <MenubarItem onClick={() => appWindow?.close()}>Exit</MenubarItem>
           </MenubarContent>
         </MenubarMenu>
         {/* EDIT MENU */}
@@ -279,28 +298,28 @@ export default function MenuBar() {
         </div>
         <button
           className="w-10 h-8 flex items-center justify-center hover:bg-neutral-700"
-          onClick={() => appWindow.minimize()}
+          onClick={() => appWindow?.minimize()}
         >
           <Minus size={14} />
         </button>
         {isMaximized ? (
           <button
             className="w-10 h-8 flex items-center justify-center hover:bg-neutral-700"
-            onClick={() => appWindow.unmaximize()}
+            onClick={() => appWindow?.unmaximize()}
           >
             <Copy size={14} />
           </button>
         ) : (
           <button
             className="w-10 h-8 flex items-center justify-center hover:bg-neutral-700"
-            onClick={() => appWindow.maximize()}
+            onClick={() => appWindow?.maximize()}
           >
             <Square size={14} />
           </button>
         )}
         <button
           className="w-10 h-8 flex items-center justify-center hover:bg-red-600"
-          onClick={() => appWindow.close()}
+          onClick={() => appWindow?.close()}
         >
           <X size={14} />
         </button>
