@@ -27,6 +27,8 @@ const Call = () => {
     localStream,
     localVideoElRef,
     lsRef,
+    remoteStream,
+    remoteVideoElRef,
   } = useMessage();
 
   // Ensure stream is attached when Call component mounts
@@ -36,9 +38,8 @@ const Call = () => {
       const stream = lsRef.current || localStream;
       
       if (videoEl && stream && videoEl.srcObject !== stream) {
-        console.log("Call component: Attaching local stream on mount");
         videoEl.srcObject = stream;
-        videoEl.play().catch(err => console.warn("Video play error:", err));
+        videoEl.play().catch(() => {});
         return true;
       }
       return false;
@@ -87,6 +88,7 @@ const Call = () => {
           <VideoStream
             participantName={targetUser}
             videoElRef={remoteVideoRef}
+            isVideoOn={remoteStream ? remoteStream.getVideoTracks().length > 0 && remoteStream.getVideoTracks()[0]?.enabled : undefined}
           />
 
           <div className="absolute right-10 bottom-10 h-50 w-80">

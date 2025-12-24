@@ -1,7 +1,7 @@
 import { MicOff, VideoOff } from "lucide-react";
 import clsx from "clsx";
-// import { useEffect } from "react";
-// import { useMessage } from "../contexts/MessageContext";
+import { useEffect, useRef, useState } from "react";
+
 interface VideoStreamProps {
   participantName: string;
   isMuted?: boolean;
@@ -15,35 +15,65 @@ export default function VideoStream({
   isVideoOn,
   videoElRef,
 }: VideoStreamProps) {
-  // const { localStream, localVideoElRef } = useMessage();
-  console.log(videoElRef, isMuted, isVideoOn);
-  // useEffect(() => {
-  //   if (localVideoElRef.current && localStream) {
-  //     localVideoElRef.current.srcObject = localStream;
-  //   }
-  // }, [localStream]);
+  const videoElementRef = useRef<HTMLVideoElement | null>(null);
+  const [hasVideoTrack, setHasVideoTrack] = useState(false);
+
+  // Combined ref callback to track element and call parent callback
+  const combinedRef = (node: HTMLVideoElement | null) => {
+    videoElementRef.current = node;
+    videoElRef(node);
+  };
+
+  // Check if video element has a stream with active video tracks
+  useEffect(() => {
+    const checkVideoTrack = () => {
+      const videoEl = videoElementRef.current;
+      if (videoEl && videoEl.srcObject) {
+        const stream = videoEl.srcObject as MediaStream;
+        const videoTracks = stream.getVideoTracks();
+        const hasActiveVideo = videoTracks.length > 0 && videoTracks[0]?.enabled && videoTracks[0]?.readyState === 'live';
+        setHasVideoTrack(hasActiveVideo);
+      } else {
+        setHasVideoTrack(false);
+      }
+    };
+
+    // Check immediately
+    checkVideoTrack();
+
+    // Set up interval to check periodically (handles async stream attachment)
+    const interval = setInterval(checkVideoTrack, 200);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }); // Run on every render to catch element/stream changes
+
+  // Determine if video should be shown
+  // Use isVideoOn prop if provided, otherwise check if element has active video track
+  const showVideo = isVideoOn !== undefined ? isVideoOn : hasVideoTrack;
 
   return (
     <div
       className={clsx(
         "relative w-full h-full border-2 border-neutral-300 rounded-2xl overflow-hidden shadow-2xl group",
-        !isVideoOn && "bg-primary-sidebar"
+        !showVideo && "bg-primary-sidebar"
       )}
     >
       {/* Video Background */}
-      {!isVideoOn ? (
+      {!showVideo ? (
         <div className="h-full flex flex-col items-center justify-center">
           <VideoOff className="w-16 h-16 text-gray-600 mx-auto mb-4" />
           <p className="text-gray-400">Camera is off</p>
         </div>
       ) : (
-        // <div className="absolute inset-0 bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900"></div>
         <video
           autoPlay
           playsInline
           muted
-          ref={videoElRef}
+          ref={combinedRef}
           className="absolute inset-0 w-full h-full object-cover"
+          style={{ imageRendering: 'auto' }}
         />
       )}
       {/* Participant Info */}
@@ -60,7 +90,7 @@ export default function VideoStream({
             <MicOff className="w-4 h-4 text-white" />
           </div>
         )}
-        {!isVideoOn && (
+        {!showVideo && (
           <div className="bg-red-500/80 backdrop-blur-md p-2 rounded-lg">
             <VideoOff className="w-4 h-4 text-white" />
           </div>

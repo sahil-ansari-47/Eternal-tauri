@@ -166,11 +166,7 @@ const App = () => {
       ).catch((err) => console.warn("Notification error:", err));
     });
     socket.on("answer", async ({ answer }) => {
-      console.log("Received answer");
-      if (!pcRef.current) {
-        console.log("No RTCPeerConnection for answer");
-        return;
-      }
+      if (!pcRef.current) return;
       await pcRef.current.setRemoteDescription(answer);
       remoteDescriptionSetRef.current = true;
       for (const c of bufferedCandidatesRef.current) {
@@ -180,13 +176,11 @@ const App = () => {
     });
     socket.on("ice-candidate", async ({ candidate }) => {
       if (!pcRef.current?.remoteDescription) {
-        console.log("Buffering ICE candidate");
         bufferedCandidatesRef.current.push(candidate);
         return;
       }
       try {
         await pcRef.current.addIceCandidate(candidate);
-        console.log("Added ICE candidate");
       } catch (err) {
         console.error("Error adding ICE candidate:", err);
       }
@@ -204,7 +198,6 @@ const App = () => {
       }
     });
     socket.on("hangup", () => {
-      console.log("hangup hit");
       setInCall(false);
       setinCallwith(null);
       if (pcRef.current) {
@@ -280,9 +273,13 @@ const App = () => {
 
       // Add all media tracks (video and audio) to the peer connection
       // This must happen BEFORE setRemoteDescription to ensure tracks are included in the answer
+      const videoSenders: RTCRtpSender[] = [];
       if (streamResult instanceof MediaStream) {
         for (const track of streamResult.getTracks()) {
-          pc.addTrack(track, streamResult);
+          const sender = pc.addTrack(track, streamResult);
+          if (track.kind === 'video') {
+            videoSenders.push(sender);
+          }
         }
       }
 
@@ -336,6 +333,22 @@ const App = () => {
       // Create and set the answer to the caller's offer
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
+      
+      // Set higher bitrate for video tracks to improve quality (after answer is created)
+      for (const sender of videoSenders) {
+        try {
+          const params = sender.getParameters();
+          if (params.encodings && params.encodings.length > 0) {
+            // Set high bitrate for better quality (2500000 = 2.5 Mbps)
+            params.encodings[0].maxBitrate = 2500000;
+            params.encodings[0].maxFramerate = 30;
+            await sender.setParameters(params);
+          }
+        } catch (err) {
+          console.warn("Failed to set video encoding parameters:", err);
+        }
+      }
+      
       socket.emit("answer", { to: inCallwith, answer });
 
       // Add any buffered ICE candidates that arrived before remote description was set
@@ -389,7 +402,6 @@ const App = () => {
     return () => window.removeEventListener("keydown", handler);
   }, [downOpen]);
   useEffect(() => {
-    console.log("Loading pending messages from localStorage", pendingMessages);
     setPendingMessages(
       JSON.parse(localStorage.getItem("pendingMessages") || "[]")
     );
