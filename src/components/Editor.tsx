@@ -306,13 +306,10 @@ export default function Editor() {
                 </span>
               )}
               {/* Unsaved indicator */}
-              {file.isDirty && (
-                <span className="text-white text-3xl ml-1">•</span>
-              )}
+              {file.isDirty && <span className="text-white ml-1">●</span>}
             </span>
-
             <button
-              className={`ml-2 px-1.5 py-1 hover:bg-neutral-500 hover:text-neutral-400 rounded-sm cursor-pointer font-bold ${
+              className={`ml-1 px-1.5 py-1 hover:bg-neutral-500 hover:text-neutral-400 rounded-sm cursor-pointer font-bold ${
                 file.path === activeFile?.path
                   ? "text-neutral-400"
                   : "text-primary-sidebar"
