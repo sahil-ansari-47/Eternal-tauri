@@ -404,37 +404,42 @@ const Messaging = () => {
                                   ).length}{" "}
                               new message(s)
                             </div>
-                          ) : messages.filter(
+                          ) : (
+                            messages.filter(
                               (message) =>
                                 message.chatKey ===
                                 `chat:${[userData.username, friend.username]
                                   .sort()
                                   .join(":")}`
-                            ).length > 0 ? (
-                            <div className="text-neutral-400 font-semibold">
-                              {
-                                messages
-                                  .filter(
-                                    (message) =>
-                                      message.chatKey ===
-                                      `chat:${[
-                                        userData.username,
-                                        friend.username,
-                                      ]
-                                        .sort()
-                                        .join(":")}`
-                                  )
-                                  .sort(
-                                    (a, b) =>
-                                      new Date(b.timestamp).getTime() -
-                                      new Date(a.timestamp).getTime()
-                                  )[0].text
-                              }
-                            </div>
-                          ) : (
-                            <div className="text-neutral-400 font-semibold">
-                              Click here to start a conversation
-                            </div>
+                            ).length > 0 && (
+                              <div className="text-neutral-400 font-semibold truncate max-w-40">
+                                {(() => {
+                                  const lastMessage = messages
+                                    .filter(
+                                      (message) =>
+                                        message.chatKey ===
+                                        `chat:${[
+                                          userData.username,
+                                          friend.username,
+                                        ]
+                                          .sort()
+                                          .join(":")}`
+                                    )
+                                    .sort(
+                                      (a, b) =>
+                                        new Date(b.timestamp).getTime() -
+                                        new Date(a.timestamp).getTime()
+                                    )[0];
+
+                                  if (!lastMessage)
+                                    return "Click here to start a conversation";
+
+                                  return lastMessage.from === userData.username
+                                    ? `You: ${lastMessage.text}`
+                                    : `${lastMessage.text}`;
+                                })()}
+                              </div>
+                            )
                           )}
                         </div>
                         {pendingMessages.filter(
