@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef } from "react";
+import { createContext, useCallback, useContext, useRef, useEffect } from "react";
 import { useState } from "react";
 import { useUser } from "./UserContext";
 import { confirm, message } from "@tauri-apps/plugin-dialog";
@@ -78,14 +78,68 @@ export const MessageProvider = ({
   const localVideoElRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoElRef = useRef<HTMLVideoElement>(null);
   const localVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    const prevNode = localVideoElRef.current;
     localVideoElRef.current = node;
     console.log("Local video ref callback:", node);
     console.log("Local stream in callback:", lsRef.current);
+    
+    // If element is being set and stream exists, attach immediately
     if (node && lsRef.current) {
-      console.log("Attaching local stream (authoritative)");
+      console.log("Attaching local stream in callback (immediate)");
+      node.srcObject = lsRef.current;
+    }
+    
+    // If element was just mounted (changed from null to node), try to attach
+    if (node && !prevNode && lsRef.current) {
+      console.log("Element just mounted, attaching stream");
       node.srcObject = lsRef.current;
     }
   }, []);
+
+  // Effect to attach stream when both element and stream are ready
+  // This handles the case where stream is set before element is mounted
+  useEffect(() => {
+    if (!inCall) return;
+    
+    const attachStream = () => {
+      const videoEl = localVideoElRef.current;
+      const stream = lsRef.current || localStream;
+      
+      if (videoEl && stream && videoEl.srcObject !== stream) {
+        console.log("Attaching local stream via useEffect", {
+          hasElement: !!videoEl,
+          hasStream: !!stream,
+          currentSrc: videoEl.srcObject !== null
+        });
+        videoEl.srcObject = stream;
+        // Force play to ensure video displays
+        videoEl.play().catch(err => console.warn("Video play error:", err));
+        return true;
+      }
+      return false;
+    };
+
+    // Try immediately
+    if (attachStream()) return;
+
+    // If element not ready, retry with increasing delays (handles race condition)
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+    const delays = [50, 100, 200, 300, 500, 1000];
+    
+    delays.forEach((delay) => {
+      const timeoutId = setTimeout(() => {
+        if (attachStream()) {
+          // Clear remaining timeouts if successful
+          timeouts.forEach((id) => clearTimeout(id));
+        }
+      }, delay);
+      timeouts.push(timeoutId);
+    });
+
+    return () => {
+      timeouts.forEach((id) => clearTimeout(id));
+    };
+  }, [localStream, inCall]); // Watch localStream state and inCall to trigger when stream is set
   const remoteVideoRef = useCallback((node: HTMLVideoElement | null) => {
     remoteVideoElRef.current = node;
   }, []);
@@ -141,45 +195,83 @@ export const MessageProvider = ({
   }
   async function ensureLocalStream(sender: boolean, video: boolean) {
     try {
-      console.log("Ensuring local stream with video:", video);
-      if (!lsRef.current) {
-        const ls = await navigator.mediaDevices.getUserMedia({
-          video,
-          audio: true,
-        });
-        lsRef.current = ls;
+      console.log("Ensuring local stream with video:", video, "sender:", sender);
+      
+      // Check if we already have a stream with the required tracks
+      if (lsRef.current) {
+        const hasVideo = lsRef.current.getVideoTracks().length > 0;
+        const hasAudio = lsRef.current.getAudioTracks().length > 0;
+        
+        // If we need video but don't have it, or vice versa, get a new stream
+        if ((video && !hasVideo) || (!video && hasVideo)) {
+          console.log("Existing stream doesn't match requirements, stopping and getting new one");
+          for (const track of lsRef.current.getTracks()) {
+            track.stop();
+          }
+          lsRef.current = null;
+        } else if (hasVideo && hasAudio) {
+          console.log("Reusing existing stream");
+          return lsRef.current;
+        }
       }
-      console.log("Local stream obtained:", lsRef.current);
+      
+      console.log("Requesting new media stream...");
+      const constraints = {
+        video: video ? { facingMode: "user" } : false,
+        audio: true,
+      };
+      console.log("Media constraints:", constraints);
+      
+      const ls = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log("Media stream obtained:", {
+        videoTracks: ls.getVideoTracks().length,
+        audioTracks: ls.getAudioTracks().length,
+        videoTrackEnabled: ls.getVideoTracks()[0]?.enabled,
+        audioTrackEnabled: ls.getAudioTracks()[0]?.enabled,
+      });
+      
+      lsRef.current = ls;
       return lsRef.current;
-    } catch (e) {
+    } catch (e: any) {
+      console.error("Error getting user media:", e);
+      console.error("Error name:", e.name);
+      console.error("Error message:", e.message);
+      
       if (sender) {
         const confirmed = await confirm(
-          "Cannot access media devices. Continue with voice call?",
+          `Cannot access media devices: ${e.message || e.name}. Continue with voice call?`,
           { title: "Access denied" }
         );
         if (confirmed) {
-          if (!lsRef.current) {
+          try {
             const ls = await navigator.mediaDevices.getUserMedia({
               video: false,
               audio: true,
             });
             lsRef.current = ls;
+            return lsRef.current;
+          } catch (audioError) {
+            console.error("Failed to get audio-only stream:", audioError);
+            return null;
           }
-          return lsRef.current;
         }
         return null;
       } else {
-        await message("Cannot access media devices", {
+        await message(`Cannot access media devices: ${e.message || e.name}`, {
           title: "Access denied",
+          kind: "error",
         });
-        if (!lsRef.current) {
+        try {
           const ls = await navigator.mediaDevices.getUserMedia({
             video: false,
             audio: true,
           });
           lsRef.current = ls;
+          return lsRef.current;
+        } catch (audioError) {
+          console.error("Failed to get audio-only stream:", audioError);
+          return null;
         }
-        return lsRef.current;
       }
     }
   }

@@ -37,7 +37,6 @@ import { open as openLink } from "@tauri-apps/plugin-shell";
 import NoWorkspace from "./NoWorkspace";
 import { readTextFile, remove } from "@tauri-apps/plugin-fs";
 import { message, ask } from "@tauri-apps/plugin-dialog";
-import { sync } from "framer-motion";
 export default function GitPanel() {
   const {
     workspace,

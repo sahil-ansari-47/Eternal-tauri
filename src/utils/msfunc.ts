@@ -27,23 +27,57 @@ export function getRelativeTime(input: Date): string {
   return "just now";
 }
 
-import {
-  isPermissionGranted,
-  requestPermission,
-  sendNotification,
-} from "@tauri-apps/plugin-notification";
-
 export async function showNotification(title: string, body: string) {
-  let permissionGranted = await isPermissionGranted();
-  console.log("Permission granted:", permissionGranted);
-  if (!permissionGranted) {
-    const permission = await requestPermission();
-    permissionGranted = permission === "granted";
+  // Check if we're in a Tauri environment
+  const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+  
+  if (isTauri) {
+    try {
+      const {
+        isPermissionGranted,
+        requestPermission,
+        sendNotification,
+      } = await import("@tauri-apps/plugin-notification");
+      
+      let permissionGranted = await isPermissionGranted();
+      console.log("Permission granted:", permissionGranted);
+      if (!permissionGranted) {
+        const permission = await requestPermission();
+        permissionGranted = permission === "granted";
+      }
+      if (permissionGranted) {
+        sendNotification({
+          title,
+          body,
+        });
+      }
+    } catch (error) {
+      console.warn("Tauri notification failed, falling back to browser:", error);
+      // Fall through to browser notification
+      fallbackBrowserNotification(title, body);
+    }
+  } else {
+    // Use browser's native notification API
+    fallbackBrowserNotification(title, body);
   }
-  if (permissionGranted) {
-    sendNotification({
-      title,
-      body,
+}
+
+function fallbackBrowserNotification(title: string, body: string) {
+  // Check if browser supports notifications
+  if (!("Notification" in window)) {
+    console.log("Notifications not supported in this browser");
+    return;
+  }
+
+  // Check if permission is already granted
+  if (Notification.permission === "granted") {
+    new Notification(title, { body });
+  } else if (Notification.permission !== "denied") {
+    // Request permission
+    Notification.requestPermission().then((permission) => {
+      if (permission === "granted") {
+        new Notification(title, { body });
+      }
     });
   }
 }

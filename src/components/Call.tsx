@@ -6,6 +6,7 @@ import {
   PhoneOff,
   Video,
 } from "lucide-react";
+import { useEffect } from "react";
 import { useMessage } from "./contexts/MessageContext";
 import VideoStream from "./ui/video-stream";
 import VoiceCall from "./ui/voice-call";
@@ -23,7 +24,42 @@ const Call = () => {
     toggleLocalVideo,
     handleHangup,
     callType,
+    localStream,
+    localVideoElRef,
+    lsRef,
   } = useMessage();
+
+  // Ensure stream is attached when Call component mounts
+  useEffect(() => {
+    const attachStream = () => {
+      const videoEl = localVideoElRef.current;
+      const stream = lsRef.current || localStream;
+      
+      if (videoEl && stream && videoEl.srcObject !== stream) {
+        console.log("Call component: Attaching local stream on mount");
+        videoEl.srcObject = stream;
+        videoEl.play().catch(err => console.warn("Video play error:", err));
+        return true;
+      }
+      return false;
+    };
+
+    // Try immediately
+    if (attachStream()) return;
+
+    // Retry with delays
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+    [50, 100, 200, 300, 500, 1000].forEach((delay) => {
+      const timeoutId = setTimeout(() => {
+        attachStream();
+      }, delay);
+      timeouts.push(timeoutId);
+    });
+
+    return () => {
+      timeouts.forEach((id) => clearTimeout(id));
+    };
+  }, [localStream, localVideoElRef, lsRef]);
 
   return (
     <div className="relative flex flex-col h-full w-full bg-p5">
