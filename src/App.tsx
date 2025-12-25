@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   Dialog,
@@ -79,6 +79,7 @@ const App = () => {
   } = useEditor();
   const { leftOpen, rightOpen, downOpen, setDownOpen } = useLayout();
   const remoteDescriptionSetRef = useRef(false);
+  const [appReady, setAppReady] = useState(false);
   useEffect(() => {
     const recents = JSON.parse(localStorage.getItem("recents") || "[]");
     setRecents(recents);
@@ -249,7 +250,6 @@ const App = () => {
       }
       pcRef.current = null;
     }
-
     try {
       // Create a new peer connection for this call
       const pc = createPeerConnection(inCallwith);
@@ -277,7 +277,7 @@ const App = () => {
       if (streamResult instanceof MediaStream) {
         for (const track of streamResult.getTracks()) {
           const sender = pc.addTrack(track, streamResult);
-          if (track.kind === 'video') {
+          if (track.kind === "video") {
             videoSenders.push(sender);
           }
         }
@@ -333,7 +333,7 @@ const App = () => {
       // Create and set the answer to the caller's offer
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      
+
       // Set higher bitrate for video tracks to improve quality (after answer is created)
       for (const sender of videoSenders) {
         try {
@@ -348,7 +348,7 @@ const App = () => {
           console.warn("Failed to set video encoding parameters:", err);
         }
       }
-      
+
       socket.emit("answer", { to: inCallwith, answer });
 
       // Add any buffered ICE candidates that arrived before remote description was set

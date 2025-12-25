@@ -52,7 +52,7 @@ export default function VideoStream({
   // Determine if video should be shown
   // Use isVideoOn prop if provided, otherwise check if element has active video track
   const showVideo = isVideoOn !== undefined ? isVideoOn : hasVideoTrack;
-
+  
   return (
     <div
       className={clsx(
