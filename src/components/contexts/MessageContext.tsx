@@ -43,6 +43,7 @@ interface MessageContextType {
     video: boolean
   ) => Promise<MediaStream | null | "audio-only">;
   localStream: MediaStream | null;
+  remoteStream: MediaStream | null;
   bufferedCandidatesRef: React.RefObject<RTCIceCandidateInit[]>;
   setLocalStream: React.Dispatch<React.SetStateAction<MediaStream | null>>;
 }
@@ -70,6 +71,7 @@ export const MessageProvider = ({
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const lsRef = useRef<MediaStream | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [inCall, setInCall] = useState(false);
   const [callType, setCallType] = useState<"video" | "audio">("video");
   const [isVideoOn, setisVideoOn] = useState(true);
@@ -77,20 +79,10 @@ export const MessageProvider = ({
   const localVideoElRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoElRef = useRef<HTMLVideoElement>(null);
   const localVideoRef = useCallback((node: HTMLVideoElement | null) => {
-    const prevNode = localVideoElRef.current;
     localVideoElRef.current = node;
-    console.log("Local video ref callback:", node);
-    console.log("Local stream in callback:", lsRef.current);
     
     // If element is being set and stream exists, attach immediately
     if (node && lsRef.current) {
-      console.log("Attaching local stream in callback (immediate)");
-      node.srcObject = lsRef.current;
-    }
-    
-    // If element was just mounted (changed from null to node), try to attach
-    if (node && !prevNode && lsRef.current) {
-      console.log("Element just mounted, attaching stream");
       node.srcObject = lsRef.current;
     }
   }, []);
@@ -105,14 +97,8 @@ export const MessageProvider = ({
       const stream = lsRef.current || localStream;
       
       if (videoEl && stream && videoEl.srcObject !== stream) {
-        console.log("Attaching local stream via useEffect", {
-          hasElement: !!videoEl,
-          hasStream: !!stream,
-          currentSrc: videoEl.srcObject !== null
-        });
         videoEl.srcObject = stream;
-        // Force play to ensure video displays
-        videoEl.play().catch(err => console.warn("Video play error:", err));
+        videoEl.play().catch(() => {});
         return true;
       }
       return false;
@@ -139,13 +125,57 @@ export const MessageProvider = ({
       timeouts.forEach((id) => clearTimeout(id));
     };
   }, [localStream, inCall]); // Watch localStream state and inCall to trigger when stream is set
+  
+  // Effect to attach remote stream when both element and stream are ready
+  // This handles the case where remote stream arrives before element is mounted
+  useEffect(() => {
+    if (!inCall) return;
+    
+    const attachRemoteStream = () => {
+      const videoEl = remoteVideoElRef.current;
+      const stream = remoteStream;
+      
+      if (videoEl && stream && videoEl.srcObject !== stream) {
+        videoEl.srcObject = stream;
+        videoEl.play().catch(() => {});
+        return true;
+      }
+      return false;
+    };
+
+    // Try immediately
+    if (attachRemoteStream()) return;
+
+    // If element not ready, retry with increasing delays (handles race condition)
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+    const delays = [50, 100, 200, 300, 500, 1000];
+    
+    delays.forEach((delay) => {
+      const timeoutId = setTimeout(() => {
+        if (attachRemoteStream()) {
+          // Clear remaining timeouts if successful
+          timeouts.forEach((id) => clearTimeout(id));
+        }
+      }, delay);
+      timeouts.push(timeoutId);
+    });
+
+    return () => {
+      timeouts.forEach((id) => clearTimeout(id));
+    };
+  }, [remoteStream, inCall]); // Watch remoteStream state and inCall to trigger when stream arrives
+  
   const remoteVideoRef = useCallback((node: HTMLVideoElement | null) => {
     remoteVideoElRef.current = node;
-  }, []);
+    // If element is being set and remote stream exists, attach immediately
+    if (node && remoteStream) {
+      node.srcObject = remoteStream;
+      node.play().catch(() => {});
+    }
+  }, [remoteStream]);
   const bufferedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   function toggleLocalAudio(enabled: boolean) {
-    console.log("toggling audio", enabled);
     setisAudioOn(enabled);
     if (!lsRef.current || lsRef.current?.getTracks().length === 0) return;
     lsRef.current
@@ -163,22 +193,22 @@ export const MessageProvider = ({
     try {
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
       pc.onicecandidate = (evt) => {
-        if (!evt.candidate) {
-          console.log("no candidate found");
-          return;
-        }
-        console.log("received candidate");
+        if (!evt.candidate) return;
         socket.emit("ice-candidate", {
           to: target,
           candidate: evt.candidate,
         });
-        console.log("done gathering candidates");
       };
       pc.ontrack = (evt) => {
-        if (remoteVideoElRef.current && !remoteVideoElRef.current.srcObject) {
-          console.log("Remote stream tracks:", evt.streams[0].getTracks());
-          remoteVideoElRef.current.srcObject = evt.streams[0];
-          console.log("Remote video src:", remoteVideoElRef.current.srcObject);
+        // Store remote stream in state - this will trigger useEffect to attach it
+        // This fixes the race condition where ontrack fires before video element is mounted
+        const stream = evt.streams[0];
+        setRemoteStream(stream);
+        
+        // Also try to attach immediately if element is ready (optimization)
+        if (remoteVideoElRef.current) {
+          remoteVideoElRef.current.srcObject = stream;
+          remoteVideoElRef.current.play().catch(() => {});
         }
       };
       return pc;
@@ -189,8 +219,6 @@ export const MessageProvider = ({
   }
   async function ensureLocalStream(sender: boolean, video: boolean) {
     try {
-      console.log("Ensuring local stream with video:", video, "sender:", sender);
-      
       // Check if we already have a stream with the required tracks
       if (lsRef.current) {
         const hasVideo = lsRef.current.getVideoTracks().length > 0;
@@ -198,32 +226,27 @@ export const MessageProvider = ({
         
         // If we need video but don't have it, or vice versa, get a new stream
         if ((video && !hasVideo) || (!video && hasVideo)) {
-          console.log("Existing stream doesn't match requirements, stopping and getting new one");
           for (const track of lsRef.current.getTracks()) {
             track.stop();
           }
           lsRef.current = null;
         } else if (hasVideo && hasAudio) {
-          console.log("Reusing existing stream");
           return lsRef.current;
         }
       }
       
-      console.log("Requesting new media stream...");
       const constraints = {
-        video: video ? { facingMode: "user" } : false,
+        video: video ? {
+          facingMode: "user",
+          width: { ideal: 1920, min: 640 },
+          height: { ideal: 1080, min: 480 },
+          frameRate: { ideal: 30, min: 24 },
+          aspectRatio: { ideal: 16/9 }
+        } : false,
         audio: true,
       };
-      console.log("Media constraints:", constraints);
       
       const ls = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log("Media stream obtained:", {
-        videoTracks: ls.getVideoTracks().length,
-        audioTracks: ls.getAudioTracks().length,
-        videoTrackEnabled: ls.getVideoTracks()[0]?.enabled,
-        audioTrackEnabled: ls.getAudioTracks()[0]?.enabled,
-      });
-      
       lsRef.current = ls;
       return lsRef.current;
     } catch (e: any) {
@@ -280,6 +303,11 @@ export const MessageProvider = ({
       for (const track of lsRef.current.getTracks()) track.stop();
       lsRef.current = null;
       if (localVideoElRef.current) localVideoElRef.current.srcObject = null;
+    }
+    // Clean up remote stream
+    setRemoteStream(null);
+    if (remoteVideoElRef.current) {
+      remoteVideoElRef.current.srcObject = null;
     }
     socket.emit("hangup", { to: targetUser });
   };
@@ -376,6 +404,7 @@ export const MessageProvider = ({
         toggleLocalVideo,
         handleHangup,
         localStream,
+        remoteStream,
         setLocalStream,
         createPeerConnection,
         ensureLocalStream,

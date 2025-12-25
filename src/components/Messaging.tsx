@@ -261,31 +261,49 @@ const Messaging = () => {
     const wantsVideo = video ? true : false;
     const streamResult = await ensureLocalStream(true, wantsVideo);
     if (!streamResult) {
-      console.log("Call aborted by user");
       return;
     }
+    // Set target user before creating peer connection
+    setTargetUser(to);
     setInCall(true);
     setinCallwith(to);
     pcRef.current = createPeerConnection(to);
+    const videoSenders: RTCRtpSender[] = [];
     if (streamResult instanceof MediaStream) {
       setLocalStream(streamResult);
       for (const track of streamResult.getTracks()) {
-        pcRef.current.addTrack(track, streamResult);
+        const sender = pcRef.current.addTrack(track, streamResult);
+        if (track.kind === 'video') {
+          videoSenders.push(sender);
+        }
       }
       if (streamResult.getVideoTracks().length === 0) {
         video = false;
       }
     }
-    setInCall(true);
     const offer = await pcRef.current.createOffer();
     await pcRef.current.setLocalDescription(offer);
+    
+    // Set higher bitrate for video tracks to improve quality (after offer is created)
+    for (const sender of videoSenders) {
+      try {
+        const params = sender.getParameters();
+        if (params.encodings && params.encodings.length > 0) {
+          // Set high bitrate for better quality (2500000 = 2.5 Mbps)
+          params.encodings[0].maxBitrate = 2500000;
+          params.encodings[0].maxFramerate = 30;
+          await sender.setParameters(params);
+        }
+      } catch (err) {
+        console.warn("Failed to set video encoding parameters:", err);
+      }
+    }
     socket.emit("offer", {
       to,
       from: userData.username,
       offer,
       callType: video,
     });
-    console.log("Call type:", video);
     setCallType(video ? "video" : "audio");
   };
   return (
