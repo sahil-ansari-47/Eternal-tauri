@@ -80,11 +80,30 @@ const Messaging = () => {
   const [CreateGroup, setCreateGroup] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [groupName, setGroupName] = useState("");
-  const webview = getCurrentWebview();
+  const [webview, setWebview] = useState<any>(null);
   const { signOut, openSignIn } = useClerk();
+  
+  useEffect(() => {
+    const initWebview = () => {
+      try {
+        const wv = getCurrentWebview();
+        setWebview(wv);
+      } catch (error) {
+        console.warn("Not in Tauri environment:", error);
+      }
+    };
+    initWebview();
+  }, []);
+
   const handleSwitch = async () => {
     await signOut();
-    await webview.clearAllBrowsingData();
+    if (webview) {
+      try {
+        await webview.clearAllBrowsingData();
+      } catch (error) {
+        console.warn("Failed to clear browsing data:", error);
+      }
+    }
     openSignIn();
   }; //TODO: fix switch
   useEffect(() => {
