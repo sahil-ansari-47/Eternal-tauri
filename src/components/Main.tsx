@@ -10,8 +10,7 @@ import { Tabs, TabsContent } from "./ui/tabs";
 import Splash from "./Splash";
 import Loading from "./Loading";
 const Main = () => {
-  const { setTabList, openFiles, activeTab, setActiveTab } =
-    useEditor();
+  const { setTabList, openFiles, activeTab, setActiveTab } = useEditor();
   const { inCall } = useMessage();
   useEffect(() => {
     if (inCall) {
@@ -51,7 +50,7 @@ const Main = () => {
           speedScale={1}
         />
       )}
-      <Tabs value={activeTab} className="bg-primary-sidebar w-full h-full">
+      <Tabs value={activeTab} className="bg-p5 w-full h-full">
         <div className="flex w-full items-center justify-center">
           {/* <TabsList className="my-2 bg-transparent z-10">
             {tabList.map((tab) => (
