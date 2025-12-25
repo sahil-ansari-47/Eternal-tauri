@@ -25,7 +25,7 @@ interface GitContextType {
   refreshStatus: () => Promise<void>;
   runGit: <T>(action: string, payload?: any) => Promise<T>;
 
-  getUserAccessToken: () => Promise<string>;
+  getUserAccessToken: () => Promise<string | null>;
   handlePublish: (name: string, priv?: boolean) => Promise<void>;
 
   syncStatus: {
@@ -75,8 +75,6 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     null
   );
 
-  let origin = "";
-
   async function refreshStatus() {
     if (!workspace) return;
     setLoading(true);
@@ -91,7 +89,6 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
       setError(e);
     } finally {
       setLoading(false);
-      setError(null);
     }
   }
   function normalizeGitPayloadPaths(status: GitStatus): GitStatus {
@@ -120,17 +117,30 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }
   const getUserAccessToken = async () => {
-    const sk = import.meta.env.VITE_BACKEND_SECRET_KEY;
-    // console.log(user?.id, sk);
-    const token = await invoke<string>("get_user_access_token", {
-      userId: user?.id,
-      sk,
-    });
-    return token;
+    try {
+      const sk = import.meta.env.VITE_BACKEND_SECRET_KEY;
+      // console.log(user?.id, sk);
+      const token = await invoke<string>("get_user_access_token", {
+        userId: user?.id,
+        sk,
+      });
+      return token;
+    } catch (e: any) {
+      message(
+        e.message ||
+          "Failed to get user access token. Try logging in to your github account.",
+        {
+          title: "Error",
+          kind: "error",
+        }
+      );
+      return null;
+    }
   };
 
   async function checkRemoteBranchExists(): Promise<boolean> {
     const token = await getUserAccessToken();
+    if (!token) return false;
     const reponame = workspace?.split("\\").pop();
     const branch = status.branch;
 
@@ -147,7 +157,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     return res.status === 200;
   }
   useEffect(() => {
-    if (isInit && workspace && status.branch) {
+    if (isInit && workspace && status.branch && user?.username) {
       checkRemoteBranchExists().then(setRemoteBranchExists);
     }
   }, [status.branch, status.origin]);
@@ -197,7 +207,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       await runGit("push", {
         workspace,
-        remote: origin || "origin",
+        remote: "origin",
         branch: status.branch || "master",
       });
       await refreshStatus();
@@ -217,7 +227,6 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     if (status.origin) return;
     setLoading(true);
     try {
-      origin = url;
       await runGit("set-remote", {
         workspace,
         url,
@@ -235,6 +244,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     const remotebranchexists = await checkRemoteBranchExists();
     if (!remotebranchexists) {
       const token = await getUserAccessToken();
+      if (!token) return;
       await fetch(`https://api.github.com/user/repos`, {
         method: "POST",
         headers: {

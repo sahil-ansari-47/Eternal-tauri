@@ -86,6 +86,7 @@ export default function GitPanel() {
   async function loadBranches() {
     setLoading(true);
     try {
+      if (!isInit) return;
       const result = await runGit<{ stdout: string }>("branch", { workspace });
       const branchList = result.stdout
         .split("\n")
@@ -351,6 +352,7 @@ export default function GitPanel() {
       });
       setCommitMsg("");
       await refreshStatus();
+      await fetchSyncStatus();
       const stagedRelPaths = new Set(status.staged.map((f) => f.path));
       setOpenFiles((prev) =>
         prev.map((f) => {

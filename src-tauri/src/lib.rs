@@ -376,12 +376,47 @@ async fn git_command(
     }
     if action == "sync-status" {
         // First fetch to update remote refs
-        let _ = Command::new("git")
-            .args(["fetch"])
-            // .arg("origin")
+        let fetch_result = Command::new("git")
+            .args(["fetch", "--quiet"])
             .current_dir(path)
             .creation_flags(0x08000000)
             .output();
+
+        // Get current branch
+        let current_branch = Command::new("git")
+            .args(["rev-parse", "--abbrev-ref", "HEAD"])
+            .current_dir(path)
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        let current_branch_name = String::from_utf8_lossy(&current_branch.stdout).trim().to_string();
+
+        // Check if upstream exists
+        let upstream_check = Command::new("git")
+            .args(["rev-parse", "--abbrev-ref", "@{u}"])
+            .current_dir(path)
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        let has_upstream = upstream_check.status.success();
+        let upstream_name = if has_upstream {
+            String::from_utf8_lossy(&upstream_check.stdout).trim().to_string()
+        } else {
+            "none".to_string()
+        };
+
+        println!("[SYNC-STATUS] Branch: {}, Upstream: {}, Fetch success: {}",
+                 current_branch_name, upstream_name, fetch_result.is_ok());
+
+        if !has_upstream {
+            // No upstream set, return zeros
+            return Ok(serde_json::json!({
+                "ahead": 0,
+                "behind": 0
+            }));
+        }
 
         // Check commits ahead (to push)
         let ahead = Command::new("git")
@@ -407,6 +442,8 @@ async fn git_command(
             .trim()
             .parse::<i32>()
             .unwrap_or(0);
+
+        println!("[SYNC-STATUS] Ahead: {}, Behind: {}", ahead_count, behind_count);
 
         return Ok(serde_json::json!({
             "ahead": ahead_count,
@@ -593,11 +630,16 @@ async fn git_command(
         }));
     }
     if action == "push" {
+        let remote = payload["remote"].as_str().unwrap_or("origin");
+        let branch = payload["branch"].as_str().unwrap_or("master");
+
+        println!("[PUSH] Pushing to {}/{} with upstream tracking", remote, branch);
+
         let out = Command::new("git")
             .arg("push")
             .arg("-u")
-            .arg(payload["remote"].as_str().unwrap_or("origin"))
-            .arg(payload["branch"].as_str().unwrap_or("master"))
+            .arg(remote)
+            .arg(branch)
             .current_dir(path)
             .creation_flags(0x08000000)
             .output()
@@ -610,6 +652,23 @@ async fn git_command(
                 String::from_utf8_lossy(&out.stdout)
             ));
         }
+
+        // Verify upstream was set
+        let verify_upstream = Command::new("git")
+            .args(["rev-parse", "--abbrev-ref", "@{u}"])
+            .current_dir(path)
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        if verify_upstream.status.success() {
+            let upstream_stdout = String::from_utf8_lossy(&verify_upstream.stdout);
+            let upstream = upstream_stdout.trim();
+            println!("[PUSH] Upstream set to: {}", upstream);
+        } else {
+            println!("[PUSH] Warning: Upstream not set after push");
+        }
+
         println!("{}", String::from_utf8_lossy(&out.stdout));
         return Ok(serde_json::json!({
             "stdout": String::from_utf8_lossy(&out.stdout),
@@ -744,6 +803,31 @@ async fn git_command(
                 String::from_utf8_lossy(&fetch.stderr)
             ));
         }
+
+        // Get list of remote branches
+        let remote_branch_list = Command::new("git")
+            .args(["branch", "-r", "--format=%(refname:short)"])
+            .current_dir(path)
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        if !remote_branch_list.status.success() {
+            return Err(format!(
+                "Failed to list remote branches: {}\n{}",
+                String::from_utf8_lossy(&remote_branch_list.stderr),
+                String::from_utf8_lossy(&remote_branch_list.stdout)
+            ));
+        }
+
+        // Parse remote branch names (strip "origin/" prefix)
+        let remote_branches: Vec<String> = String::from_utf8_lossy(&remote_branch_list.stdout)
+            .lines()
+            .map(|s| s.trim().to_string())
+            .filter(|s| s.starts_with("origin/"))
+            .map(|s| s.strip_prefix("origin/").unwrap().to_string())
+            .collect();
+
         let branch_list = Command::new("git")
             .args(["branch", "--format=%(refname:short)"])
             .current_dir(path)
@@ -760,31 +844,33 @@ async fn git_command(
         }
 
         // Step 2: Parse branch names
-        let branches: Vec<String> = String::from_utf8_lossy(&branch_list.stdout)
+        let local_branches: Vec<String> = String::from_utf8_lossy(&branch_list.stdout)
             .lines()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
 
-        // Step 3: Loop and set upstream for each
-        for branch in branches {
-            let remote_branch = format!("origin/{}", branch);
-            let out = Command::new("git")
-                .arg("branch")
-                .arg(format!("--set-upstream-to={}", &remote_branch))
-                .arg(&branch)
-                .current_dir(path)
-                .creation_flags(0x08000000)
-                .output()
-                .map_err(|e| e.to_string())?;
+        // Step 3: Loop and set upstream only for branches that exist on remote
+        for branch in local_branches {
+            if remote_branches.contains(&branch) {
+                let remote_branch = format!("origin/{}", branch);
+                let out = Command::new("git")
+                    .arg("branch")
+                    .arg(format!("--set-upstream-to={}", &remote_branch))
+                    .arg(&branch)
+                    .current_dir(path)
+                    .creation_flags(0x08000000)
+                    .output()
+                    .map_err(|e| e.to_string())?;
 
-            if !out.status.success() {
-                return Err(format!(
-                    "Failed to set upstream for branch '{}': {}\n{}",
-                    branch,
-                    String::from_utf8_lossy(&out.stderr),
-                    String::from_utf8_lossy(&out.stdout)
-                ));
+                if !out.status.success() {
+                    return Err(format!(
+                        "Failed to set upstream for branch '{}': {}\n{}",
+                        branch,
+                        String::from_utf8_lossy(&out.stderr),
+                        String::from_utf8_lossy(&out.stdout)
+                    ));
+                }
             }
         }
 

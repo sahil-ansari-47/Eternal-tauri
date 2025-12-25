@@ -122,7 +122,6 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         kind: "error",
       });
       console.error(e);
-      setError(e?.message ?? String(e));
     }
   };
   const handleClone = async (clone_url: string) => {
