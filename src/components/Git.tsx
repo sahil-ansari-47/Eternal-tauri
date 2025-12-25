@@ -37,7 +37,6 @@ import { open as openLink } from "@tauri-apps/plugin-shell";
 import NoWorkspace from "./NoWorkspace";
 import { readTextFile, remove } from "@tauri-apps/plugin-fs";
 import { message, ask } from "@tauri-apps/plugin-dialog";
-import { sync } from "framer-motion";
 export default function GitPanel() {
   const {
     workspace,
@@ -386,7 +385,12 @@ export default function GitPanel() {
   return (
     <div className="h-full bg-primary-sidebar p-2">
       <div className="h-full w-full text-neutral-300 text-sm flex flex-col overflow-hidden border border-neutral-600 rounded-xl">
-        {!loading && !isInit ? (
+        {loading && !isInit && (
+          <div className="w-full h-1 bg-primary-sidebar rounded overflow-hidden">
+            <div className="h-full w-1/3 bg-white rounded animate-indeterminate"></div>
+          </div>
+        )}
+        {!isInit && (
           <div className="flex flex-col justify-center items-center h-full gap-4 px-4">
             <div className="relative">
               <div className="absolute inset-0 bg-git-branch opacity-20 blur-3xl rounded-full" />
@@ -408,7 +412,8 @@ export default function GitPanel() {
               Initialize
             </Button>
           </div>
-        ) : (
+        )}
+        {isInit && (
           <>
             <div className="border-b border-white bg-primary-sidebar px-4 py-3 space-y-2">
               {/* Branch Info */}
@@ -675,6 +680,11 @@ export default function GitPanel() {
                       </Button>
                     </div>
                   </div>
+                  {loading && (
+                    <div className="w-full h-1 bg-primary-sidebar rounded overflow-hidden">
+                      <div className="h-full w-1/3 bg-white rounded animate-indeterminate"></div>
+                    </div>
+                  )}
                   {!collapsed.changes && (
                     <div className="flex-1 overflow-y-auto scrollbar">
                       {[

@@ -52,7 +52,6 @@ export default function VideoStream({
           {participantName}
         </span>
       </div>
-
       {/* Status Indicators */}
       <div className="absolute top-4 right-4 z-10 flex gap-2">
         {isMuted && (

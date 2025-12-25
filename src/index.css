@@ -56,10 +56,22 @@
     height: 100%;
     overflow: hidden;
   }
+  .animate-indeterminate {
+    animation: indeterminate 1.5s ease-in-out infinite;
+  }
   /* .cm-scroller {
     overflow: "auto";
     scrollbar-gutter: "stable";
-  } */
+    } */
+}
+
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
 }
 
 @theme inline {
