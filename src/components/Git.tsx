@@ -55,7 +55,8 @@ export default function GitPanel() {
     error,
     setError,
     loading,
-    setLoading,
+    incrementLoading,
+    decrementLoading,
     graphData,
     collapsed,
     setCollapsed,
@@ -84,7 +85,7 @@ export default function GitPanel() {
     graphData.length > 0 && (!status.origin || remoteBranchExists === false);
 
   async function loadBranches() {
-    setLoading(true);
+    incrementLoading();
     try {
       if (!isInit) return;
       const result = await runGit<{ stdout: string }>("branch", { workspace });
@@ -98,14 +99,14 @@ export default function GitPanel() {
       message("Failed to load branches", { title: "Git Error", kind: "error" });
       console.error("Failed to load branches:", e);
     } finally {
-      setLoading(false);
+      decrementLoading();
     }
   }
   async function handleCreateBranch() {
     const name = newbranch.trim();
     if (!name) return;
     setNewBranch("");
-    setLoading(true);
+    incrementLoading();
     setCreateBranchDialogOpen(false);
     try {
       await runGit("create branch", { name, workspace });
@@ -115,12 +116,12 @@ export default function GitPanel() {
       message("Failed to create branch", { title: "Git Error", kind: "error" });
       console.error("Failed to create branch:", e);
     } finally {
-      setLoading(false);
+      decrementLoading();
     }
   }
   async function handleSwitchBranch(branch: string) {
     if (!branch) return;
-    setLoading(true);
+    incrementLoading();
     try {
       if (
         status.staged.length > 0 ||
@@ -142,7 +143,7 @@ export default function GitPanel() {
       message("Failed to switch branch", { title: "Git Error", kind: "error" });
       console.error("Failed to switch branch:", e);
     } finally {
-      setLoading(false);
+      decrementLoading();
     }
   }
   async function handleSubmit() {
@@ -151,7 +152,7 @@ export default function GitPanel() {
       return;
     }
     setError(null);
-    setLoading(true);
+    incrementLoading();
     try {
       await handleSetRemote(url.trim());
       setUrl("");
@@ -159,21 +160,33 @@ export default function GitPanel() {
     } catch (e: any) {
       setError(e.message || "Failed to set remote");
     } finally {
-      setLoading(false);
+      decrementLoading();
     }
   }
+  // Initialize Git data when workspace changes
   useEffect(() => {
     if (!workspace) return;
-    refreshStatus();
-    fetchGraph();
+    const initializeWorkspace = async () => {
+      await fetchSyncStatus();
+      fetchGraph();
+    };
+    initializeWorkspace();
+  }, [workspace]);
+
+  // Load branches when origin changes
+  useEffect(() => {
+    if (!workspace || !isInit || status.origin === "") return;
+    loadBranches();
+  }, [status.origin]);
+
+  // Refresh sync status when branch changes
+  useEffect(() => {
+    if (!workspace || !isInit) return;
     fetchSyncStatus();
-    if (status.origin !== "") {
-      loadBranches();
-    }
-  }, [workspace, status.branch, status.staged.length, status.origin]);
+  }, [status.branch]);
   async function handleStage(gitfile: Gitfile) {
     if (!workspace) return;
-    setLoading(true);
+    incrementLoading();
     try {
       const abspath = await join(workspace, gitfile.path);
       const norm = await normalize(abspath);
@@ -194,12 +207,12 @@ export default function GitPanel() {
       setError(e);
     } finally {
       setError(null);
-      setLoading(false);
+      decrementLoading();
     }
   }
   const handleStageAll = async () => {
     if (!workspace) return;
-    setLoading(true);
+    incrementLoading();
     try {
       const openPaths = Object.keys(viewRefs.current);
       let newstatus = [];
@@ -232,12 +245,12 @@ export default function GitPanel() {
       console.error(e);
       setError(e);
     } finally {
-      setLoading(false);
+      decrementLoading();
     }
   };
   async function handleUnstage(gitfile: Gitfile) {
     if (!workspace) return;
-    setLoading(true);
+    incrementLoading();
     try {
       const abspath = await join(workspace, gitfile.path);
       const norm = await normalize(abspath);
@@ -254,12 +267,12 @@ export default function GitPanel() {
       console.log(e);
       setError(e);
     } finally {
-      setLoading(false);
+      decrementLoading();
     }
   }
   const handleUnstageAll = async () => {
     if (!workspace) return;
-    setLoading(true);
+    incrementLoading();
     try {
       await runGit("unstage-all", { workspace });
       setOpenFiles((prev) =>
@@ -276,12 +289,12 @@ export default function GitPanel() {
       console.log(e);
       setError(e);
     } finally {
-      setLoading(false);
+      decrementLoading();
     }
   };
   async function handlePull() {
     if (!workspace) return;
-    setLoading(true);
+    incrementLoading();
     try {
       await runGit("pull", {
         workspace,
@@ -295,11 +308,11 @@ export default function GitPanel() {
     } catch (e: any) {
       // setError(e);
     } finally {
-      setLoading(false);
+      decrementLoading();
     }
   }
   const handleDiscard = async (gitfile: Gitfile) => {
-    setLoading(true);
+    incrementLoading();
     try {
       await runGit("discard", { workspace, file: gitfile.path });
       await refreshStatus();
@@ -308,12 +321,12 @@ export default function GitPanel() {
       console.log(e);
       setError(e);
     } finally {
-      setLoading(false);
+      decrementLoading();
     }
   };
   const handleDiscardAll = async () => {
     if (!workspace) return;
-    setLoading(true);
+    incrementLoading();
     try {
       await runGit("discard-all", { workspace });
       const absPathsSet = new Set(openFiles.map((f) => f.path));
@@ -339,19 +352,18 @@ export default function GitPanel() {
     } catch (e: any) {
       setError(e);
     } finally {
-      setLoading(false);
+      decrementLoading();
     }
   };
   async function handleCommit() {
     if (!workspace) return;
-    setLoading(true);
+    incrementLoading();
     try {
       await runGit("commit", {
         workspace,
         message: commitMsg.trim() === "" ? "initial commit" : commitMsg,
       });
       setCommitMsg("");
-      await refreshStatus();
       await fetchSyncStatus();
       const stagedRelPaths = new Set(status.staged.map((f) => f.path));
       setOpenFiles((prev) =>
@@ -368,19 +380,19 @@ export default function GitPanel() {
       console.log(e);
       setError(e);
     } finally {
-      setLoading(false);
+      decrementLoading();
     }
   }
   async function handleRemoveOrigin() {
     if (!workspace) return;
-    setLoading(true);
+    incrementLoading();
     try {
       await runGit("remove origin", { workspace });
       await refreshStatus();
     } catch (e: any) {
       setError(e);
     } finally {
-      setLoading(false);
+      decrementLoading();
     }
   }
   if (!workspace) return <NoWorkspace />;
@@ -659,6 +671,7 @@ export default function GitPanel() {
                         className="w-7 h-7 p-0 hover:bg-sidebar-accent/50 text-p6/80 cursor-pointer hover:text-sidebar-foreground transition-colors"
                         onClick={handleDiscardAll}
                         title="Discard all"
+                        disabled={loading}
                       >
                         <Undo className="w-3.5 h-3.5" />
                       </Button>
@@ -668,6 +681,7 @@ export default function GitPanel() {
                         className="w-7 h-7 p-0 hover:bg-sidebar-accent/50 text-p6/80 cursor-pointer hover:text-sidebar-foreground transition-colors"
                         onClick={handleUnstageAll}
                         title="Unstage all"
+                        disabled={loading}
                       >
                         <Minus className="w-3.5 h-3.5" />
                       </Button>
@@ -677,6 +691,7 @@ export default function GitPanel() {
                         className="w-7 h-7 p-0 hover:bg-sidebar-accent/50 text-p6/80 cursor-pointer hover:text-sidebar-foreground transition-colors"
                         onClick={handleStageAll}
                         title="Stage all"
+                        disabled={loading}
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </Button>
@@ -737,6 +752,7 @@ export default function GitPanel() {
                                         className="w-5 h-5 p-0 hover:bg-sidebar-accent/50 text-p6/80 hover:text-primary-sidebar cursor-pointer transition-colors"
                                         onClick={() => handleUnstage(f)}
                                         title="Unstage"
+                                        disabled={loading}
                                       >
                                         <Minus className="w-3 h-3" />
                                       </Button>
@@ -795,6 +811,7 @@ export default function GitPanel() {
                                         className="w-5 h-5 p-0 hover:bg-sidebar-accent/50 text-p6/80 hover:text-primary-sidebar cursor-pointer"
                                         onClick={() => handleDiscard(f)}
                                         title="Discard"
+                                        disabled={loading}
                                       >
                                         <Undo className="w-3 h-3" />
                                       </Button>
@@ -804,6 +821,7 @@ export default function GitPanel() {
                                         className="w-5 h-5 p-0 hover:bg-sidebar-accent/50 text-p6/80 hover:text-primary-sidebar cursor-pointer"
                                         onClick={() => handleStage(f)}
                                         title="Stage"
+                                        disabled={loading}
                                       >
                                         <Plus className="w-3 h-3 " />
                                       </Button>
@@ -903,6 +921,7 @@ export default function GitPanel() {
                                           } as FsNode);
                                         }}
                                         title="Open file"
+                                        disabled={loading}
                                       >
                                         <FileSymlinkIcon className="w-3 h-3 text-p6/80" />
                                       </Button>
@@ -932,6 +951,7 @@ export default function GitPanel() {
                                           await refreshStatus();
                                         }}
                                         title="Discard"
+                                        disabled={loading}
                                       >
                                         <Undo className="w-3 h-3" />
                                       </Button>
@@ -944,6 +964,7 @@ export default function GitPanel() {
                                           handleStage(f);
                                         }}
                                         title="Stage"
+                                        disabled={loading}
                                       >
                                         <Plus className="w-3 h-3" />
                                       </Button>

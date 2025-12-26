@@ -12,7 +12,9 @@ import {
 import { useEditor } from "./contexts/EditorContext";
 import { motion, AnimatePresence } from "framer-motion";
 import ProjectTemplates from "./ProjectTemplates";
-
+import { useLayout } from "./contexts/LayoutContext";
+import { Switch } from "./ui/switch";
+import { Label } from "./ui/label";
 export default function Welcome() {
   const [activeTab, setActiveTab] = useState("welcome");
   const [showFileOptions, setShowFileOptions] = useState(false);
@@ -25,6 +27,7 @@ export default function Welcome() {
     getUserRepos,
     recents,
   } = useEditor();
+  const { wantBG, setWantBG } = useLayout();
 
   const sidebarItems = [
     { id: "welcome", label: "Welcome", icon: FileText },
@@ -88,7 +91,7 @@ export default function Welcome() {
           })}
         </nav>
         {/* Footer */}
-        <div className="p-4 space-y-2">
+        <div className="p-4 space-y-4">
           <Button
             className="w-full justify-start gap-2 bg-transparent hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer"
             size="sm"
@@ -96,6 +99,17 @@ export default function Welcome() {
             <Github className="w-4 h-4" />
             GitHub
           </Button>
+          <div className="flex items-center justify-between px-3">
+            <Label htmlFor="background-switch" className="text-sm text-p6/70">
+              Background
+            </Label>
+            <Switch
+              id="background-switch"
+              checked={wantBG}
+              onCheckedChange={setWantBG}
+              className="data-[state=checked]:bg-teal-500 data-[state=unchecked]:bg-teal-50"
+            />
+          </div>
         </div>
       </aside>
       {/* Main Content */}

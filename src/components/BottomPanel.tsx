@@ -10,12 +10,10 @@ import { spawn } from "tauri-pty";
 import { open as openLink } from "@tauri-apps/plugin-shell";
 import { useLayout } from "./contexts/LayoutContext";
 import { useGit } from "./contexts/GitContext";
-import { useEditor } from "./contexts/EditorContext";
 
 export default function BottomPanel() {
   const { setDownOpen } = useLayout();
-  const { refreshStatus } = useGit();
-  const { reloadWorkspace } = useEditor();
+  const { refreshStatus, fetchSyncStatus } = useGit();
   const cwd = localStorage.getItem("workspacePath") || undefined;
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -55,13 +53,27 @@ export default function BottomPanel() {
     term.onData((d) => {
       // Enter pressed → command submitted
       if (d === "\r") {
-        const command = commandBuffer.trim();
+        // Get the actual command from the terminal buffer instead of relying on commandBuffer
+        const cursorY = term.buffer.active.cursorY;
+        const line = term.buffer.active.getLine(cursorY);
+        let command = "";
+        if (line) {
+          // Extract text from the line, starting after the prompt
+          const lineText = line.translateToString(true);
+          // Find the command after the prompt (typically ends with >, $, or %)
+          const promptMatch = lineText.match(/[>$%]\s*(.*)/);
+          command = promptMatch ? promptMatch[1].trim() : lineText.trim();
+        }
         console.log("Command:", command);
+        if (command.startsWith("git commit")) {
+          setTimeout(() => {
+            fetchSyncStatus();
+          }, 0);
+        }
         if (command.startsWith("git ")) {
           // Run AFTER command executes
           setTimeout(() => {
             refreshStatus();
-            reloadWorkspace();
           }, 0);
         }
         commandBuffer = "";

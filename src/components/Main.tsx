@@ -9,9 +9,11 @@ import { useMessage } from "./contexts/MessageContext";
 import { Tabs, TabsContent } from "./ui/tabs";
 import Splash from "./Splash";
 import Loading from "./Loading";
+import { useLayout } from "./contexts/LayoutContext";
 const Main = () => {
   const { setTabList, openFiles, activeTab, setActiveTab } = useEditor();
   const { inCall } = useMessage();
+  const { wantBG } = useLayout();
   useEffect(() => {
     if (inCall) {
       setTabList((prev) => [...new Set([...prev, "Call"])]);
@@ -34,22 +36,23 @@ const Main = () => {
     <div className="w-full h-full overflow-hidden">
       {(activeTab === "Home" ||
         activeTab === "Splash" ||
-        activeTab === "Loading") && (
-        <DottedGlowBackground
-          className="pointer-events-none mask-radial-to-90% mask-radial-at-center z-0"
-          opacity={0.5}
-          gap={10}
-          radius={4}
-          colorLightVar="--color-neutral-500"
-          glowColorLightVar="--color-neutral-600"
-          colorDarkVar="--color-neutral-500"
-          glowColorDarkVar="--color-sky-800"
-          backgroundOpacity={0}
-          speedMin={0.3}
-          speedMax={1.6}
-          speedScale={1}
-        />
-      )}
+        activeTab === "Loading") &&
+        wantBG && (
+          <DottedGlowBackground
+            className="pointer-events-none mask-radial-to-90% mask-radial-at-center z-0"
+            opacity={0.5}
+            gap={10}
+            radius={4}
+            colorLightVar="--color-neutral-500"
+            glowColorLightVar="--color-neutral-600"
+            colorDarkVar="--color-neutral-500"
+            glowColorDarkVar="--color-sky-800"
+            backgroundOpacity={0}
+            speedMin={0.3}
+            speedMax={1.6}
+            speedScale={1}
+          />
+        )}
       <Tabs value={activeTab} className="bg-p5 w-full h-full">
         <div className="flex w-full items-center justify-center">
           {/* <TabsList className="my-2 bg-transparent z-10">

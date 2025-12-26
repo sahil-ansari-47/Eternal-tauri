@@ -57,7 +57,7 @@
     overflow: hidden;
   }
   .animate-indeterminate {
-    animation: indeterminate 1.5s ease-in-out infinite;
+    animation: indeterminate 1s linear infinite;
   }
   /* .cm-scroller {
     overflow: "auto";
@@ -70,7 +70,7 @@
     transform: translateX(-100%);
   }
   100% {
-    transform: translateX(300%);
+    transform: translateX(500%);
   }
 }
 

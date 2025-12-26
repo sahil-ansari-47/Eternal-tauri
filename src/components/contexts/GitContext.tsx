@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { useUser } from "@clerk/clerk-react";
 import { message } from "@tauri-apps/plugin-dialog";
 import { useEffect } from "react";
+import { join } from "@tauri-apps/api/path";
+import { exists, remove } from "@tauri-apps/plugin-fs";
 interface GitContextType {
   status: GitStatus;
   setStatus: React.Dispatch<React.SetStateAction<GitStatus>>;
@@ -17,7 +19,9 @@ interface GitContextType {
   setIsInit: React.Dispatch<React.SetStateAction<boolean>>;
 
   loading: boolean;
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  loadingCount: number;
+  incrementLoading: () => void;
+  decrementLoading: () => void;
 
   error: GitError | null;
   setError: React.Dispatch<React.SetStateAction<GitError | null>>;
@@ -69,15 +73,22 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
   }>({ ahead: 0, behind: 0 });
   const [commitMsg, setCommitMsg] = useState<string>("");
   const [isInit, setIsInit] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loadingCount, setLoadingCount] = useState<number>(0);
   const [error, setError] = useState<GitError | null>(null);
   const [remoteBranchExists, setRemoteBranchExists] = useState<boolean | null>(
     null
   );
 
+  // Computed loading state based on counter
+  const loading = loadingCount > 0;
+
+  const incrementLoading = () => setLoadingCount((prev) => prev + 1);
+  const decrementLoading = () =>
+    setLoadingCount((prev) => Math.max(0, prev - 1));
+
   async function refreshStatus() {
     if (!workspace) return;
-    setLoading(true);
+    incrementLoading();
     try {
       const payload = await runGit<GitStatus>("status", { workspace });
       const fixed = normalizeGitPayloadPaths(payload);
@@ -88,7 +99,8 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
       setIsInit(false);
       setError(e);
     } finally {
-      setLoading(false);
+      setError(null);
+      decrementLoading();
     }
   }
   function normalizeGitPayloadPaths(status: GitStatus): GitStatus {
@@ -110,6 +122,36 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
       const result = await invoke<T>("git_command", { action, payload });
       return result;
     } catch (e: any) {
+      // Check if it's a lock file conflict (exit code 128 with index.lock message)
+      const isLockConflict =
+        e.code === 128 &&
+        e.message?.includes("index.lock") &&
+        e.message?.includes("File exists");
+
+      if (isLockConflict && (payload as any).workspace) {
+        try {
+          // Attempt to remove the lock file
+          const lockFilePath = await join(
+            (payload as any).workspace,
+            ".git",
+            "index.lock"
+          );
+          const lockExists = await exists(lockFilePath);
+          if (lockExists) {
+            await remove(lockFilePath);
+            // Retry the operation once
+            const retryResult = await invoke<T>("git_command", {
+              action,
+              payload,
+            });
+            return retryResult;
+          }
+        } catch (lockError) {
+          // If lock file removal fails, continue with original error
+          console.warn("Failed to remove git lock file:", lockError);
+        }
+      }
+
       const err: GitError = new Error(e.message || String(e));
       err.code = e.code || "GIT_ACTION_FAILED";
       err.details = e.stack || undefined;
@@ -163,7 +205,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
   }, [status.branch, status.origin]);
   async function fetchSyncStatus() {
     if (!workspace) return;
-    setLoading(true);
+    incrementLoading();
     try {
       const result = await runGit<{ ahead: number; behind: number }>(
         "sync-status",
@@ -173,12 +215,13 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (err) {
       console.error("Failed to get sync status", err);
     } finally {
-      setLoading(false);
+      decrementLoading();
+      refreshStatus();
     }
   }
   async function handleInit() {
     if (!workspace) return;
-    setLoading(true);
+    incrementLoading();
     try {
       await runGit("init", { workspace });
       await refreshStatus();
@@ -187,7 +230,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
       setError(e);
     } finally {
       setError(null);
-      setLoading(false);
+      decrementLoading();
     }
   }
   async function fetchGraph() {
@@ -203,7 +246,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
   }
   async function handlePush() {
     if (!workspace) return;
-    setLoading(true);
+    incrementLoading();
     try {
       await runGit("push", {
         workspace,
@@ -219,13 +262,13 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
         { title: "Push Error", kind: "error" }
       );
     } finally {
-      setLoading(false);
+      decrementLoading();
     }
   }
   async function handleSetRemote(url: string) {
     if (!workspace) return;
     if (status.origin) return;
-    setLoading(true);
+    incrementLoading();
     try {
       await runGit("set-remote", {
         workspace,
@@ -236,7 +279,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (e: any) {
       setError(e);
     } finally {
-      setLoading(false);
+      decrementLoading();
     }
   }
 
@@ -279,7 +322,9 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
         remoteBranchExists,
         setStatus,
         loading,
-        setLoading,
+        loadingCount,
+        incrementLoading,
+        decrementLoading,
         graphData,
         setGraphData,
         collapsed,
