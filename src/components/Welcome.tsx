@@ -27,7 +27,7 @@ export default function Welcome() {
     getUserRepos,
     recents,
   } = useEditor();
-  const { wantBG, setWantBG } = useLayout();
+  const { wantBG, setWantBG, setRightOpen, setRightContent } = useLayout();
 
   const sidebarItems = [
     { id: "welcome", label: "Welcome", icon: FileText },
@@ -48,7 +48,7 @@ export default function Welcome() {
     },
     {
       title: "Customize Your Workspace",
-      description: "Personalize themes, extensions, and settings",
+      description: "(unavailable in beta)",
       icon: Settings,
     },
   ];
@@ -114,30 +114,30 @@ export default function Welcome() {
       </aside>
       {/* Main Content */}
       <main className="flex-1 scrollbar overflow-x-hidden p-8 overflow-y-auto w-full">
-        {activeTab === "welcome" && (
-          <div className="w-full space-y-12 z-10">
-            {/* Hero Section */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-6">
-                <div className="w-24 h-24 relative shrink-0">
-                  <img
-                    src="/logo.png"
-                    alt="IDE Logo"
-                    width={96}
-                    height={96}
-                    className="w-full h-full"
-                  />
-                </div>
-                <div className="space-y-3 z-10">
-                  <h2 className="text-4xl font-bold">Welcome to Eternal</h2>
-                  <p className="text-lg text-neutral-400">
-                    A modern IDE built for developers who demand speed,
-                    elegance, and infinite possibilities.
-                  </p>
+        <AnimatePresence mode="wait">
+          {activeTab === "welcome" && (
+            <div className="w-full space-y-12 z-10">
+              {/* Hero Section */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-6">
+                  <div className="w-24 h-24 relative shrink-0">
+                    <img
+                      src="/logo.png"
+                      alt="IDE Logo"
+                      width={96}
+                      height={96}
+                      className="w-full h-full"
+                    />
+                  </div>
+                  <div className="space-y-3 z-10">
+                    <h2 className="text-4xl font-bold">Welcome to Eternal</h2>
+                    <p className="text-lg text-neutral-400">
+                      A modern IDE built for developers who demand speed,
+                      elegance, and infinite possibilities.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-            <AnimatePresence mode="wait">
               {!showFileOptions && !showProjectOptions && (
                 <motion.div
                   key="main-sections"
@@ -246,107 +246,112 @@ export default function Welcome() {
                   </div>
                 </motion.div>
               )}
-              {showFileOptions && (
-                <motion.div
-                  key="file-options"
-                  initial={{ opacity: 0, x: 80 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 80 }}
-                  transition={{ duration: 0.05 }}
-                  className="flex flex-col gap-6 items-start"
+            </div>
+          )}
+          {showFileOptions && (
+            <motion.div
+              key="file-options"
+              initial={{ opacity: 0, x: 80 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 80 }}
+              transition={{ duration: 0.05 }}
+              className="flex flex-col gap-6 items-start"
+            >
+              <h3 className="text-lg font-semibold">File Options</h3>
+              <div className="flex flex-wrap gap-4">
+                <button
+                  onClick={handleCreateNewFile}
+                  className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
                 >
-                  <h3 className="text-lg font-semibold">File Options</h3>
-                  <div className="flex flex-wrap gap-4">
-                    <button
-                      onClick={handleCreateNewFile}
-                      className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold text-lg">
-                          Create New
-                        </span>
-                      </div>
-                      <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
-                        Create a new file and open in editor
-                      </p>
-                    </button>
-                    <button
-                      onClick={handleOpenFile}
-                      className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold text-lg">
-                          Open Existing
-                        </span>
-                      </div>
-                      <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
-                        Open an existing file and continue editing
-                      </p>
-                    </button>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-lg">Create New</span>
                   </div>
-                  <div
-                    className="flex gap-1 underline cursor-pointer"
-                    onClick={() => setShowFileOptions(false)}
-                  >
-                    <ChevronLeft /> Go Back
-                  </div>
-                </motion.div>
-              )}
-              {showProjectOptions && (
-                <motion.div
-                  key="project-options"
-                  initial={{ opacity: 0, x: 80 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 80 }}
-                  transition={{ duration: 0.05 }}
-                  className="flex flex-col gap-6 items-start"
+                  <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
+                    Create a new file and open in editor
+                  </p>
+                </button>
+                <button
+                  onClick={handleOpenFile}
+                  className="group p-6 rounded-lg w-md hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
                 >
-                  <h3 className="text-lg font-semibold">Project Templates</h3>
-                  <ProjectTemplates />
-                  <div
-                    onClick={() => setShowProjectOptions(false)}
-                    className="flex gap-1 underline cursor-pointer mt-2"
-                  >
-                    <ChevronLeft /> Go Back
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-lg">Open Existing</span>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
-        {/* Get Started Tab */}
-        {activeTab === "getstarted" && (
-          <div className="max-w-4xl space-y-8 z-10">
-            <p className="font-semibold pl-4 text-p6 text-2xl">
-              Get the most out of Eternal
-            </p>
-            <div className="grid gap-6">
-              {gettingStartedGuides.map((guide, idx) => {
-                const Icon = guide.icon;
-                return (
-                  <div
-                    key={idx}
-                    className="group p-6 rounded-lg w-lg hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 border border-p6/50"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-4 flex-1">
-                        <Icon className="w-6 h-6 mt-1 shrink-0" />
-                        <div>
-                          <h3 className="font-semibold text-lg">
-                            {guide.title}
-                          </h3>
-                          <p className="text-neutral-400 group-hover:text-p5 mt-1">
-                            {guide.description}
-                          </p>
+                  <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
+                    Open an existing file and continue editing
+                  </p>
+                </button>
+              </div>
+              <div
+                className="flex gap-1 underline cursor-pointer"
+                onClick={() => setShowFileOptions(false)}
+              >
+                <ChevronLeft /> Go Back
+              </div>
+            </motion.div>
+          )}
+          {/* Get Started Tab */}
+          {activeTab === "getstarted" && (
+            <div className="max-w-4xl space-y-8 z-10">
+              <p className="font-semibold pl-4 text-p6 text-2xl">
+                Get the most out of Eternal
+              </p>
+              <div className="grid gap-6">
+                {gettingStartedGuides.map((guide, idx) => {
+                  const Icon = guide.icon;
+                  return (
+                    <button
+                      disabled={guide.title === "Customize Your Workspace"}
+                      onClick={() => {
+                        if (guide.title === "Create Your First Project") {
+                          setShowProjectOptions(true);
+                        } else if (guide.title === "Connect to Git") {
+                          setRightContent("chat");
+                          setRightOpen(true);
+                        }
+                      }}
+                      key={idx}
+                      className="group p-6 rounded-lg w-lg hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer z-10 bg-primary-sidebar/70 disabled:bg-p5 border border-p6/50"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-4 flex-1">
+                          <Icon className="w-6 h-6 mt-1 shrink-0" />
+                          <div>
+                            <h3 className="font-semibold text-lg text-left">
+                              {guide.title}
+                            </h3>
+                            <p className="text-neutral-400 group-hover:text-p5 mt-1 text-left">
+                              {guide.description}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          {showProjectOptions && (
+            <motion.div
+              key="project-options"
+              initial={{ opacity: 0, x: 80 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 80 }}
+              transition={{ duration: 0.05 }}
+              className="flex flex-col gap-6 items-start mt-10"
+            >
+              <h3 className="text-lg font-semibold">Project Templates</h3>
+              <ProjectTemplates />
+              <div
+                onClick={() => setShowProjectOptions(false)}
+                className="flex gap-1 underline cursor-pointer mt-2"
+              >
+                <ChevronLeft /> Go Back
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Recent Tab */}
         {/* TODO - Add path and symbol */}
