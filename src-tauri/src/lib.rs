@@ -629,6 +629,29 @@ async fn git_command(
             "stderr": String::from_utf8_lossy(&out.stderr)
         }));
     }
+    if action == "renamebranch" {
+        let out = Command::new("git")
+            .arg("branch")
+            .arg("-M")
+            .arg("main")
+            .current_dir(path)
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(format!(
+                "Git command failed (exit {}): {}\n{}",
+                out.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&out.stderr),
+                String::from_utf8_lossy(&out.stdout)
+            ));
+        }
+        println!("{}", String::from_utf8_lossy(&out.stdout));
+        return Ok(serde_json::json!({
+            "stdout": String::from_utf8_lossy(&out.stdout),
+            "stderr": String::from_utf8_lossy(&out.stderr)
+        }));
+    }
     if action == "push" {
         let remote = payload["remote"].as_str().unwrap_or("origin");
         let branch = payload["branch"].as_str().unwrap_or("master");

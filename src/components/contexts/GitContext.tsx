@@ -184,8 +184,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     const token = await getUserAccessToken();
     if (!token) return false;
     const reponame = workspace?.split("\\").pop();
-    const branch = status.branch;
-
+    let branch = status.branch;
     const res = await fetch(
       `https://api.github.com/repos/${user?.username}/${reponame}/branches/${branch}`,
       {
@@ -202,7 +201,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
     if (isInit && workspace && status.branch && user?.username) {
       checkRemoteBranchExists().then(setRemoteBranchExists);
     }
-  }, [status.branch, status.origin]);
+  }, [status.branch]);
   async function fetchSyncStatus() {
     if (!workspace) return;
     incrementLoading();
@@ -303,11 +302,13 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
         .trim()
         .split(" ")
         .join("-")}.git`;
-      await handleSetRemote(remoteUrl);
-      await fetchSyncStatus();
+
       setRemoteBranchExists(true);
-      await handlePush();
+      await handleSetRemote(remoteUrl);
       await refreshStatus();
+      await handlePush();
+      await fetchGraph();
+      await fetchSyncStatus();
     } else {
       message(
         "Cannot Publish: This repository with this branch name already exists on your GitHub account.",

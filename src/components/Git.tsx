@@ -81,9 +81,12 @@ export default function GitPanel() {
   const [url, setUrl] = useState("");
   const [newbranch, setNewBranch] = useState("");
 
-  const showPublishButton =
-    graphData.length > 0 && (!status.origin || remoteBranchExists === false);
-
+  const [showPublishButton, setShowPublishButton] = useState(false);
+  useEffect(() => {
+    setShowPublishButton(
+      graphData.length > 0 && (!status.origin || remoteBranchExists === false)
+    );
+  }, [graphData, status.origin, remoteBranchExists]);
   async function loadBranches() {
     incrementLoading();
     try {
@@ -359,11 +362,17 @@ export default function GitPanel() {
     if (!workspace) return;
     incrementLoading();
     try {
+      if (status.branch === "master") {
+        await runGit("renamebranch", { workspace });
+        status.branch = "main";
+      }
       await runGit("commit", {
         workspace,
         message: commitMsg.trim() === "" ? "initial commit" : commitMsg,
       });
       setCommitMsg("");
+      await refreshStatus();
+      await fetchGraph();
       await fetchSyncStatus();
       const stagedRelPaths = new Set(status.staged.map((f) => f.path));
       setOpenFiles((prev) =>
@@ -375,7 +384,6 @@ export default function GitPanel() {
           return f;
         })
       );
-      // fetchGraph();
     } catch (e: any) {
       console.log(e);
       setError(e);

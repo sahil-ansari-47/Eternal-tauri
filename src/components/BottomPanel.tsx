@@ -13,7 +13,14 @@ import { useGit } from "./contexts/GitContext";
 
 export default function BottomPanel() {
   const { setDownOpen } = useLayout();
-  const { refreshStatus, fetchSyncStatus } = useGit();
+  const {
+    refreshStatus,
+    fetchSyncStatus,
+    fetchGraph,
+    setIsInit,
+    status,
+    runGit,
+  } = useGit();
   const cwd = localStorage.getItem("workspacePath") || undefined;
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -65,15 +72,31 @@ export default function BottomPanel() {
           command = promptMatch ? promptMatch[1].trim() : lineText.trim();
         }
         console.log("Command:", command);
-        if (command.startsWith("git commit")) {
+        // if (command.startsWith("git commit")) {
+        //   setTimeout(async () => {
+        //     await refreshStatus();
+        //     await fetchGraph();
+        //     await fetchSyncStatus();
+        //   }, 0);
+        // }
+        if (command.startsWith("git init")) {
+          // Run AFTER command executes
           setTimeout(() => {
-            fetchSyncStatus();
+            setIsInit(true);
+            refreshStatus();
           }, 0);
         }
         if (command.startsWith("git ")) {
           // Run AFTER command executes
-          setTimeout(() => {
-            refreshStatus();
+
+          setTimeout(async () => {
+            if (status.branch === "master") {
+              await runGit("renamebranch", { cwd });
+              status.branch = "main";
+            }
+            await refreshStatus();
+            await fetchGraph();
+            await fetchSyncStatus();
           }, 0);
         }
         commandBuffer = "";
