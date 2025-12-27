@@ -16,38 +16,27 @@ export default function VideoStream({
   isMuted,
   videoElRef,
 }: VideoStreamProps) {
-  console.log(videoElRef, isMuted);
   const {
     localStream,
     remoteStream,
-    localVideoElRef,
-    remoteVideoElRef,
     isVideoOn,
     isRemoteVideoOn,
     setisRemoteVideoOn,
   } = useMessage();
   useEffect(() => {
-    if (!localVideoElRef.current || !localStream) return;
-
-    localVideoElRef.current.srcObject = localStream;
-    localVideoElRef.current.play().catch((e) => {
-      console.error("Error playing local stream:", e);
-    });
-  }, [localStream, isVideoOn]);
+    if (!videoElRef.current || !localStream) return;
+    videoElRef.current.srcObject = localStream;
+  }, [localStream]);
 
   useEffect(() => {
-    if (!remoteVideoElRef.current || !remoteStream) {
-      console.log("no remote stream");
+    if (!videoElRef.current || !remoteStream) {
       setisRemoteVideoOn(false);
       return;
     }
-    console.log("setting remote stream", remoteStream);
+    console.log("Setting remote stream", remoteStream.getTracks());
     setisRemoteVideoOn(true);
-    remoteVideoElRef.current.srcObject = remoteStream;
-    remoteVideoElRef.current.play().catch((e) => {
-      console.error("Error playing remote stream:", e);
-    });
-  }, [remoteStream, isRemoteVideoOn]);
+    videoElRef.current.srcObject = remoteStream;
+  }, [remoteStream]);
 
   return (
     <div
@@ -57,22 +46,21 @@ export default function VideoStream({
         } ${!isLocal && !isRemoteVideoOn ? "bg-primary-sidebar" : ""}
       `}
     >
-      {/* Video Background */}
-      {((!isLocal && !isRemoteVideoOn) || (isLocal && !isVideoOn)) && !!videoElRef.current?.srcObject ? (
-        <div className="h-full flex flex-col items-center justify-center">
-          <VideoOff className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400">Camera is off</p>
-        </div>
-      ) : (
-        // <div className="absolute inset-0 bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900"></div>
-        <video
-          autoPlay
-          playsInline
-          muted
-          ref={videoElRef}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-      )}
+      {((!isLocal && !isRemoteVideoOn) || (isLocal && !isVideoOn)) &&
+        !!videoElRef.current?.srcObject && (
+          <div className="h-full flex flex-col items-center justify-center">
+            <VideoOff className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <p className="text-gray-400">Camera is off</p>
+          </div>
+        )}
+      {/* <div className="absolute inset-0 bg-linear-to-br from-slate-700 via-slate-800 to-slate-900"></div> */}
+      <video
+        autoPlay
+        playsInline
+        muted
+        ref={videoElRef}
+        className="absolute inset-0 w-full h-full object-cover"
+      />
       {/* Participant Info */}
       <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2">
         <span className="text-white font-medium text-sm">

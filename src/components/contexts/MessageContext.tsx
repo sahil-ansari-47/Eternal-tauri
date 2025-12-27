@@ -112,9 +112,6 @@ export const MessageProvider = ({
       };
       pc.ontrack = (evt) => {
         setRemoteStream(evt.streams[0]);
-        if (remoteVideoElRef.current && !remoteVideoElRef.current.srcObject) {
-          remoteVideoElRef.current.srcObject = evt.streams[0];
-        }
       };
       return pc;
     } catch (e) {
