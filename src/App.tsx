@@ -57,6 +57,7 @@ const App = () => {
     isVideoOn,
     localVideoElRef,
     toggleLocalVideo,
+    startLocalVideo,
     setLocalStream,
     createPeerConnection,
     ensureLocalStream,
@@ -318,7 +319,7 @@ const App = () => {
 
         // If no video tracks, disable video toggle
         if (streamResult.getVideoTracks().length === 0) {
-          toggleLocalVideo(false);
+          startLocalVideo(false);
         }
       }
 
@@ -345,7 +346,7 @@ const App = () => {
       bufferedCandidatesRef.current = [];
 
       // Apply the initial video state
-      toggleLocalVideo(isVideoOn);
+      startLocalVideo(isVideoOn);
       setPendingOffer(null);
     } catch (error: any) {
       // Error handling: Show user-friendly error message

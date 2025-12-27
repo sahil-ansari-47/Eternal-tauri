@@ -58,6 +58,7 @@ const Messaging = () => {
     setInCall,
     setCallType,
     pcRef,
+    startLocalVideo,
     toggleLocalVideo,
     toggleLocalAudio,
     createPeerConnection,
@@ -821,7 +822,7 @@ const Messaging = () => {
                 <Phone
                   onClick={async () => {
                     await handleCall(targetUser, false);
-                    toggleLocalVideo(false);
+                    startLocalVideo(false);
                     toggleLocalAudio(true);
                   }}
                   className="cursor-pointer size-7 p-1 text-p6"
@@ -829,7 +830,7 @@ const Messaging = () => {
                 <Video
                   onClick={async () => {
                     await handleCall(targetUser, true);
-                    toggleLocalVideo(true);
+                    startLocalVideo(true);
                     toggleLocalAudio(true);
                   }}
                   className="cursor-pointer size-8 p-1 text-p6"

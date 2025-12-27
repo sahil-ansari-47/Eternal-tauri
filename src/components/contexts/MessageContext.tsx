@@ -35,6 +35,7 @@ interface MessageContextType {
   isRemoteAudioOn: boolean;
   setisRemoteAudioOn: React.Dispatch<React.SetStateAction<boolean>>;
   toggleLocalAudio: (enabled: boolean) => void;
+  startLocalVideo: (enabled: boolean) => void;
   toggleLocalVideo: (enabled: boolean) => void;
   handleHangup: () => void;
   localVideoElRef: React.RefObject<HTMLVideoElement | null>;
@@ -112,13 +113,71 @@ export const MessageProvider = ({
     lsRef.current
       .getAudioTracks()
       .forEach((track) => (track.enabled = enabled));
+
+    socket.emit("toggle-audio", {
+      to: targetUser,
+      audio: enabled,
+    });
   }
-  function toggleLocalVideo(enabled: boolean) {
-    setisVideoOn(enabled);
+
+  function startLocalVideo(enabled: boolean) {
+    console.log("starting video", enabled);
+    setisAudioOn(enabled);
     if (!lsRef.current || lsRef.current?.getTracks().length === 0) return;
     lsRef.current
-      .getVideoTracks()
+      .getAudioTracks()
       .forEach((track) => (track.enabled = enabled));
+  }
+
+  async function toggleLocalVideo(enabled: boolean) {
+    setisVideoOn(enabled);
+
+    if (!pcRef.current) return;
+
+    const sender = pcRef.current
+      .getSenders()
+      .find((s) => s.track?.kind === "video");
+
+    if (!enabled) {
+      // 🔴 Stop sending video
+      await sender?.replaceTrack(null);
+
+      // 🔴 Stop camera hardware
+      const videoTrack = lsRef.current?.getVideoTracks()[0];
+      videoTrack?.stop();
+
+      // 🔴 Remove video track from local preview stream
+      if (lsRef.current && videoTrack) {
+        lsRef.current.removeTrack(videoTrack);
+        setLocalStream(new MediaStream(lsRef.current.getAudioTracks()));
+      }
+
+      // 🔴 Inform remote peer explicitly
+    } else {
+      // 🟢 Get fresh camera stream
+      const camStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+      });
+      const newVideoTrack = camStream.getVideoTracks()[0];
+
+      // 🟢 Attach to sender
+      await sender?.replaceTrack(newVideoTrack);
+
+      // 🟢 Update local preview stream
+      const newStream = new MediaStream([
+        ...lsRef.current!.getAudioTracks(),
+        newVideoTrack,
+      ]);
+
+      lsRef.current = newStream;
+      setLocalStream(newStream);
+
+      // 🟢 Inform remote peer
+    }
+    socket.emit("toggle-video", {
+      to: targetUser,
+      video: enabled,
+    });
   }
   function createPeerConnection(target: string) {
     try {
@@ -339,6 +398,7 @@ export const MessageProvider = ({
         isRemoteAudioOn,
         setisRemoteAudioOn,
         toggleLocalAudio,
+        startLocalVideo,
         toggleLocalVideo,
         handleHangup,
         localStream,

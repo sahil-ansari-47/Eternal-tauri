@@ -1,6 +1,7 @@
 import { MicOff, VideoOff } from "lucide-react";
 import { useMessage } from "../contexts/MessageContext";
 import { useEffect } from "react";
+import { useUser } from "../contexts/UserContext";
 // import { useEffect } from "react";
 // import { useMessage } from "../contexts/MessageContext";
 interface VideoStreamProps {
@@ -25,6 +26,7 @@ export default function VideoStream({
     isRemoteAudioOn,
     setisRemoteAudioOn,
   } = useMessage();
+  const { socket } = useUser();
   useEffect(() => {
     if (!isLocal) return;
     if (!videoElRef.current || !localStream) return;
@@ -36,21 +38,83 @@ export default function VideoStream({
     if (!videoElRef.current || !remoteStream) return;
     const getAudio = remoteStream.getAudioTracks();
     const getVideo = remoteStream.getVideoTracks();
-    if(getAudio[0]?.enabled){
+    if (getAudio[0]?.enabled) {
       setisRemoteAudioOn(true);
-    }else{
+    } else {
       console.log("remote audio off");
       setisRemoteAudioOn(false);
     }
-    if(getVideo[0]?.enabled){
+    if (getVideo[0]?.enabled) {
       setisRemoteVideoOn(true);
-    }else{
+    } else {
       console.log("remote video off");
       setisRemoteVideoOn(false);
     }
     console.log("Setting remote stream", remoteStream.getTracks());
     videoElRef.current.srcObject = remoteStream;
   }, [remoteStream, isRemoteAudioOn, isRemoteVideoOn]);
+
+  socket.on("toggle-video", ({ video }) => {
+    console.log("video is :", video);
+    setisRemoteVideoOn(video);
+  });
+
+  socket.on("toggle-audio", ({ audio }) => {
+    console.log("audio is :", audio);
+    setisRemoteAudioOn(audio);
+  });
+
+  // useEffect(() => {
+  //   if (isLocal) return;
+  //   if (!remoteStream || !videoElRef.current) return;
+  //   videoElRef.current.srcObject = remoteStream;
+  //   const audioTrack = remoteStream.getAudioTracks()[0];
+  //   const videoTrack = remoteStream.getVideoTracks()[0];
+  //   if (audioTrack) {
+  //     // initial state
+  //     setisRemoteAudioOn(!audioTrack.muted);
+  //     audioTrack.onmute = () => {
+  //       console.log("🔇 Remote audio muted");
+  //       setisRemoteAudioOn(false);
+  //     };
+  //     audioTrack.onunmute = () => {
+  //       console.log("🔊 Remote audio unmuted");
+  //       setisRemoteAudioOn(true);
+  //     };
+  //     audioTrack.onended = () => {
+  //       console.log("❌ Remote audio ended");
+  //       setisRemoteAudioOn(false);
+  //     };
+  //   }
+  //   if (videoTrack) {
+  //     setisRemoteVideoOn(!videoTrack.muted);
+
+  //     videoTrack.onmute = () => {
+  //       console.log("📷 Remote video muted");
+  //       setisRemoteVideoOn(false);
+  //     };
+  //     videoTrack.onunmute = () => {
+  //       console.log("🎥 Remote video unmuted");
+  //       setisRemoteVideoOn(true);
+  //     };
+  //     videoTrack.onended = () => {
+  //       console.log("❌ Remote video ended");
+  //       setisRemoteVideoOn(false);
+  //     };
+  //   }
+  //   return () => {
+  //     if (audioTrack) {
+  //       audioTrack.onmute = null;
+  //       audioTrack.onunmute = null;
+  //       audioTrack.onended = null;
+  //     }
+  //     if (videoTrack) {
+  //       videoTrack.onmute = null;
+  //       videoTrack.onunmute = null;
+  //       videoTrack.onended = null;
+  //     }
+  //   };
+  // }, [remoteStream]);
 
   return (
     <div
