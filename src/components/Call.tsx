@@ -1,18 +1,13 @@
-import {
-  Video,
-  VideoOff,
-  MicOff,
-  Mic,
-  PhoneOff,
-} from "lucide-react";
+import { Video, VideoOff, MicOff, Mic, PhoneOff } from "lucide-react";
 import { useMessage } from "./contexts/MessageContext";
 import VideoStream from "./ui/video-stream";
 import VoiceCall from "./ui/voice-call";
 import { Button } from "./ui/button";
+import { useEditor } from "./contexts/EditorContext";
+import { useUser } from "./contexts/UserContext";
 
 const Call = () => {
   const {
-    targetUser,
     setParticipants,
     isAudioOn,
     isVideoOn,
@@ -24,12 +19,17 @@ const Call = () => {
     callType,
     localVideoElRef,
   } = useMessage();
-
+  const { activeTab } = useEditor();
+  const { inCallwith } = useUser();
   return (
-    <div className="relative flex flex-col h-full w-full bg-p5cool">
+    <div
+      className={`${
+        activeTab === "Call" ? "flex" : "hidden"
+      } relative flex-col h-full w-full bg-p5`}
+    >
       <div className="flex items-center justify-between border-b border-discord-darker px-6 py-4 bg-discord-dark">
         <h1 className="text-xl text-p6 font-semibold">
-          Call with {targetUser}
+          Call with {inCallwith}
         </h1>
         {callType === "audio" && (
           <div className="flex items-center gap-2">
@@ -49,7 +49,7 @@ const Call = () => {
         <>
           {/* Primary Video Stream */}
           <VideoStream
-            participantName={targetUser}
+            participantName={inCallwith || "Remote User"}
             isAudioOn={isRemoteAudioOn}
             isLocal={false}
             videoElRef={remoteVideoElRef}

@@ -80,9 +80,7 @@ const Main = () => {
         <TabsContent value="Editor">
           <Editor />
         </TabsContent>
-        <TabsContent value="Call">
-          <Call />
-        </TabsContent>
+        <Call />
         <TabsContent value="Trello">
           <AddTask />
         </TabsContent>

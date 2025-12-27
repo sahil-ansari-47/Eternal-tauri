@@ -55,6 +55,8 @@ const App = () => {
     callType,
     setCallType,
     isVideoOn,
+    setisRemoteVideoOn,
+    setisRemoteAudioOn,
     localVideoElRef,
     toggleLocalVideo,
     startLocalVideo,
@@ -160,7 +162,6 @@ const App = () => {
       setisVideoOn(callType);
       setCallType(callType ? "video" : "audio");
       setAcceptDialog(true);
-      // Don't block on notification - it's non-critical
       showNotification(
         `Incoming ${callType ? "video" : "audio"} call from ${from}`,
         "Click to respond"
@@ -218,6 +219,14 @@ const App = () => {
         if (localVideoElRef.current) localVideoElRef.current.srcObject = null;
       }
     });
+    socket.on("toggle-video", ({ video }) => {
+      console.log("video is :", video);
+      setisRemoteVideoOn(video);
+    });
+    socket.on("toggle-audio", ({ audio }) => {
+      console.log("audio is :", audio);
+      setisRemoteAudioOn(audio);
+    });
     return () => {
       // Cleanup: Remove all socket event listeners when component unmounts or dependencies change
       socket.off("privateMessage");
@@ -229,6 +238,8 @@ const App = () => {
       socket.off("hangup");
       socket.off("connect");
       socket.off("ice-candidate");
+      socket.off("toggle-video");
+      socket.off("toggle-audio");
       // CRITICAL FIX: Don't close PC in cleanup - it's managed by handleAccept/handleReject/hangup
       // Previously, closing PC here caused the peer connection to be closed prematurely when
       // targetUser changed during call acceptance, resulting in "signalingState is 'closed'" errors
@@ -274,7 +285,7 @@ const App = () => {
       // If user denied media access or cancelled, reject the call
       if (!streamResult) {
         setInCall(false);
-        setTargetUser("");
+        setinCallwith(null);
         handleReject();
         return;
       }
@@ -331,7 +342,7 @@ const App = () => {
       // 2. Media tracks are added
       // 3. Remote description is set
       // 4. Only then does the Call component mount and useEffect can safely run
-      setTargetUser(inCallwith);
+      // setTargetUser(inCallwith);
       setInCall(true);
 
       // Create and set the answer to the caller's offer
@@ -369,7 +380,7 @@ const App = () => {
         pcRef.current = null;
       }
       setInCall(false);
-      setTargetUser("");
+      setinCallwith(null);
     }
   };
   const handleReject = () => {

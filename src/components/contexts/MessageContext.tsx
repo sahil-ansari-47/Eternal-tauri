@@ -85,7 +85,7 @@ export const MessageProvider = ({
     },
   ];
   const [room, setRoom] = useState<Group | null>(null);
-  const { socket, setinCallwith, userData } = useUser();
+  const { socket, inCallwith, setinCallwith, userData } = useUser();
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const { getToken } = useAuth();
@@ -115,7 +115,7 @@ export const MessageProvider = ({
       .forEach((track) => (track.enabled = enabled));
 
     socket.emit("toggle-audio", {
-      to: targetUser,
+      to: inCallwith,
       audio: enabled,
     });
   }
@@ -175,7 +175,7 @@ export const MessageProvider = ({
       // 🟢 Inform remote peer
     }
     socket.emit("toggle-video", {
-      to: targetUser,
+      to: inCallwith,
       video: enabled,
     });
   }
@@ -304,7 +304,7 @@ export const MessageProvider = ({
       lsRef.current = null;
       if (localVideoElRef.current) localVideoElRef.current.srcObject = null;
     }
-    socket.emit("hangup", { to: targetUser });
+    socket.emit("hangup", { to: inCallwith });
   };
   const fetchUserMessages = async () => {
     const token = await getToken();

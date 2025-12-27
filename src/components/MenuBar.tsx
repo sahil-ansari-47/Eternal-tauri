@@ -271,15 +271,15 @@ export default function MenuBar() {
           )}
           {inCall && (
             <button
-              onClick={() => setActiveTab("Video")}
+              onClick={() => setActiveTab("Call")}
               className={`cursor-pointer gap-1 h-full px-2 flex flex-row items-center ${
-                activeTab === "Video"
+                activeTab === "Call"
                   ? "bg-p6/30 border-b border-neutral-300"
                   : ""
               }`}
             >
               <Video size={18} color="white" />
-              <div className="text-white text-xs">Video</div>
+              <div className="text-white text-xs">Call  </div>
             </button>
           )}
           {openFiles.length > 0 && (
