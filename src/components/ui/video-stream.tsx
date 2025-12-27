@@ -1,37 +1,64 @@
 import { MicOff, VideoOff } from "lucide-react";
-import clsx from "clsx";
+import { useMessage } from "../contexts/MessageContext";
+import { useEffect } from "react";
 // import { useEffect } from "react";
 // import { useMessage } from "../contexts/MessageContext";
 interface VideoStreamProps {
   participantName: string;
   isMuted?: boolean;
-  isVideoOn?: boolean;
-  videoElRef: (node: HTMLVideoElement | null) => void;
+  isLocal: boolean;
+  videoElRef: React.RefObject<HTMLVideoElement | null>;
 }
 
 export default function VideoStream({
   participantName,
+  isLocal,
   isMuted,
-  isVideoOn,
   videoElRef,
 }: VideoStreamProps) {
-  // const { localStream, localVideoElRef } = useMessage();
-  console.log(videoElRef, isMuted, isVideoOn);
-  // useEffect(() => {
-  //   if (localVideoElRef.current && localStream) {
-  //     localVideoElRef.current.srcObject = localStream;
-  //   }
-  // }, [localStream]);
+  console.log(videoElRef, isMuted);
+  const {
+    localStream,
+    remoteStream,
+    localVideoElRef,
+    remoteVideoElRef,
+    isVideoOn,
+    isRemoteVideoOn,
+    setisRemoteVideoOn,
+  } = useMessage();
+  useEffect(() => {
+    if (!localVideoElRef.current || !localStream) return;
+
+    localVideoElRef.current.srcObject = localStream;
+    localVideoElRef.current.play().catch((e) => {
+      console.error("Error playing local stream:", e);
+    });
+  }, [localStream, isVideoOn]);
+
+  useEffect(() => {
+    if (!remoteVideoElRef.current || !remoteStream) {
+      console.log("no remote stream");
+      setisRemoteVideoOn(false);
+      return;
+    }
+    console.log("setting remote stream", remoteStream);
+    setisRemoteVideoOn(true);
+    remoteVideoElRef.current.srcObject = remoteStream;
+    remoteVideoElRef.current.play().catch((e) => {
+      console.error("Error playing remote stream:", e);
+    });
+  }, [remoteStream, isRemoteVideoOn]);
 
   return (
     <div
-      className={clsx(
-        "relative w-full h-full border-2 border-neutral-300 rounded-2xl overflow-hidden shadow-2xl group",
-        !isVideoOn && "bg-primary-sidebar"
-      )}
+      className={`
+        relative w-full h-full border-2 border-neutral-300 rounded-2xl overflow-hidden shadow-2xl group ${
+          isLocal && !isVideoOn ? "bg-primary-sidebar" : ""
+        } ${!isLocal && !isRemoteVideoOn ? "bg-primary-sidebar" : ""}
+      `}
     >
       {/* Video Background */}
-      {!isVideoOn ? (
+      {((!isLocal && !isRemoteVideoOn) || (isLocal && !isVideoOn)) && !!videoElRef.current?.srcObject ? (
         <div className="h-full flex flex-col items-center justify-center">
           <VideoOff className="w-16 h-16 text-gray-600 mx-auto mb-4" />
           <p className="text-gray-400">Camera is off</p>
@@ -59,11 +86,12 @@ export default function VideoStream({
             <MicOff className="w-4 h-4 text-white" />
           </div>
         )}
-        {!isVideoOn && (
-          <div className="bg-red-500/80 backdrop-blur-md p-2 rounded-lg">
-            <VideoOff className="w-4 h-4 text-white" />
-          </div>
-        )}
+        {(!isLocal && !isRemoteVideoOn) ||
+          (isLocal && !isVideoOn && (
+            <div className="bg-red-500/80 backdrop-blur-md p-2 rounded-lg">
+              <VideoOff className="w-4 h-4 text-white" />
+            </div>
+          ))}
       </div>
     </div>
   );

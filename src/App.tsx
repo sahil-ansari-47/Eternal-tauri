@@ -445,7 +445,7 @@ const App = () => {
                 <PanelResizeHandle className="w-0.5 hover:scale-x-400 bg-neutral-700 hover:bg-neutral-400" />
                 <Panel
                   defaultSize={25}
-                  minSize={15}
+                  minSize={20}
                   order={3}
                   className="h-[calc(100vh-52px)] z-10"
                 >

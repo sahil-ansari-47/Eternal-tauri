@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useEffect } from "react";
+import { createContext, useContext, useRef } from "react";
 import { useState } from "react";
 import { useUser } from "./UserContext";
 import { confirm, message } from "@tauri-apps/plugin-dialog";
@@ -22,29 +22,31 @@ interface MessageContextType {
   setHasMore: React.Dispatch<React.SetStateAction<boolean>>;
   pcRef: React.RefObject<RTCPeerConnection | null>;
   lsRef: React.RefObject<MediaStream | null>;
-  remoteVideoElRef: React.RefObject<HTMLVideoElement | null>;
   inCall: boolean;
   setInCall: React.Dispatch<React.SetStateAction<boolean>>;
   callType: "video" | "audio";
   setCallType: React.Dispatch<React.SetStateAction<"video" | "audio">>;
   isVideoOn: boolean;
   setisVideoOn: React.Dispatch<React.SetStateAction<boolean>>;
+  isRemoteVideoOn: boolean;
+  setisRemoteVideoOn: React.Dispatch<React.SetStateAction<boolean>>;
   isAudioOn: boolean;
   setisAudioOn: React.Dispatch<React.SetStateAction<boolean>>;
   toggleLocalAudio: (enabled: boolean) => void;
   toggleLocalVideo: (enabled: boolean) => void;
   handleHangup: () => void;
-  localVideoRef: (node: HTMLVideoElement | null) => void;
   localVideoElRef: React.RefObject<HTMLVideoElement | null>;
-  remoteVideoRef: (node: HTMLVideoElement | null) => void;
+  remoteVideoElRef: React.RefObject<HTMLVideoElement | null>;
   createPeerConnection: (target: string) => RTCPeerConnection;
   ensureLocalStream: (
     sender: boolean,
     video: boolean
   ) => Promise<MediaStream | null | "audio-only">;
-  localStream: MediaStream | null;
   bufferedCandidatesRef: React.RefObject<RTCIceCandidateInit[]>;
+  localStream: MediaStream | null;
   setLocalStream: React.Dispatch<React.SetStateAction<MediaStream | null>>;
+  remoteStream: MediaStream | null;
+  setRemoteStream: React.Dispatch<React.SetStateAction<MediaStream | null>>;
 }
 export const MessageContext = createContext<MessageContextType | undefined>(
   undefined
@@ -70,78 +72,14 @@ export const MessageProvider = ({
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const lsRef = useRef<MediaStream | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [inCall, setInCall] = useState(false);
   const [callType, setCallType] = useState<"video" | "audio">("video");
   const [isVideoOn, setisVideoOn] = useState(true);
+  const [isRemoteVideoOn, setisRemoteVideoOn] = useState(true);
   const [isAudioOn, setisAudioOn] = useState(true);
   const localVideoElRef = useRef<HTMLVideoElement | null>(null);
-  const remoteVideoElRef = useRef<HTMLVideoElement>(null);
-  const localVideoRef = useCallback((node: HTMLVideoElement | null) => {
-    const prevNode = localVideoElRef.current;
-    localVideoElRef.current = node;
-    console.log("Local video ref callback:", node);
-    console.log("Local stream in callback:", lsRef.current);
-    
-    // If element is being set and stream exists, attach immediately
-    if (node && lsRef.current) {
-      console.log("Attaching local stream in callback (immediate)");
-      node.srcObject = lsRef.current;
-    }
-    
-    // If element was just mounted (changed from null to node), try to attach
-    if (node && !prevNode && lsRef.current) {
-      console.log("Element just mounted, attaching stream");
-      node.srcObject = lsRef.current;
-    }
-  }, []);
-
-  // Effect to attach stream when both element and stream are ready
-  // This handles the case where stream is set before element is mounted
-  useEffect(() => {
-    if (!inCall) return;
-    
-    const attachStream = () => {
-      const videoEl = localVideoElRef.current;
-      const stream = lsRef.current || localStream;
-      
-      if (videoEl && stream && videoEl.srcObject !== stream) {
-        console.log("Attaching local stream via useEffect", {
-          hasElement: !!videoEl,
-          hasStream: !!stream,
-          currentSrc: videoEl.srcObject !== null
-        });
-        videoEl.srcObject = stream;
-        // Force play to ensure video displays
-        videoEl.play().catch(err => console.warn("Video play error:", err));
-        return true;
-      }
-      return false;
-    };
-
-    // Try immediately
-    if (attachStream()) return;
-
-    // If element not ready, retry with increasing delays (handles race condition)
-    const timeouts: ReturnType<typeof setTimeout>[] = [];
-    const delays = [50, 100, 200, 300, 500, 1000];
-    
-    delays.forEach((delay) => {
-      const timeoutId = setTimeout(() => {
-        if (attachStream()) {
-          // Clear remaining timeouts if successful
-          timeouts.forEach((id) => clearTimeout(id));
-        }
-      }, delay);
-      timeouts.push(timeoutId);
-    });
-
-    return () => {
-      timeouts.forEach((id) => clearTimeout(id));
-    };
-  }, [localStream, inCall]); // Watch localStream state and inCall to trigger when stream is set
-  const remoteVideoRef = useCallback((node: HTMLVideoElement | null) => {
-    remoteVideoElRef.current = node;
-  }, []);
+  const remoteVideoElRef = useRef<HTMLVideoElement | null>(null);
   const bufferedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   function toggleLocalAudio(enabled: boolean) {
@@ -167,18 +105,15 @@ export const MessageProvider = ({
           console.log("no candidate found");
           return;
         }
-        console.log("received candidate");
         socket.emit("ice-candidate", {
           to: target,
           candidate: evt.candidate,
         });
-        console.log("done gathering candidates");
       };
       pc.ontrack = (evt) => {
+        setRemoteStream(evt.streams[0]);
         if (remoteVideoElRef.current && !remoteVideoElRef.current.srcObject) {
-          console.log("Remote stream tracks:", evt.streams[0].getTracks());
           remoteVideoElRef.current.srcObject = evt.streams[0];
-          console.log("Remote video src:", remoteVideoElRef.current.srcObject);
         }
       };
       return pc;
@@ -189,16 +124,23 @@ export const MessageProvider = ({
   }
   async function ensureLocalStream(sender: boolean, video: boolean) {
     try {
-      console.log("Ensuring local stream with video:", video, "sender:", sender);
-      
+      console.log(
+        "Ensuring local stream with video:",
+        video,
+        "sender:",
+        sender
+      );
+
       // Check if we already have a stream with the required tracks
       if (lsRef.current) {
         const hasVideo = lsRef.current.getVideoTracks().length > 0;
         const hasAudio = lsRef.current.getAudioTracks().length > 0;
-        
+
         // If we need video but don't have it, or vice versa, get a new stream
         if ((video && !hasVideo) || (!video && hasVideo)) {
-          console.log("Existing stream doesn't match requirements, stopping and getting new one");
+          console.log(
+            "Existing stream doesn't match requirements, stopping and getting new one"
+          );
           for (const track of lsRef.current.getTracks()) {
             track.stop();
           }
@@ -208,14 +150,14 @@ export const MessageProvider = ({
           return lsRef.current;
         }
       }
-      
+
       console.log("Requesting new media stream...");
       const constraints = {
         video: video ? { facingMode: "user" } : false,
         audio: true,
       };
       console.log("Media constraints:", constraints);
-      
+
       const ls = await navigator.mediaDevices.getUserMedia(constraints);
       console.log("Media stream obtained:", {
         videoTracks: ls.getVideoTracks().length,
@@ -223,17 +165,19 @@ export const MessageProvider = ({
         videoTrackEnabled: ls.getVideoTracks()[0]?.enabled,
         audioTrackEnabled: ls.getAudioTracks()[0]?.enabled,
       });
-      
+
       lsRef.current = ls;
       return lsRef.current;
     } catch (e: any) {
       console.error("Error getting user media:", e);
       console.error("Error name:", e.name);
       console.error("Error message:", e.message);
-      
+
       if (sender) {
         const confirmed = await confirm(
-          `Cannot access media devices: ${e.message || e.name}. Continue with voice call?`,
+          `Cannot access media devices: ${
+            e.message || e.name
+          }. Continue with voice call?`,
           { title: "Access denied" }
         );
         if (confirmed) {
@@ -359,9 +303,7 @@ export const MessageProvider = ({
         pendingMessages,
         setPendingMessages,
         pcRef,
-        localVideoRef,
         localVideoElRef,
-        remoteVideoRef,
         remoteVideoElRef,
         lsRef,
         inCall,
@@ -370,6 +312,8 @@ export const MessageProvider = ({
         setCallType,
         isVideoOn,
         setisVideoOn,
+        isRemoteVideoOn,
+        setisRemoteVideoOn,
         isAudioOn,
         setisAudioOn,
         toggleLocalAudio,
@@ -377,6 +321,8 @@ export const MessageProvider = ({
         handleHangup,
         localStream,
         setLocalStream,
+        remoteStream,
+        setRemoteStream,
         createPeerConnection,
         ensureLocalStream,
         bufferedCandidatesRef,

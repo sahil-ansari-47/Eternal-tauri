@@ -6,7 +6,6 @@ import {
   PhoneOff,
   Video,
 } from "lucide-react";
-import { useEffect } from "react";
 import { useMessage } from "./contexts/MessageContext";
 import VideoStream from "./ui/video-stream";
 import VoiceCall from "./ui/voice-call";
@@ -16,50 +15,15 @@ const Call = () => {
   const {
     targetUser,
     setParticipants,
-    remoteVideoRef,
     isAudioOn,
     isVideoOn,
     toggleLocalAudio,
-    localVideoRef,
+    remoteVideoElRef,
     toggleLocalVideo,
     handleHangup,
     callType,
-    localStream,
     localVideoElRef,
-    lsRef,
   } = useMessage();
-
-  // Ensure stream is attached when Call component mounts
-  useEffect(() => {
-    const attachStream = () => {
-      const videoEl = localVideoElRef.current;
-      const stream = lsRef.current || localStream;
-      
-      if (videoEl && stream && videoEl.srcObject !== stream) {
-        console.log("Call component: Attaching local stream on mount");
-        videoEl.srcObject = stream;
-        videoEl.play().catch(err => console.warn("Video play error:", err));
-        return true;
-      }
-      return false;
-    };
-
-    // Try immediately
-    if (attachStream()) return;
-
-    // Retry with delays
-    const timeouts: ReturnType<typeof setTimeout>[] = [];
-    [50, 100, 200, 300, 500, 1000].forEach((delay) => {
-      const timeoutId = setTimeout(() => {
-        attachStream();
-      }, delay);
-      timeouts.push(timeoutId);
-    });
-
-    return () => {
-      timeouts.forEach((id) => clearTimeout(id));
-    };
-  }, [localStream, localVideoElRef, lsRef]);
 
   return (
     <div className="relative flex flex-col h-full w-full bg-p5">
@@ -86,15 +50,15 @@ const Call = () => {
           {/* Primary Video Stream */}
           <VideoStream
             participantName={targetUser}
-            videoElRef={remoteVideoRef}
+            isLocal={false}
+            videoElRef={remoteVideoElRef}
           />
-
           <div className="absolute right-10 bottom-10 h-50 w-80">
             <VideoStream
               participantName="You"
               isMuted={isAudioOn}
-              isVideoOn={isVideoOn}
-              videoElRef={localVideoRef}
+              isLocal={true}
+              videoElRef={localVideoElRef}
             />
           </div>
         </>
