@@ -1,10 +1,9 @@
 import {
-  LucideVideo,
-  LucideVideoOff,
+  Video,
+  VideoOff,
   MicOff,
   Mic,
   PhoneOff,
-  Video,
 } from "lucide-react";
 import { useMessage } from "./contexts/MessageContext";
 import VideoStream from "./ui/video-stream";
@@ -17,6 +16,7 @@ const Call = () => {
     setParticipants,
     isAudioOn,
     isVideoOn,
+    isRemoteAudioOn,
     toggleLocalAudio,
     remoteVideoElRef,
     toggleLocalVideo,
@@ -26,7 +26,7 @@ const Call = () => {
   } = useMessage();
 
   return (
-    <div className="relative flex flex-col h-full w-full bg-p5">
+    <div className="relative flex flex-col h-full w-full bg-p5cool">
       <div className="flex items-center justify-between border-b border-discord-darker px-6 py-4 bg-discord-dark">
         <h1 className="text-xl text-p6 font-semibold">
           Call with {targetUser}
@@ -50,13 +50,14 @@ const Call = () => {
           {/* Primary Video Stream */}
           <VideoStream
             participantName={targetUser}
+            isAudioOn={isRemoteAudioOn}
             isLocal={false}
             videoElRef={remoteVideoElRef}
           />
           <div className="absolute right-10 bottom-10 h-50 w-80">
             <VideoStream
               participantName="You"
-              isMuted={isAudioOn}
+              isAudioOn={isAudioOn}
               isLocal={true}
               videoElRef={localVideoElRef}
             />
@@ -91,16 +92,21 @@ const Call = () => {
           {callType === "video" && (
             <Button
               variant={isVideoOn ? "destructive" : "secondary"}
+              size="lg"
+              className={
+                isVideoOn
+                  ? "h-12 w-12 rounded-full bg-discord-gray p-0 hover:bg-discord-gray-hover"
+                  : "h-12 w-12 rounded-full bg-red-500 p-0 hover:bg-red-600"
+              }
               onClick={() => toggleLocalVideo(!isVideoOn)}
             >
               {isVideoOn ? (
-                <LucideVideo className="size-10 p-2 rounded-full text-primary-sidebar shadow-md" />
+                <Video className="h-5 w-5 text-white" />
               ) : (
-                <LucideVideoOff className="size-10 p-2 rounded-full bg-red-500 text-white shadow-md" />
+                <VideoOff className="h-5 w-5 text-white" />
               )}
             </Button>
           )}
-          <div className="mx-2 h-6 w-px bg-discord-darker" />
           <Button
             variant="destructive"
             size="lg"

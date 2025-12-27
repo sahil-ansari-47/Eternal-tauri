@@ -32,6 +32,8 @@ interface MessageContextType {
   setisRemoteVideoOn: React.Dispatch<React.SetStateAction<boolean>>;
   isAudioOn: boolean;
   setisAudioOn: React.Dispatch<React.SetStateAction<boolean>>;
+  isRemoteAudioOn: boolean;
+  setisRemoteAudioOn: React.Dispatch<React.SetStateAction<boolean>>;
   toggleLocalAudio: (enabled: boolean) => void;
   toggleLocalVideo: (enabled: boolean) => void;
   handleHangup: () => void;
@@ -58,7 +60,27 @@ export const MessageProvider = ({
 }) => {
   const ICE_SERVERS = [
     {
-      urls: ["stun:stun.l.google.com:19302"],
+      urls: "stun:stun.relay.metered.ca:80",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:80",
+      username: "959074b0232340a28cff3cce",
+      credential: "W58ZNU1i810Mpwwk",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:80?transport=tcp",
+      username: "959074b0232340a28cff3cce",
+      credential: "W58ZNU1i810Mpwwk",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:443",
+      username: "959074b0232340a28cff3cce",
+      credential: "W58ZNU1i810Mpwwk",
+    },
+    {
+      urls: "turns:global.relay.metered.ca:443?transport=tcp",
+      username: "959074b0232340a28cff3cce",
+      credential: "W58ZNU1i810Mpwwk",
     },
   ];
   const [room, setRoom] = useState<Group | null>(null);
@@ -78,6 +100,7 @@ export const MessageProvider = ({
   const [isVideoOn, setisVideoOn] = useState(true);
   const [isRemoteVideoOn, setisRemoteVideoOn] = useState(true);
   const [isAudioOn, setisAudioOn] = useState(true);
+  const [isRemoteAudioOn, setisRemoteAudioOn] = useState(true);
   const localVideoElRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoElRef = useRef<HTMLVideoElement | null>(null);
   const bufferedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
@@ -313,6 +336,8 @@ export const MessageProvider = ({
         setisRemoteVideoOn,
         isAudioOn,
         setisAudioOn,
+        isRemoteAudioOn,
+        setisRemoteAudioOn,
         toggleLocalAudio,
         toggleLocalVideo,
         handleHangup,

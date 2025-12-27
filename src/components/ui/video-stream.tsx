@@ -5,7 +5,7 @@ import { useEffect } from "react";
 // import { useMessage } from "../contexts/MessageContext";
 interface VideoStreamProps {
   participantName: string;
-  isMuted?: boolean;
+  isAudioOn: boolean;
   isLocal: boolean;
   videoElRef: React.RefObject<HTMLVideoElement | null>;
 }
@@ -13,7 +13,7 @@ interface VideoStreamProps {
 export default function VideoStream({
   participantName,
   isLocal,
-  isMuted,
+  isAudioOn,
   videoElRef,
 }: VideoStreamProps) {
   const {
@@ -22,19 +22,29 @@ export default function VideoStream({
     isVideoOn,
     isRemoteVideoOn,
     setisRemoteVideoOn,
+    isRemoteAudioOn,
+    setisRemoteAudioOn,
   } = useMessage();
   useEffect(() => {
+    if (!isLocal) return;
     if (!videoElRef.current || !localStream) return;
     videoElRef.current.srcObject = localStream;
   }, [localStream]);
 
   useEffect(() => {
-    if (!videoElRef.current || !remoteStream) {
+    if (isLocal) return;
+    if (!videoElRef.current || !remoteStream) return;
+    if (remoteStream.getAudioTracks().length > 0) {
+      setisRemoteAudioOn(true);
+    } else {
+      setisRemoteAudioOn(false);
+    }
+    if (remoteStream.getVideoTracks().length > 0) {
+      setisRemoteVideoOn(true);
+    } else {
       setisRemoteVideoOn(false);
-      return;
     }
     console.log("Setting remote stream", remoteStream.getTracks());
-    setisRemoteVideoOn(true);
     videoElRef.current.srcObject = remoteStream;
   }, [remoteStream]);
 
@@ -57,7 +67,7 @@ export default function VideoStream({
       <video
         autoPlay
         playsInline
-        muted
+        muted={isLocal}
         ref={videoElRef}
         className="absolute inset-0 w-full h-full object-cover"
       />
@@ -69,17 +79,16 @@ export default function VideoStream({
       </div>
       {/* Status Indicators */}
       <div className="absolute top-4 right-4 z-10 flex gap-2">
-        {isMuted && (
+        {((!isLocal && !isRemoteAudioOn) || (isLocal && !isAudioOn)) && (
           <div className="bg-red-500/80 backdrop-blur-md p-2 rounded-lg">
             <MicOff className="w-4 h-4 text-white" />
           </div>
         )}
-        {(!isLocal && !isRemoteVideoOn) ||
-          (isLocal && !isVideoOn && (
-            <div className="bg-red-500/80 backdrop-blur-md p-2 rounded-lg">
-              <VideoOff className="w-4 h-4 text-white" />
-            </div>
-          ))}
+        {((!isLocal && !isRemoteVideoOn) || (isLocal && !isVideoOn)) && (
+          <div className="bg-red-500/80 backdrop-blur-md p-2 rounded-lg">
+            <VideoOff className="w-4 h-4 text-white" />
+          </div>
+        )}
       </div>
     </div>
   );
