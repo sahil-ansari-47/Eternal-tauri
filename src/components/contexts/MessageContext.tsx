@@ -65,23 +65,23 @@ export const MessageProvider = ({
     },
     {
       urls: "turn:global.relay.metered.ca:80",
-      username: "959074b0232340a28cff3cce",
-      credential: "W58ZNU1i810Mpwwk",
+      username: "3fc61b3a938a7ffad1c4a1d2",
+      credential: "CIqVLcUTIkFsbO8h",
     },
     {
       urls: "turn:global.relay.metered.ca:80?transport=tcp",
-      username: "959074b0232340a28cff3cce",
-      credential: "W58ZNU1i810Mpwwk",
+      username: "3fc61b3a938a7ffad1c4a1d2",
+      credential: "CIqVLcUTIkFsbO8h",
     },
     {
       urls: "turn:global.relay.metered.ca:443",
-      username: "959074b0232340a28cff3cce",
-      credential: "W58ZNU1i810Mpwwk",
+      username: "3fc61b3a938a7ffad1c4a1d2",
+      credential: "CIqVLcUTIkFsbO8h",
     },
     {
       urls: "turns:global.relay.metered.ca:443?transport=tcp",
-      username: "959074b0232340a28cff3cce",
-      credential: "W58ZNU1i810Mpwwk",
+      username: "3fc61b3a938a7ffad1c4a1d2",
+      credential: "CIqVLcUTIkFsbO8h",
     },
   ];
   const [room, setRoom] = useState<Group | null>(null);
@@ -131,27 +131,27 @@ export const MessageProvider = ({
 
   async function toggleLocalVideo(enabled: boolean) {
     setisVideoOn(enabled);
-
+    console.log("toggling video", enabled);
     if (!pcRef.current) return;
-
     const sender = pcRef.current
       .getSenders()
       .find((s) => s.track?.kind === "video");
-
+    if (!sender) return;
     if (!enabled) {
       // 🔴 Stop sending video
-      await sender?.replaceTrack(null);
-
+      const blankTrack = createBlankVideoTrack();
+      await sender.replaceTrack(blankTrack);
       // 🔴 Stop camera hardware
       const videoTrack = lsRef.current?.getVideoTracks()[0];
       videoTrack?.stop();
 
       // 🔴 Remove video track from local preview stream
-      if (lsRef.current && videoTrack) {
-        lsRef.current.removeTrack(videoTrack);
-        setLocalStream(new MediaStream(lsRef.current.getAudioTracks()));
+      if (lsRef.current) {
+        const audioTracks = lsRef.current.getAudioTracks();
+        const newStream = new MediaStream([...audioTracks, blankTrack]);
+        lsRef.current = newStream;
+        setLocalStream(newStream);
       }
-
       // 🔴 Inform remote peer explicitly
     } else {
       // 🟢 Get fresh camera stream
@@ -159,19 +159,15 @@ export const MessageProvider = ({
         video: true,
       });
       const newVideoTrack = camStream.getVideoTracks()[0];
-
       // 🟢 Attach to sender
-      await sender?.replaceTrack(newVideoTrack);
-
+      await sender.replaceTrack(newVideoTrack);
       // 🟢 Update local preview stream
       const newStream = new MediaStream([
         ...lsRef.current!.getAudioTracks(),
         newVideoTrack,
       ]);
-
       lsRef.current = newStream;
       setLocalStream(newStream);
-
       // 🟢 Inform remote peer
     }
     socket.emit("toggle-video", {
@@ -179,6 +175,19 @@ export const MessageProvider = ({
       video: enabled,
     });
   }
+  function createBlankVideoTrack() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 640;
+    canvas.height = 480;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "hsl(220, 5%, 15%)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const stream = canvas.captureStream(1); // 1 FPS is enough
+    const track = stream.getVideoTracks()[0];
+    track.enabled = true;
+    return track;
+  }
+
   function createPeerConnection(target: string) {
     try {
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
