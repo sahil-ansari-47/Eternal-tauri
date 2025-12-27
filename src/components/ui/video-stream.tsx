@@ -29,24 +29,28 @@ export default function VideoStream({
     if (!isLocal) return;
     if (!videoElRef.current || !localStream) return;
     videoElRef.current.srcObject = localStream;
-  }, [localStream]);
+  }, [localStream, isAudioOn, isVideoOn]);
 
   useEffect(() => {
     if (isLocal) return;
     if (!videoElRef.current || !remoteStream) return;
-    if (remoteStream.getAudioTracks().length > 0) {
+    const getAudio = remoteStream.getAudioTracks();
+    const getVideo = remoteStream.getVideoTracks();
+    if(getAudio[0]?.enabled){
       setisRemoteAudioOn(true);
-    } else {
+    }else{
+      console.log("remote audio off");
       setisRemoteAudioOn(false);
     }
-    if (remoteStream.getVideoTracks().length > 0) {
+    if(getVideo[0]?.enabled){
       setisRemoteVideoOn(true);
-    } else {
+    }else{
+      console.log("remote video off");
       setisRemoteVideoOn(false);
     }
     console.log("Setting remote stream", remoteStream.getTracks());
     videoElRef.current.srcObject = remoteStream;
-  }, [remoteStream]);
+  }, [remoteStream, isRemoteAudioOn, isRemoteVideoOn]);
 
   return (
     <div
@@ -56,21 +60,20 @@ export default function VideoStream({
         } ${!isLocal && !isRemoteVideoOn ? "bg-primary-sidebar" : ""}
       `}
     >
-      {((!isLocal && !isRemoteVideoOn) || (isLocal && !isVideoOn)) &&
-        !!videoElRef.current?.srcObject && (
-          <div className="h-full flex flex-col items-center justify-center">
-            <VideoOff className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-400">Camera is off</p>
-          </div>
-        )}
-      {/* <div className="absolute inset-0 bg-linear-to-br from-slate-700 via-slate-800 to-slate-900"></div> */}
-      <video
-        autoPlay
-        playsInline
-        muted={isLocal}
-        ref={videoElRef}
-        className="absolute inset-0 w-full h-full object-cover"
-      />
+      {(!isLocal && !isRemoteVideoOn) || (isLocal && !isVideoOn) ? (
+        <div className="h-full flex flex-col items-center justify-center">
+          <VideoOff className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+          <p className="text-gray-400">Camera is off</p>
+        </div>
+      ) : (
+        <video
+          autoPlay
+          playsInline
+          muted={isLocal}
+          ref={videoElRef}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      )}
       {/* Participant Info */}
       <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2">
         <span className="text-white font-medium text-sm">
@@ -82,11 +85,6 @@ export default function VideoStream({
         {((!isLocal && !isRemoteAudioOn) || (isLocal && !isAudioOn)) && (
           <div className="bg-red-500/80 backdrop-blur-md p-2 rounded-lg">
             <MicOff className="w-4 h-4 text-white" />
-          </div>
-        )}
-        {((!isLocal && !isRemoteVideoOn) || (isLocal && !isVideoOn)) && (
-          <div className="bg-red-500/80 backdrop-blur-md p-2 rounded-lg">
-            <VideoOff className="w-4 h-4 text-white" />
           </div>
         )}
       </div>
