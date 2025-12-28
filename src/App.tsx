@@ -44,7 +44,6 @@ const App = () => {
   } = useUser();
   const {
     targetUser,
-    setTargetUser,
     room,
     setMessages,
     setPendingMessages,
@@ -58,7 +57,6 @@ const App = () => {
     setisRemoteVideoOn,
     setisRemoteAudioOn,
     localVideoElRef,
-    toggleLocalVideo,
     startLocalVideo,
     setLocalStream,
     createPeerConnection,
@@ -79,8 +77,23 @@ const App = () => {
     setErrorMessage,
     handleClone,
     setRecents,
+    handleOpenFile,
+    handleCreateNewFile,
+    handleOpenFolder,
+    setActiveTab,
+    setWorkspace,
+    setRoots,
+    // createTab,
   } = useEditor();
-  const { leftOpen, rightOpen, downOpen, setDownOpen } = useLayout();
+  const {
+    leftOpen,
+    rightOpen,
+    downOpen,
+    setDownOpen,
+    setLeftContent,
+    setLeftOpen,
+    handleNewWindow,
+  } = useLayout();
   const remoteDescriptionSetRef = useRef(false);
   useEffect(() => {
     const recents = JSON.parse(localStorage.getItem("recents") || "[]");
@@ -228,7 +241,6 @@ const App = () => {
       setisRemoteAudioOn(audio);
     });
     return () => {
-      // Cleanup: Remove all socket event listeners when component unmounts or dependencies change
       socket.off("privateMessage");
       socket.off("roomMessage");
       socket.off("offer");
@@ -240,49 +252,30 @@ const App = () => {
       socket.off("ice-candidate");
       socket.off("toggle-video");
       socket.off("toggle-audio");
-      // CRITICAL FIX: Don't close PC in cleanup - it's managed by handleAccept/handleReject/hangup
-      // Previously, closing PC here caused the peer connection to be closed prematurely when
-      // targetUser changed during call acceptance, resulting in "signalingState is 'closed'" errors
-      // The PC lifecycle is now explicitly managed in the call handlers, not in useEffect cleanup
     };
   }, [isSignedIn, userData?.username, targetUser, room]);
   useEffect(() => {
     fetchUser().catch((err) => console.error("Failed to sync user:", err));
   }, [isSignedIn]);
   const handleAccept = async () => {
-    // Early return if required data is missing
     if (!inCallwith || !pendingOffer) {
       return;
     }
-    // Close the accept dialog immediately for better UX
     setAcceptDialog(false);
-
-    // CRITICAL FIX: Clean up any existing peer connection first
-    // This ensures we start with a fresh peer connection on each call attempt
-    // Prevents issues from reusing a closed or invalid peer connection
     if (pcRef.current) {
       try {
         pcRef.current.close();
-      } catch (e) {
-        // Ignore cleanup errors - PC might already be closed
-      }
+      } catch (e) {}
       pcRef.current = null;
     }
 
     try {
-      // Create a new peer connection for this call
       const pc = createPeerConnection(inCallwith);
       pcRef.current = pc;
 
-      // CRITICAL FIX: Get local stream FIRST, then add tracks before setting remote description
-      // This order is crucial because:
-      // 1. We need the media tracks available before WebRTC negotiation
-      // 2. Adding tracks before setRemoteDescription ensures they're included in the answer
-      // 3. This prevents the receiver's video from not appearing on the first call
       const wantsVideo = callType === "video";
       const streamResult = await ensureLocalStream(false, wantsVideo);
 
-      // If user denied media access or cancelled, reject the call
       if (!streamResult) {
         setInCall(false);
         setinCallwith(null);
@@ -290,77 +283,53 @@ const App = () => {
         return;
       }
 
-      // Add all media tracks (video and audio) to the peer connection
-      // This must happen BEFORE setRemoteDescription to ensure tracks are included in the answer
       if (streamResult instanceof MediaStream) {
         for (const track of streamResult.getTracks()) {
           pc.addTrack(track, streamResult);
         }
       }
 
-      // Validate the incoming offer before using it
       if (!pendingOffer || !pendingOffer.type || !pendingOffer.sdp) {
         throw new Error("Invalid offer: missing type or sdp");
       }
 
-      // Convert the offer to the proper format for setRemoteDescription
       const offerToSet: RTCSessionDescriptionInit = {
         type: pendingOffer.type as RTCSdpType,
         sdp: pendingOffer.sdp,
       };
 
-      // Set the remote description (the caller's offer)
-      // This must happen after tracks are added to ensure proper negotiation
       await pc.setRemoteDescription(offerToSet);
       remoteDescriptionSetRef.current = true;
 
-      // Set local stream state and attach to video element if available
       if (streamResult instanceof MediaStream) {
-        // Store stream in ref for direct access
         lsRef.current = streamResult;
-        // Update state to trigger UI updates and useEffect hooks
+
         setLocalStream(streamResult);
 
-        // If video element is already mounted, attach stream immediately
-        // This handles the case where the element exists before the stream is ready
         if (localVideoElRef.current) {
           localVideoElRef.current.srcObject = streamResult;
           localVideoElRef.current.play().catch(() => {});
         }
 
-        // If no video tracks, disable video toggle
         if (streamResult.getVideoTracks().length === 0) {
           startLocalVideo(false);
         }
       }
 
-      // CRITICAL FIX: Set targetUser and inCall AFTER everything is ready
-      // Previously, setting targetUser early triggered the useEffect to re-run,
-      // which could interfere with the peer connection setup
-      // By setting these state variables last, we ensure:
-      // 1. Peer connection is fully configured
-      // 2. Media tracks are added
-      // 3. Remote description is set
-      // 4. Only then does the Call component mount and useEffect can safely run
-      // setTargetUser(inCallwith);
       setInCall(true);
 
-      // Create and set the answer to the caller's offer
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       socket.emit("answer", { to: inCallwith, answer });
 
-      // Add any buffered ICE candidates that arrived before remote description was set
       for (const candidate of bufferedCandidatesRef.current) {
         await pc.addIceCandidate(candidate);
       }
       bufferedCandidatesRef.current = [];
 
-      // Apply the initial video state
       startLocalVideo(isVideoOn);
       setPendingOffer(null);
     } catch (error: any) {
-      // Error handling: Show user-friendly error message
       console.error("Error during call acceptance:", error);
       const isTauri =
         typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -374,7 +343,6 @@ const App = () => {
           `Error accepting call: ${error?.message || error}. Please try again.`
         );
       }
-      // Cleanup on error
       if (pcRef.current) {
         pcRef.current.close();
         pcRef.current = null;
@@ -390,16 +358,100 @@ const App = () => {
     setinCallwith(null);
     setPendingOffer(null);
   };
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === "`") {
-        e.preventDefault();
-        setDownOpen((prev) => !prev);
+
+  let chordActive = false;
+  let chordTimeout: number | null = null;
+  const shortcuthandler = (e: KeyboardEvent) => {
+    const key = e.key.toLowerCase();
+
+    if (e.ctrlKey && key === "k") {
+      e.preventDefault();
+      chordActive = true;
+
+      if (chordTimeout) clearTimeout(chordTimeout);
+      chordTimeout = window.setTimeout(() => {
+        chordActive = false;
+      }, 2500); // chord expires after 2.5s
+
+      return;
+    }
+    // if (e.ctrlKey && key === "~") {
+    //   e.preventDefault();
+    //   // 👉 New Terminal
+    //   setDownOpen(true);
+    //   createTab();
+    //   console.log("New terminal created and panel opened");
+    //   return;
+    // }
+    if (e.ctrlKey && key === "`") {
+      e.preventDefault();
+      // 👉 Toggle Terminal
+      setDownOpen((prev) => !prev);
+      return;
+    }
+    if (chordActive && e.ctrlKey && key === "o") {
+      e.preventDefault();
+      chordActive = false;
+      // 👉 Open Folder
+      handleOpenFolder();
+      return;
+    }
+    if (chordActive && key === "f") {
+      e.preventDefault();
+      chordActive = false;
+      // 👉 Open Folder
+      localStorage.removeItem("workspacePath");
+      setActiveTab("Home");
+      setWorkspace(null);
+      setRoots(null);
+      setErrorMessage(null);
+      return;
+    }
+    if (e.ctrlKey && !e.shiftKey && key === "o") {
+      e.preventDefault();
+      handleOpenFile();
+      return;
+    }
+
+    if (e.ctrlKey && e.shiftKey && key === "e") {
+      e.preventDefault();
+      // 👉 Open File System
+      setLeftContent("files");
+      setLeftOpen(true);
+      return;
+    }
+
+    if (e.ctrlKey && e.shiftKey && key === "f") {
+      e.preventDefault();
+      // 👉 Open Workspace Search
+      setLeftContent("search");
+      setLeftOpen(true);
+      return;
+    }
+    if (e.ctrlKey && e.shiftKey && key === "g") {
+      e.preventDefault();
+      // 👉 Open Source Control
+      setLeftContent("git");
+      setLeftOpen(true);
+      return;
+    }
+
+    if (e.ctrlKey && key === "n") {
+      e.preventDefault();
+      if (e.shiftKey) {
+        handleNewWindow();
+      } else {
+        handleCreateNewFile();
       }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [downOpen]);
+
+      return;
+    }
+  };
+  useEffect(() => {
+    window.addEventListener("keydown", shortcuthandler);
+    return () => window.removeEventListener("keydown", shortcuthandler);
+  }, []);
+
   useEffect(() => {
     console.log("Loading pending messages from localStorage", pendingMessages);
     setPendingMessages(

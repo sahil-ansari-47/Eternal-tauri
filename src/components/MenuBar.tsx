@@ -5,7 +5,6 @@ import {
   MenubarContent,
   MenubarItem,
 } from "@/components/ui/menubar";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Minus, Square, Copy, X, Home, Video, Code } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -32,10 +31,11 @@ export default function MenuBar() {
     setActiveTab,
   } = useEditor();
   const { inCall } = useMessage();
-  const { setLeftOpen, setDownOpen, setRightOpen } = useLayout();
+  const { setLeftOpen, setDownOpen, setRightOpen, handleNewWindow } =
+    useLayout();
   const { syncStatus, handleInit, handlePush, isInit, refreshStatus } =
     useGit();
-  
+
   useEffect(() => {
     const initWindow = () => {
       try {
@@ -78,23 +78,7 @@ export default function MenuBar() {
       ],
     };
   }
-  const handleNewWindow = () => {
-    const webview = new WebviewWindow(
-      `win-${Math.random().toString(36).substring(7)}`,
-      {
-        title: "Eternal",
-        decorations: false,
-        url: "http://localhost:1420",
-      }
-    );
-    webview.once("tauri://created", () => {
-      console.log("New window created successfully");
-    });
-    webview.once("tauri://error", (e: any) => {
-      message("Failed to create new window", { title: "Error", kind: "error" });
-      console.error("Failed to create new window:", e);
-    });
-  };
+
   return (
     <div
       data-tauri-drag-region
@@ -279,7 +263,7 @@ export default function MenuBar() {
               }`}
             >
               <Video size={18} color="white" />
-              <div className="text-white text-xs">Call  </div>
+              <div className="text-white text-xs">Call </div>
             </button>
           )}
           {openFiles.length > 0 && (

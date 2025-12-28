@@ -93,11 +93,18 @@ export default function Welcome() {
         {/* Footer */}
         <div className="p-4 space-y-4">
           <Button
-            className="w-full justify-start gap-2 bg-transparent hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer"
+            className="w-full bg-transparent hover:bg-p6/80 hover:text-p5 transition-all cursor-pointer"
             size="sm"
           >
-            <Github className="w-4 h-4" />
-            GitHub
+            <a
+              href="https://github.com/sahil-ansari-47/Eternal-tauri"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex justify-start gap-2 items-center text-decoration-none"
+            >
+              <Github className="w-4 h-4" />
+              GitHub
+            </a>
           </Button>
           <div className="flex items-center justify-between px-3">
             <Label htmlFor="background-switch" className="text-sm text-p6/70">

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import Terminal from "./Terminal";
 import { Plus } from "lucide-react";
+// import { useEditor } from "./contexts/EditorContext";
+// import { useLayout } from "./contexts/LayoutContext";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -28,6 +30,10 @@ export default function BottomPanel() {
     ? "powershell.exe"
     : "/bin/bash";
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // const { setDownOpen } = useLayout();
+  // const { tabs, setTabs, activeId, setActiveId, createTab, panelRef } =
+  //   useEditor();
   useEffect(() => {
     if (tabs.length === 0) createTab();
   }, []);

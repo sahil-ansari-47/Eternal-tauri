@@ -32,20 +32,6 @@ export default function VideoStream({
   useEffect(() => {
     if (isLocal) return;
     if (!videoElRef.current || !remoteStream) return;
-    // const getAudio = remoteStream.getAudioTracks();
-    // const getVideo = remoteStream.getVideoTracks();
-    // if (getAudio[0]?.enabled) {
-    //   setisRemoteAudioOn(true);
-    // } else {
-    //   console.log("remote audio off");
-    //   setisRemoteAudioOn(false);
-    // }
-    // if (getVideo[0]?.enabled) {
-    //   setisRemoteVideoOn(true);
-    // } else {
-    //   console.log("remote video off");
-    //   setisRemoteVideoOn(false);
-    // }
     console.log("isRemoteVideoOn", isRemoteVideoOn);
     console.log("Setting remote stream", remoteStream.getTracks());
     videoElRef.current.srcObject = remoteStream;

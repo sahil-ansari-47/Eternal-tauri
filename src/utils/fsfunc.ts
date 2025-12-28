@@ -15,33 +15,7 @@ export async function loadChildren(nodePath: string) {
     return [];
   }
 }
-// export async function traverseAndUpdate(
-//   nodes: FsNode[],
-//   targetPath: string,
-//   updater: (n: FsNode) => Promise<FsNode>
-// ) {
-//   const result: FsNode[] = [];
-//   for (const n of nodes) {
-//     const nodePath = await normalize(n.path);
-//     const targetNodePath = await normalize(targetPath);
-//     if (nodePath === targetNodePath) {
-//       const updated = await updater({ ...n });
-//       result.push(updated);
-//     } else {
-//       if (n.children) {
-//         const updatedChildren = await traverseAndUpdate(
-//           n.children,
-//           targetPath,
-//           updater
-//         );
-//         result.push({ ...n, children: updatedChildren });
-//       } else {
-//         result.push({ ...n });
-//       }
-//     }
-//   }
-//   return result;
-// }
+
 export const sortNodes = (nodes: FsNode[]): FsNode[] => {
   return nodes.sort((a, b) => {
     if (a.isDirectory && !b.isDirectory) return -1;
@@ -49,19 +23,7 @@ export const sortNodes = (nodes: FsNode[]): FsNode[] => {
     return a.name.localeCompare(b.name);
   });
 };
-// export const applyExpanded = (
-  //   nodes: FsNode[],
-  //   expandedMap: Record<string, boolean>
-  // ): FsNode[] => {
-    //   if (Object.keys(expandedMap).length === 0) return nodes;
-    //   return nodes.map((node) => ({
-      //     ...node,
-      //     expanded: expandedMap[node.path] ?? node.expanded,
-      //     children: node.children
-      //       ? applyExpanded(node.children, expandedMap)
-      //       : node.children,
-//   }));
-// };
+
 export const preserveExpanded = (nodes: FsNode[]): Record<string, boolean> => {
   const map: Record<string, boolean> = {};
   const traverse = (n: FsNode[]) => {
@@ -141,4 +103,3 @@ export const readTree = async (nodePath: string): Promise<FsNode[]> => {
     })
   );
 };
-

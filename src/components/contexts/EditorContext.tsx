@@ -6,6 +6,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { EditorView } from "codemirror";
 import { useAuth } from "@clerk/clerk-react";
 import { useLayout } from "./LayoutContext";
+// import { spawn } from "tauri-pty";
+// import { Terminal as XTerm } from "@xterm/xterm";
+// import { FitAddon } from "@xterm/addon-fit";
+// import { SearchAddon } from "@xterm/addon-search";
+// import { WebLinksAddon } from "@xterm/addon-web-links";
+// import { open as openLink } from "@tauri-apps/plugin-shell";
 import {
   preserveExpanded,
   sortNodes,
@@ -67,6 +73,12 @@ interface EditorContextType {
   setTargetNode: React.Dispatch<React.SetStateAction<FsNode | null>>;
   dragNodeRef: React.RefObject<FsNode | null>;
   dragOverNodeRef: React.RefObject<FsNode | null>;
+  // createTab: () => Promise<void>;
+  // tabs: Tab[];
+  // setTabs: React.Dispatch<React.SetStateAction<Tab[]>>;
+  // activeId: string | null;
+  // setActiveId: React.Dispatch<React.SetStateAction<string | null>>;
+  // panelRef: React.RefObject<HTMLDivElement | null>;
 }
 const EditorContext = createContext<EditorContextType | undefined>(undefined);
 export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
@@ -77,7 +89,14 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const [workspace, setWorkspace] = useState<string | null>(
     localStorage.getItem("workspacePath")
   );
-  const { refreshStatus } = useGit();
+  const {
+    // status,
+    refreshStatus,
+    // setIsInit,
+    // fetchGraph,
+    // fetchSyncStatus,
+    // runGit,
+  } = useGit();
   const dragNodeRef = useRef<FsNode | null>(null);
   const dragOverNodeRef = useRef<FsNode | null>(null);
   const viewRefs = useRef<Record<string, EditorView>>({});
@@ -96,6 +115,13 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const [repos, setRepos] = useState<GitRepo[] | null>(null);
   const [roots, setRoots] = useState<FsNode[] | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // const [tabs, setTabs] = useState<Tab[]>([]);
+  // const [activeId, setActiveId] = useState<string | null>(null);
+  // const shell = navigator.platform.startsWith("Win")
+  //   ? "powershell.exe"
+  //   : "/bin/bash";
+  // const panelRef = useRef<HTMLDivElement>(null);
+  // const cwd = workspace || undefined;
   const handleOpenFolder = async () => {
     try {
       const selected = await open({
@@ -329,6 +355,104 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         : [...prev, { path, content } as FsNode]
     );
   };
+  // const createTab = async () => {
+  //   const id = crypto.randomUUID();
+  //   const term = new XTerm({
+  //     fontFamily: "Menlo, monospace",
+  //     fontSize: 14,
+  //     cursorBlink: true,
+  //     convertEol: true,
+  //     scrollback: 1000,
+  //     theme: { background: "hsl(240, 5.9%, 10%)" },
+  //   });
+  //   const fit = new FitAddon();
+  //   const search = new SearchAddon();
+  //   const links = new WebLinksAddon(async (event, uri) => {
+  //     if (event.metaKey || event.ctrlKey) await openLink(uri);
+  //   });
+  //   term.loadAddon(fit);
+  //   term.loadAddon(search);
+  //   term.loadAddon(links);
+  //   // Spawn PTY
+  //   const pty = spawn(shell, ["-NoLogo", "-NoProfile"], {
+  //     cols: term.cols,
+  //     rows: term.rows,
+  //     cwd,
+  //   });
+  //   let commandBuffer = "";
+  //   pty.onData((d) => term.write(d));
+  //   term.onData((d) => {
+  //     // Enter pressed → command submitted
+  //     if (d === "\r") {
+  //       // Get the actual command from the terminal buffer instead of relying on commandBuffer
+  //       const cursorY = term.buffer.active.cursorY;
+  //       const line = term.buffer.active.getLine(cursorY);
+  //       let command = "";
+  //       if (line) {
+  //         // Extract text from the line, starting after the prompt
+  //         const lineText = line.translateToString(true);
+  //         // Find the command after the prompt (typically ends with >, $, or %)
+  //         const promptMatch = lineText.match(/[>$%]\s*(.*)/);
+  //         command = promptMatch ? promptMatch[1].trim() : lineText.trim();
+  //       }
+  //       console.log("Command:", command);
+  //       // if (command.startsWith("git commit")) {
+  //       //   setTimeout(async () => {
+  //       //     await refreshStatus();
+  //       //     await fetchGraph();
+  //       //     await fetchSyncStatus();
+  //       //   }, 0);
+  //       // }
+  //       if (command.startsWith("git init")) {
+  //         // Run AFTER command executes
+  //         setTimeout(() => {
+  //           setIsInit(true);
+  //           refreshStatus();
+  //         }, 0);
+  //       }
+  //       if (command.startsWith("git ")) {
+  //         // Run AFTER command executes
+
+  //         setTimeout(async () => {
+  //           if (status.branch === "master") {
+  //             await runGit("renamebranch", { cwd: workspace });
+  //             status.branch = "main";
+  //           }
+  //           await refreshStatus();
+  //           await fetchGraph();
+  //           await fetchSyncStatus();
+  //         }, 0);
+  //       }
+  //       commandBuffer = "";
+  //     } else if (d === "\u007f") {
+  //       commandBuffer = commandBuffer.slice(0, -1);
+  //     } else if (d.length === 1) {
+  //       commandBuffer += d;
+  //     }
+  //     // Always pass input to PTY
+  //     pty.write(d);
+  //   });
+  //   const resize = () => {
+  //     fit.fit();
+  //     pty.resize(term.cols, term.rows);
+  //   };
+  //   term.onResize(resize);
+
+  //   // Permanent container
+  //   const container = document.createElement("div");
+  //   container.style.position = "absolute";
+  //   container.style.inset = "0";
+  //   container.style.display = "none";
+
+  //   if (panelRef.current) {
+  //     panelRef.current.appendChild(container);
+  //   }
+  //   const title = `Terminal ${tabs.length + 1}`;
+  //   const newTab: Tab = { id, title, term, fit, pty, container };
+  //   setTabs((prev) => [...prev, newTab]);
+  //   setActiveId(id);
+  //   requestAnimationFrame(resize);
+  // };
   return (
     <EditorContext.Provider
       value={{
@@ -379,6 +503,12 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         setTargetNode,
         dragNodeRef,
         dragOverNodeRef,
+        // createTab,
+        // tabs,
+        // setTabs,
+        // activeId,
+        // setActiveId,
+        // panelRef,
       }}
     >
       {children}
