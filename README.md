@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" />
   <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white" />
   <img src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white" />
-  <img src="https://img.shields.io/badge/Desktop-Cross--Platform-success" />
+  <img src="https://img.shields.io/badge/Desktop-Windows/Linux--Platform-success" />
   <img src="https://img.shields.io/badge/License-MIT-green" />
 </p>
 
@@ -15,7 +15,7 @@
   <img src="public/logo.png" width="500" length="500" alt="Eternal IDE Logo" />
 </p>
 <p align="center">
-  <strong>Eternal IDE</strong> is a modern, cross-platform desktop IDE built with <strong>Tauri</strong>, <strong>React</strong>, and <strong>TypeScript</strong>.
+  <strong>Eternal IDE</strong> is a modern, Windows/Linux desktop IDE built with <strong>Tauri</strong>, <strong>React</strong>, and <strong>TypeScript</strong>.
 </p>
 <p align="center">It combines a powerful code editor, real filesystem access, Git integration, real-time messaging, and audio/video calling — all inside a fast native desktop application.</p>
 
