@@ -160,7 +160,7 @@ export const GitProvider = ({ children }: { children: React.ReactNode }) => {
   }
   const getUserAccessToken = async () => {
     try {
-      const sk = import.meta.env.VITE_BACKEND_SECRET_KEY;
+      const sk = import.meta.env.VITE_CLERK_SECRET_KEY;
       // console.log(user?.id, sk);
       const token = await invoke<string>("get_user_access_token", {
         userId: user?.id,
