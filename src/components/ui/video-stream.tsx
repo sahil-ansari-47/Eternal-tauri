@@ -39,9 +39,7 @@ export default function VideoStream({
       `}
     >
       {((!isLocal && !isRemoteVideoOn) || (isLocal && !isVideoOn)) && (
-        <div
-          className={`absolute inset-0 h-full flex flex-col items-center justify-center`}
-        >
+        <div className="absolute inset-0 h-full flex flex-col items-center justify-center">
           <VideoOff className="w-16 h-16 text-gray-600 mx-auto mb-4" />
           <p className="text-gray-400">Camera is off</p>
         </div>

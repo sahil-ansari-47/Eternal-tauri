@@ -32,7 +32,7 @@ export default function Welcome() {
   const sidebarItems = [
     { id: "welcome", label: "Welcome", icon: FileText },
     { id: "getstarted", label: "Get Started", icon: Zap },
-    { id: "recent", label: "Recent", icon: Code2 },
+    // { id: "recent", label: "Recent", icon: Code2 },
   ];
 
   const gettingStartedGuides = [

@@ -1,8 +1,6 @@
 import * as React from "react";
 import { useEffect, useState, useRef } from "react";
 import {
-  // readDir,
-  // DirEntry,
   readTextFile,
   rename,
   create,

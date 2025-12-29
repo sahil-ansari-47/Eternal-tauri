@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Eternalv2",
+  "productName": "Eternal IDE (Beta)",
   "version": "0.1.0",
   "identifier": "com.lenovo.eternal-tauri",
   "build": {
