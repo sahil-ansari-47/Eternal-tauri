@@ -6,7 +6,7 @@ import {
   MenubarItem,
 } from "@/components/ui/menubar";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Minus, Square, Copy, X, Home, Video, Code } from "lucide-react";
+import { Minus, Square, Copy, X, Home, Video, Phone, Code } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useEditor } from "./contexts/EditorContext";
 import { message, save } from "@tauri-apps/plugin-dialog";
@@ -30,7 +30,7 @@ export default function MenuBar() {
     activeTab,
     setActiveTab,
   } = useEditor();
-  const { inCall } = useMessage();
+  const { inCall, callType } = useMessage();
   const { setLeftOpen, setDownOpen, setRightOpen, handleNewWindow } =
     useLayout();
   const { syncStatus, handleInit, handlePush, isInit, refreshStatus } =
@@ -262,7 +262,12 @@ export default function MenuBar() {
                   : ""
               }`}
             >
-              <Video size={18} color="white" />
+              {" "}
+              {callType === "video" ? (
+                <Video size={18} color="white" />
+              ) : (
+                <Phone size={18} color="white" />
+              )}
               <div className="text-white text-xs">Call </div>
             </button>
           )}

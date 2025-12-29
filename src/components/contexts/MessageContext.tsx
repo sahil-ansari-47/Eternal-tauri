@@ -6,8 +6,6 @@ import { useAuth } from "@clerk/clerk-react";
 interface MessageContextType {
   targetUser: string;
   setTargetUser: React.Dispatch<React.SetStateAction<string>>;
-  participants: Participant[];
-  setParticipants: React.Dispatch<React.SetStateAction<Participant[]>>;
   room: Group | null;
   setRoom: React.Dispatch<React.SetStateAction<Group | null>>;
   messages: Message[];
@@ -40,6 +38,8 @@ interface MessageContextType {
   handleHangup: () => void;
   localVideoElRef: React.RefObject<HTMLVideoElement | null>;
   remoteVideoElRef: React.RefObject<HTMLVideoElement | null>;
+  localAudioElRef: React.RefObject<HTMLAudioElement | null>;
+  remoteAudioElRef: React.RefObject<HTMLAudioElement | null>;
   createPeerConnection: (target: string) => RTCPeerConnection;
   ensureLocalStream: (
     sender: boolean,
@@ -102,10 +102,11 @@ export const MessageProvider = ({
   const [isRemoteVideoOn, setisRemoteVideoOn] = useState(true);
   const [isAudioOn, setisAudioOn] = useState(true);
   const [isRemoteAudioOn, setisRemoteAudioOn] = useState(true);
+  const localAudioElRef = useRef<HTMLAudioElement | null>(null);
+  const remoteAudioElRef = useRef<HTMLAudioElement | null>(null);
   const localVideoElRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoElRef = useRef<HTMLVideoElement | null>(null);
   const bufferedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
-  const [participants, setParticipants] = useState<Participant[]>([]);
   function toggleLocalAudio(enabled: boolean) {
     console.log("toggling audio", enabled);
     setisAudioOn(enabled);
@@ -122,10 +123,10 @@ export const MessageProvider = ({
 
   function startLocalVideo(enabled: boolean) {
     console.log("starting video", enabled);
-    setisAudioOn(enabled);
+    setisVideoOn(enabled);
     if (!lsRef.current || lsRef.current?.getTracks().length === 0) return;
     lsRef.current
-      .getAudioTracks()
+      .getVideoTracks()
       .forEach((track) => (track.enabled = enabled));
   }
 
@@ -312,6 +313,7 @@ export const MessageProvider = ({
       for (const track of lsRef.current.getTracks()) track.stop();
       lsRef.current = null;
       if (localVideoElRef.current) localVideoElRef.current.srcObject = null;
+      if (localAudioElRef.current) localAudioElRef.current.srcObject = null;
     }
     socket.emit("hangup", { to: inCallwith });
   };
@@ -376,8 +378,6 @@ export const MessageProvider = ({
       value={{
         targetUser,
         setTargetUser,
-        participants,
-        setParticipants,
         room,
         setRoom,
         messages,
@@ -393,6 +393,8 @@ export const MessageProvider = ({
         pcRef,
         localVideoElRef,
         remoteVideoElRef,
+        localAudioElRef,
+        remoteAudioElRef,
         lsRef,
         inCall,
         setInCall,

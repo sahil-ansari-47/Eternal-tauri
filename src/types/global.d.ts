@@ -21,14 +21,6 @@ declare global {
     avatar: string;
   };
 
-  type Participant = {
-    id: string;
-    name: string;
-    avatar: string;
-    isMuted: boolean;
-    // isDeafened: boolean;
-    isSpeaking: boolean;
-  };
   type Message = {
     id: string;
     from: string;

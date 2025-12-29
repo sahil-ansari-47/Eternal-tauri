@@ -1,11 +1,8 @@
 import { MicOff, VideoOff } from "lucide-react";
 import { useMessage } from "../contexts/MessageContext";
 import { useEffect } from "react";
-// import { useEffect } from "react";
-// import { useMessage } from "../contexts/MessageContext";
 interface VideoStreamProps {
   participantName: string;
-  isAudioOn: boolean;
   isLocal: boolean;
   videoElRef: React.RefObject<HTMLVideoElement | null>;
 }
@@ -13,15 +10,15 @@ interface VideoStreamProps {
 export default function VideoStream({
   participantName,
   isLocal,
-  isAudioOn,
   videoElRef,
 }: VideoStreamProps) {
   const {
     localStream,
     remoteStream,
+    isAudioOn,
+    isRemoteAudioOn,
     isVideoOn,
     isRemoteVideoOn,
-    isRemoteAudioOn,
   } = useMessage();
   useEffect(() => {
     if (!isLocal) return;
@@ -32,8 +29,6 @@ export default function VideoStream({
   useEffect(() => {
     if (isLocal) return;
     if (!videoElRef.current || !remoteStream) return;
-    console.log("isRemoteVideoOn", isRemoteVideoOn);
-    console.log("Setting remote stream", remoteStream.getTracks());
     videoElRef.current.srcObject = remoteStream;
   }, [remoteStream]);
 

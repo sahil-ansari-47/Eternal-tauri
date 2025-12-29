@@ -54,20 +54,6 @@ const Main = () => {
           />
         )}
       <Tabs value={activeTab} className="bg-p5 w-full h-full">
-        <div className="flex w-full items-center justify-center">
-          {/* <TabsList className="my-2 bg-transparent z-10">
-            {tabList.map((tab) => (
-              <TabsTrigger
-                onClick={() => setActiveTab(tab)}
-                key={tab}
-                value={tab}
-                className="text-neutral-500 data-[state=active]:text-p5"
-              >
-                {tab}
-              </TabsTrigger>
-            ))}
-          </TabsList> */}
-        </div>
         <TabsContent value="Home">
           <Welcome />
         </TabsContent>

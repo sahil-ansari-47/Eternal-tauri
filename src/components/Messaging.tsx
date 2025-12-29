@@ -59,7 +59,6 @@ const Messaging = () => {
     setCallType,
     pcRef,
     startLocalVideo,
-    toggleLocalVideo,
     toggleLocalAudio,
     createPeerConnection,
     ensureLocalStream,

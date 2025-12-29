@@ -8,19 +8,19 @@ import { useUser } from "./contexts/UserContext";
 
 const Call = () => {
   const {
-    setParticipants,
     isAudioOn,
     isVideoOn,
-    isRemoteAudioOn,
     toggleLocalAudio,
-    remoteVideoElRef,
     toggleLocalVideo,
     handleHangup,
     callType,
+    localAudioElRef,
+    remoteAudioElRef,
     localVideoElRef,
+    remoteVideoElRef,
   } = useMessage();
   const { activeTab } = useEditor();
-  const { inCallwith } = useUser();
+  const { inCallwith, userData } = useUser();
   return (
     <div
       className={`${
@@ -31,7 +31,7 @@ const Call = () => {
         <h1 className="text-xl text-p6 font-semibold">
           Call with {inCallwith}
         </h1>
-        {callType === "audio" && (
+        {/* {callType === "audio" && (
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -41,23 +41,41 @@ const Call = () => {
               <Video className="h-5 w-5" />
             </Button>
           </div>
-        )}
+        )} */}
       </div>
       {callType === "audio" ? (
-        <VoiceCall />
+        <div className="flex h-full flex-col bg-discord-dark">
+          <div className="flex flex-1 p-8 items-center">
+            <div className="flex flex-1 justify-around items-center">
+              <VoiceCall
+                participantName="You"
+                isLocal={true}
+                avatar={userData?.avatar || "/placeholder.svg"}
+                audioElRef={localAudioElRef}
+              />
+              <VoiceCall
+                participantName={inCallwith || "Remote User"}
+                isLocal={false}
+                avatar={
+                  userData?.friends?.find((f) => f.username === inCallwith)
+                    ?.avatar || "/placeholder.svg"
+                }
+                audioElRef={remoteAudioElRef}
+              />
+            </div>
+          </div>
+        </div>
       ) : (
         <>
           {/* Primary Video Stream */}
           <VideoStream
             participantName={inCallwith || "Remote User"}
-            isAudioOn={isRemoteAudioOn}
             isLocal={false}
             videoElRef={remoteVideoElRef}
           />
           <div className="absolute right-10 bottom-10 h-50 w-80">
             <VideoStream
               participantName="You"
-              isAudioOn={isAudioOn}
               isLocal={true}
               videoElRef={localVideoElRef}
             />
@@ -74,14 +92,7 @@ const Call = () => {
                 ? "h-12 w-12 rounded-full bg-discord-gray p-0 hover:bg-discord-gray-hover"
                 : "h-12 w-12 rounded-full bg-red-500 p-0 hover:bg-red-600"
             }
-            onClick={() => {
-              setParticipants((prev) =>
-                prev.map((p) =>
-                  p.name === "You" ? { ...p, isMuted: isAudioOn } : p
-                )
-              );
-              toggleLocalAudio(!isAudioOn);
-            }}
+            onClick={() => toggleLocalAudio(!isAudioOn)}
           >
             {isAudioOn ? (
               <Mic className="h-5 w-5 text-white" />
